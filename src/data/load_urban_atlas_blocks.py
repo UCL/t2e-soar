@@ -8,7 +8,8 @@ from pathlib import Path
 
 import fiona
 import geopandas as gpd
-from shapely import geometry, wkb
+import pandas as pd
+from shapely import geometry
 from tqdm import tqdm
 
 from src import tools
@@ -16,32 +17,22 @@ from src import tools
 logger = tools.get_logger(__name__)
 
 
-def load_urban_blocks(data_dir_path: str) -> None:
+def load_urban_blocks(bounds_in_path: str, data_dir_path: str, blocks_out_path: str) -> None:
     """ """
-    # check that the bounds table exists
-    if not tools.check_table_exists("eu", "bounds"):
-        raise OSError("The eu.bounds table does not exist; this needs to be created prior to proceeding.")
-    # drop existing
-    tools.drop_table("eu", "blocks")
-    # get bounds poly
-    bounds_wkb: str = tools.db_fetch(
-        """
-        SELECT ST_Union(geom_2000) FROM eu.bounds;
-        """
-    )[0][0]
-    bounds_geom = wkb.loads(bounds_wkb, hex=True)  # type: ignore
-    if not (isinstance(bounds_geom, geometry.Polygon | geometry.MultiPolygon)):
-        raise ValueError(
-            f"Encountered {bounds_geom.type} instead of Polygon or MultiPolygon type for bounds."  # type: ignore
-        )
+    tools.validate_filepath(bounds_in_path)
+    tools.validate_directory(data_dir_path)
+    tools.validate_directory(blocks_out_path, create=True)
+    # load bounds
+    bounds_gdf = gpd.read_file(bounds_in_path, layer="bounds")
+    bounds_gdf.geometry = bounds_gdf.geometry.buffer(2000)
+    bounds_geom = bounds_gdf.union_all()
     # filter out unwanted block types
     filter_classes = [
         "Fast transit roads and associated land",
         "Other roads and associated land",
         "Railways and associated land",
     ]
-    # prepare engine for GPD
-    engine = tools.get_sqlalchemy_engine()
+    all_blocks = []
     # iter zip files and load if intersecting bounds
     dir_path: Path = Path(data_dir_path)
     unzip_dir = dir_path / "temp_unzipped/"
@@ -87,40 +78,23 @@ def load_urban_blocks(data_dir_path: str) -> None:
                             "pop2018",
                             "geom",
                         ]
-                        gdf_exp[cols].to_postgis(
-                            "blocks",
-                            engine,
-                            if_exists="append",
-                            schema="eu",
-                            index=True,
-                            index_label="temp_fid",
-                        )
+                        all_blocks.append(gdf_exp[cols])
             # Delete the unzipped files
             shutil.rmtree(unzip_dir)
-    tools.db_execute(
-        """
-        ALTER TABLE eu.blocks ADD COLUMN fid serial;
-        ALTER TABLE eu.blocks ADD PRIMARY KEY (fid);
-        ALTER TABLE eu.blocks DROP COLUMN temp_fid;
-    """
-    )
+    if all_blocks:
+        final_gdf = gpd.GeoDataFrame(pd.concat(all_blocks, ignore_index=True))
+        final_gdf.to_file(blocks_out_path, driver="GPKG")
 
 
 if __name__ == "__main__":
-    """
-    Examples are run from the project folder (the folder containing src)
-    python -m src.data.load_urban_atlas_blocks "./temp/urban atlas"
-    """
+    """ """
     if True:
-        parser = argparse.ArgumentParser(description="Load building heights raster data.")
-        parser.add_argument("data_dir_path", type=str, help="Input data directory with zipped data files.")
+        parser = argparse.ArgumentParser(description="Load Urban Atlas data.")
+        parser.add_argument("bounds_in_path", type=str, help="Input data directory with boundary GPKG.")
+        parser.add_argument("data_dir_path", type=str, help="Input data directory with zipped Urban Atlas files.")
+        parser.add_argument("blocks_out_path", type=str, help="Output path for urban blocks GPKG.")
         args = parser.parse_args()
-        logger.info(f"Loading urban atlas blocks data from path: {args.data_dir_path}")
-        data_dir_path = Path(args.data_dir_path)
-        if not data_dir_path.exists():
-            raise OSError("Input directory does not exist")
-        if not data_dir_path.is_dir():
-            raise OSError("Expected input directory, not a file name")
-        load_urban_blocks(args.data_dir_path)
+        logger.info(f"Loading urban atlas blocks data from path: {args.bounds_in_path}")
+        load_urban_blocks(args.bounds_in_path, args.data_dir_path, args.blocks_out_path)
     else:
         load_urban_blocks("./temp/urban atlas")

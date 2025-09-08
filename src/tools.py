@@ -8,6 +8,7 @@ import random
 import time
 import warnings
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 import geopandas as gpd
@@ -34,6 +35,27 @@ def get_logger(name: str, log_level: int = logging.INFO) -> logging.Logger:
 logger = get_logger(__name__)
 
 load_dotenv()
+
+
+def validate_filepath(path: str) -> str:
+    """ """
+    if not Path(path).exists():
+        raise ValueError(f"Path does not exist: {path}")
+    return path
+
+
+def validate_directory(path: str, create: bool = False) -> str:
+    """ """
+    # handle if path is a file
+    if Path(path).is_file() or Path(path).suffix != "":
+        path = str(Path(path).parent)
+    # handle if path is not a dir
+    if not Path(path).is_dir():
+        if create:
+            Path(path).mkdir(parents=True, exist_ok=True)
+        else:
+            raise ValueError(f"Directory does not exist: {path}")
+    return path
 
 
 def get_db_config() -> dict[str, str | None]:

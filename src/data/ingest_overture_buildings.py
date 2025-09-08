@@ -1,9 +1,9 @@
 """ """
 
 import argparse
+from pathlib import Path
 
-from shapely import geometry
-from sqlalchemy.dialects.postgresql import JSON
+import geopandas as gpd
 from tqdm import tqdm
 
 from src import tools
@@ -12,76 +12,49 @@ from src.data import loaders
 logger = tools.get_logger(__name__)
 
 
-def process_extent_buildings(
-    bounds_fid: int | str,
-    bounds_geom: geometry.Polygon,
-    bounds_table: str,
-    target_schema: str,
-    target_table: str,
-):
+def load_overture_buildings(bounds_in_path: str, cities_data_out_dir: str, overwrite: bool = False) -> None:
     """ """
-    engine = tools.get_sqlalchemy_engine()
-    buildings_gdf = loaders.load_buildings(bounds_geom, 3035)  # type:ignore
-    buildings_gdf["bounds_key"] = bounds_table
-    buildings_gdf["bounds_fid"] = bounds_fid
-    buildings_gdf.to_postgis(  # type: ignore
-        target_table,
-        engine,
-        if_exists="append",
-        schema=target_schema,
-        index=True,
-        index_label="fid",
-        dtype={
-            "sources": JSON,
-            "names": JSON,
-        },
-    )
-
-
-def load_overture_buildings(drop: bool = False) -> None:
-    """ """
+    tools.validate_filepath(bounds_in_path)
+    tools.validate_directory(cities_data_out_dir, create=True)
     logger.info("Loading overture buildings")
-    tools.prepare_schema("overture")
-    load_key = "overture_buildings"
-    bounds_schema = "eu"
-    bounds_table = "unioned_bounds_2000"
-    bounds_geom_col = "geom"
-    bounds_fid_col = "fid"
-    target_schema = "overture"
-    target_table = "overture_buildings"
-    bounds_fids_geoms = tools.iter_boundaries(bounds_schema, bounds_table, bounds_fid_col, bounds_geom_col, wgs84=True)
-    # iter
-    for bound_fid, bound_geom in tqdm(bounds_fids_geoms):
-        tools.process_func_with_bound_tracking(
-            bound_fid=bound_fid,
-            load_key=load_key,
-            core_function=process_extent_buildings,
-            func_args=[
-                bound_fid,
-                bound_geom,
-                bounds_table,
-                target_schema,
-                target_table,
-            ],
-            content_schema=target_schema,
-            content_tables=[target_table],
-            bounds_schema=bounds_schema,
-            bounds_table=bounds_table,
-            bounds_geom_col=bounds_geom_col,
-            bounds_fid_col=bounds_fid_col,
-            drop=drop,
-        )
+    bounds_gdf = gpd.read_file(bounds_in_path, layer="bounds")
+    bounds_gdf = bounds_gdf.to_crs(3035)
+    bounds_gdf.geometry = bounds_gdf.geometry.buffer(2000)
+    bounds_gdf = bounds_gdf.to_crs(4326)
+    # loop through bounds and load buildings
+    for bounds_fid, bounds_row in tqdm(bounds_gdf.iterrows(), total=len(bounds_gdf)):
+        output_path = Path(cities_data_out_dir) / f"overture_{bounds_fid}.gpkg"
+        if not overwrite and output_path.exists():
+            logger.info(f"Skipping existing file at path: {output_path}")
+            continue
+        buildings_gdf = loaders.load_buildings(bounds_row.geometry, 3035)
+        buildings_gdf["bounds_fid"] = bounds_fid
+        buildings_gdf.to_file(output_path, driver="GPKG", layer="buildings", overwrite=True)
 
 
 if __name__ == "__main__":
     """
-    Examples are run from the project folder (the folder containing src)
-    python -m src.data.ingest_overture_buildings
+    python -m src.data.ingest_overture_buildings temp/datasets/boundaries.gpkg temp/cities_data False
     """
     if True:
-        parser = argparse.ArgumentParser(description="Load overture buildings to DB.")
-        parser.add_argument("--drop", action="store_true", help="Whether to drop existing tables.")
+        parser = argparse.ArgumentParser(description="Load overture buildings.")
+        parser.add_argument("bounds_in_path", type=str, help="Input data directory with boundary GPKG.")
+        parser.add_argument("cities_data_out_dir", type=str, help="Output data directory for city GPKG files.")
+        parser.add_argument(
+            "--overwrite",
+            action="store_true",
+            help="Overwrite existing files (default: False)",
+            default=False,
+        )
         args = parser.parse_args()
-        load_overture_buildings(drop=args.drop)
+        load_overture_buildings(
+            bounds_in_path=args.bounds_in_path,
+            cities_data_out_dir=args.cities_data_out_dir,
+            overwrite=args.overwrite,
+        )
     else:
-        load_overture_buildings(drop=False)
+        load_overture_buildings(
+            bounds_in_path="temp/datasets/boundaries.gpkg",
+            cities_data_out_dir="temp/cities_data",
+            overwrite=False,
+        )
