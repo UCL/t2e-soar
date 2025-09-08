@@ -18,7 +18,6 @@ import pandas as pd
 import psycopg
 import sqlalchemy
 from cityseer.tools import io
-from dotenv import load_dotenv
 from pyproj import Transformer
 from shapely import geometry, ops, wkb
 from shapely.ops import transform
@@ -33,8 +32,6 @@ def get_logger(name: str, log_level: int = logging.INFO) -> logging.Logger:
 
 
 logger = get_logger(__name__)
-
-load_dotenv()
 
 
 def validate_filepath(path: str) -> str:

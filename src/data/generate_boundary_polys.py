@@ -70,7 +70,9 @@ def extract_boundary_polys(raster_in_path: str, bounds_out_path: str) -> None:
 
 
 if __name__ == "__main__":
-    """ """
+    """
+    python -m src.data.generate_boundary_polys temp/HDENS-CLST-2021/HDENS_CLST_2021.tif temp/datasets/boundaries.gpkg
+    """
     logger.info("Converting raster boundaries to polygons.")
     if True:
         parser = argparse.ArgumentParser(description="Load building heights raster data.")
