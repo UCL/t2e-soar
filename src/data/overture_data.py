@@ -42,6 +42,7 @@ def load_network(
         edges_gdf=edges_gdf,  # type: ignore
         # not dropping "parking_aisle" because this sometimes removes important links
     )
+    multigraph.graph["crs"] = to_crs
     multigraph = io._auto_clean_network(
         multigraph,
         geom_wgs=bounds_geom_wgs,
@@ -51,7 +52,7 @@ def load_network(
         green_footways=True,
         green_service_roads=False,
     )
-    clean_edges_gdf = io.geopandas_from_nx(multigraph, crs=to_crs)
+    clean_edges_gdf = io.geopandas_from_nx(multigraph)
     # JSON
     nodes_gdf["sources"] = nodes_gdf["sources"].apply(tools.col_to_json)  # type: ignore
     for col in [

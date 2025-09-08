@@ -1,13 +1,15 @@
 """ """
 
 import argparse
+import json
 import logging
 import warnings
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import geopandas as gpd
 import networkx as nx
+import numpy as np
 import pandas as pd
 from pyproj import Transformer
 from shapely import geometry, ops
@@ -43,6 +45,28 @@ def validate_directory(path: str, create: bool = False) -> str:
         else:
             raise ValueError(f"Directory does not exist: {path}")
     return path
+
+
+def convert_ndarrays(obj: Any) -> Any:
+    if isinstance(obj, np.ndarray):
+        return convert_ndarrays(obj.tolist())
+    if isinstance(obj, list | tuple):
+        return [convert_ndarrays(item) for item in obj]
+    if isinstance(obj, dict):
+        return {key: convert_ndarrays(value) for key, value in obj.items()}
+    if obj is None or obj == "":
+        return None
+    if isinstance(obj, str | int | float):
+        return obj
+    raise ValueError(f"Unhandled type when converting: {type(obj).__name__}")
+
+
+def col_to_json(obj: Any) -> str | None:
+    """Extracts JSON from a geoparquet / geopandas column"""
+    if obj is None or (isinstance(obj, str) and obj == ""):
+        return "null"
+    obj = convert_ndarrays(obj)
+    return json.dumps(obj)
 
 
 Connector = tuple[str, geometry.Point]

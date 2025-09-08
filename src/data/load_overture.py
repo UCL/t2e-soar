@@ -1,12 +1,4 @@
-"""ingest_overture
-
-Utilities to build Overture-derived GeoPackage outputs for a set of
-boundary geometries. Each output file contains network (primal + dual),
-infrastructure, places and buildings layers for a single boundary.
-
-The module intentionally keeps logic small and delegates heavy lifting to
-`src.data.loaders` and `cityseer.tools`.
-"""
+""" """
 
 import argparse
 import os
@@ -36,7 +28,7 @@ def load_overture_layers(bounds_fid: str, bounds_geom_wgs_wkt: str, output_path:
     Shapely geometry, and uses loader helpers to read and write the
     resulting GeoDataFrames into `output_path`.
     """
-
+    os.environ["CITYSEER_QUIET_MODE"] = "true"
     # Reconstruct geometry from WKT (safe for multiprocessing)
     bounds_geom_wgs: geometry.Polygon = wkt.loads(bounds_geom_wgs_wkt)  # type: ignore
     # NETWORK
@@ -89,7 +81,6 @@ def load_overture_for_bounds(
     worker task to create a GeoPackage for each boundary.
     """
     # set to quiet mode
-    os.environ["CITYSEER_QUIET_MODE"] = "true"
     tools.validate_filepath(bounds_in_path)
     tools.validate_directory(cities_data_out_dir, create=True)
     logger.info("Loading overture networks")
