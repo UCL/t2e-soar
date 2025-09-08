@@ -113,7 +113,7 @@ def load_overture_for_bounds(
                 args = (bounds_fid, bounds_row.geometry.wkt, output_path)
                 futs[executor.submit(load_overture_layers, *args)] = args  # type: ignore
             # iterate over completed futures and update progress with tqdm
-            for fut in tqdm(futures.as_completed(futs), total=len(futs)):
+            for fut in tqdm(futures.as_completed(futs), total=len(futs), desc="Loading Overture"):
                 try:
                     fut.result()
                 except Exception as exc:
