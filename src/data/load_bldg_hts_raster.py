@@ -83,7 +83,10 @@ def load_bldg_hts(bounds_in_path: str, data_dir_path: str, cities_data_out_dir: 
 
 if __name__ == "__main__":
     """
-    python -m src.data.load_bldg_hts_raster temp/datasets/boundaries.gpkg temp/Results-Building_Height_2012_3035_eu temp/cities_data 
+    python -m src.data.load_bldg_hts_raster \
+        temp/datasets/boundaries.gpkg \
+            temp/Results-Building_Height_2012_3035_eu \
+                temp/cities_data/heights 
     """
     if True:
         parser = argparse.ArgumentParser(description="Load building heights raster data.")
@@ -99,5 +102,5 @@ if __name__ == "__main__":
         load_bldg_hts(
             "temp/datasets/boundaries.gpkg",
             "temp/Results-Building_Height_2012_3035_eu",
-            "temp/cities_data",
+            "temp/cities_data/heights",
         )

@@ -6,6 +6,8 @@ import traceback
 from concurrent import futures
 from pathlib import Path
 
+os.environ["CITYSEER_QUIET_MODE"] = "true"
+
 import geopandas as gpd
 from cityseer.tools import graphs, io
 from shapely import geometry, wkt
@@ -28,7 +30,6 @@ def load_overture_layers(bounds_fid: str, bounds_geom_wgs_wkt: str, output_path:
     Shapely geometry, and uses loader helpers to read and write the
     resulting GeoDataFrames into `output_path`.
     """
-    os.environ["CITYSEER_QUIET_MODE"] = "true"
     # Reconstruct geometry from WKT (safe for multiprocessing)
     bounds_geom_wgs: geometry.Polygon = wkt.loads(bounds_geom_wgs_wkt)  # type: ignore
     # NETWORK
@@ -98,7 +99,7 @@ def load_overture_for_bounds(
             for bounds_fid, bounds_row in bounds_gdf.iterrows():
                 output_path = Path(cities_data_out_dir) / f"overture_{bounds_fid}.gpkg"
                 if output_path.exists() and not overwrite:
-                    logger.info(f"Skipping existing file: {output_path}")
+                    # logger.info(f"Skipping existing file: {output_path}")
                     continue
                 # Pass WKT to workers to avoid pickling Shapely geometry objects
                 args = (bounds_fid, bounds_row.geometry.wkt, output_path)
@@ -117,7 +118,10 @@ def load_overture_for_bounds(
 
 if __name__ == "__main__":
     """
-    python -m src.data.load_overture temp/datasets/boundaries.gpkg temp/cities_data --parallel_workers 4
+    python -m src.data.load_overture \
+        temp/datasets/boundaries.gpkg \
+            temp/cities_data/overture \
+                --parallel_workers 4
     """
     if True:
         parser = argparse.ArgumentParser(description="Load overture networks.")
@@ -145,7 +149,7 @@ if __name__ == "__main__":
     else:
         load_overture_for_bounds(
             bounds_in_path="temp/datasets/boundaries.gpkg",
-            cities_data_out_dir="temp/cities_data",
+            cities_data_out_dir="temp/cities_data/overture",
             parallel_workers=4,
             overwrite=False,
         )
