@@ -98,8 +98,8 @@ def load_overture_for_bounds(
             # loop through bounds and load networks
             for bounds_fid, bounds_row in bounds_gdf.iterrows():
                 output_path = Path(cities_data_out_dir) / f"overture_{bounds_fid}.gpkg"
-                if output_path.exists() and not overwrite:
-                    # logger.info(f"Skipping existing file: {output_path}")
+                if output_path.exists() and overwrite is not True:
+                    logger.info(f"Skipping existing file: {output_path}")
                     continue
                 # Pass WKT to workers to avoid pickling Shapely geometry objects
                 args = (bounds_fid, bounds_row.geometry.wkt, output_path)
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     python -m src.data.load_overture \
         temp/datasets/boundaries.gpkg \
             temp/cities_data/overture \
-                --parallel_workers 4
+                --parallel_workers 6
     """
     if True:
         parser = argparse.ArgumentParser(description="Load overture networks.")

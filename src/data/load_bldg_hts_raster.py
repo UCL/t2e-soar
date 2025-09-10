@@ -86,7 +86,7 @@ if __name__ == "__main__":
     python -m src.data.load_bldg_hts_raster \
         temp/datasets/boundaries.gpkg \
             temp/Results-Building_Height_2012_3035_eu \
-                temp/cities_data/heights 
+                temp/cities_data/heights
     """
     if True:
         parser = argparse.ArgumentParser(description="Load building heights raster data.")
