@@ -91,8 +91,13 @@ def load_urban_blocks(bounds_in_path: str, data_dir_path: str, blocks_out_path: 
 
 
 if __name__ == "__main__":
-    """ """
-    if False:
+    """
+    python -m src.data.load_urban_atlas_blocks \
+        temp/datasets/boundaries.gpkg \
+            temp/Results-UA_2018_3035_eu \
+                temp/cities_data/blocks.gpkg
+    """
+    if True:
         parser = argparse.ArgumentParser(description="Load Urban Atlas data.")
         parser.add_argument("bounds_in_path", type=str, help="Input data directory with boundary GPKG.")
         parser.add_argument("data_dir_path", type=str, help="Input data directory with zipped Urban Atlas files.")

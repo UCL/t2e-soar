@@ -97,9 +97,7 @@ def load_overture_layers(bounds_fid: str, bounds_geom_wgs_wkt: str, output_path:
     buildings_gdf.to_file(output_path, driver="GPKG", layer="buildings")
 
 
-def load_overture_for_bounds(
-    bounds_in_path: str, cities_data_out_dir: str, parallel_workers: int, overwrite: bool
-) -> None:
+def load_overture_for_bounds(bounds_in_path: str, data_out_dir: str, parallel_workers: int, overwrite: bool) -> None:
     """Dispatch workers to produce per-boundary Overture GeoPackages.
 
     Reads a `bounds` layer from `bounds_in_path`, buffers each boundary in a
@@ -108,7 +106,7 @@ def load_overture_for_bounds(
     """
     # set to quiet mode
     tools.validate_filepath(bounds_in_path)
-    tools.validate_directory(cities_data_out_dir, create=True)
+    tools.validate_directory(data_out_dir, create=True)
     logger.info("Loading overture networks")
     bounds_gdf = gpd.read_file(bounds_in_path, layer="bounds")
     # Buffer in a projected CRS so the 2000-unit buffer is in metres.
@@ -122,7 +120,7 @@ def load_overture_for_bounds(
         try:
             # loop through bounds and load networks
             for bounds_fid, bounds_row in bounds_gdf.iterrows():
-                output_path = Path(cities_data_out_dir) / f"overture_{bounds_fid}.gpkg"
+                output_path = Path(data_out_dir) / f"overture_{bounds_fid}.gpkg"
                 # If the file exists and overwrite is False, check whether it
                 # already contains all required layers. If so, skip. If not,
                 # rebuild (i.e., set overwrite for layers to True so existing
@@ -159,7 +157,7 @@ if __name__ == "__main__":
     if True:
         parser = argparse.ArgumentParser(description="Load overture networks.")
         parser.add_argument("bounds_in_path", type=str, help="Input data directory with boundary GPKG.")
-        parser.add_argument("cities_data_out_dir", type=str, help="Output data directory for city GPKG files.")
+        parser.add_argument("data_out_dir", type=str, help="Output data directory for city GPKG files.")
         parser.add_argument(
             "--parallel_workers",
             type=int,
@@ -175,14 +173,14 @@ if __name__ == "__main__":
         args = parser.parse_args()
         load_overture_for_bounds(
             bounds_in_path=args.bounds_in_path,
-            cities_data_out_dir=args.cities_data_out_dir,
+            data_out_dir=args.data_out_dir,
             parallel_workers=args.parallel_workers,
             overwrite=args.overwrite,
         )
     else:
         load_overture_for_bounds(
             bounds_in_path="temp/datasets/boundaries.gpkg",
-            cities_data_out_dir="temp/cities_data/overture",
+            data_out_dir="temp/cities_data/overture",
             parallel_workers=4,
             overwrite=False,
         )
