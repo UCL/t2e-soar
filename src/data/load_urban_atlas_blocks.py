@@ -3,6 +3,7 @@
 import argparse
 import os
 import shutil
+import warnings
 import zipfile
 from pathlib import Path
 
@@ -14,11 +15,14 @@ from tqdm import tqdm
 
 from src import tools
 
+warnings.filterwarnings("ignore", message="More than one layer found", category=UserWarning)
+
 logger = tools.get_logger(__name__)
 
 
 def load_urban_blocks(bounds_in_path: str, data_dir_path: str, blocks_out_path: str) -> None:
     """ """
+    logger.info(f"Loading urban atlas blocks data from path: {bounds_in_path}")
     tools.validate_filepath(bounds_in_path)
     tools.validate_directory(data_dir_path)
     tools.validate_directory(blocks_out_path, create=True)
@@ -57,13 +61,13 @@ def load_urban_blocks(bounds_in_path: str, data_dir_path: str, blocks_out_path: 
                                 continue
                         gdf = gpd.read_file(full_gpkg_path)
                         # discard rows if in filtered classes
-                        gdf = gdf[~gdf.class_2018.isin(filter_classes)]
+                        gdf = gdf.loc[~gdf.class_2018.isin(filter_classes)]
                         # filter spatially
                         gdf["bbox"] = gdf["geometry"].envelope
-                        gdf.set_geometry("bbox", inplace=True)
-                        gdf_itx = gdf[gdf.intersects(bounds_geom)]
-                        gdf_itx.rename(columns={"geometry": "geom", "Pop2018": "pop2018"}, inplace=True)
-                        gdf_itx.set_geometry("geom", inplace=True)
+                        gdf_itx = gdf.set_geometry("bbox")
+                        gdf_itx = gdf_itx.loc[gdf_itx.intersects(bounds_geom)]
+                        gdf_itx = gdf_itx.rename(columns={"geometry": "geom", "Pop2018": "pop2018"})
+                        gdf_itx = gdf_itx.set_geometry("geom")
                         # explode multipolygons
                         gdf_exp = gdf_itx.explode(index_parts=False)
                         # write to postgis
@@ -88,13 +92,20 @@ def load_urban_blocks(bounds_in_path: str, data_dir_path: str, blocks_out_path: 
 
 if __name__ == "__main__":
     """ """
-    if True:
+    if False:
         parser = argparse.ArgumentParser(description="Load Urban Atlas data.")
         parser.add_argument("bounds_in_path", type=str, help="Input data directory with boundary GPKG.")
         parser.add_argument("data_dir_path", type=str, help="Input data directory with zipped Urban Atlas files.")
         parser.add_argument("blocks_out_path", type=str, help="Output path for urban blocks GPKG.")
         args = parser.parse_args()
-        logger.info(f"Loading urban atlas blocks data from path: {args.bounds_in_path}")
-        load_urban_blocks(args.bounds_in_path, args.data_dir_path, args.blocks_out_path)
+        load_urban_blocks(
+            bounds_in_path=args.bounds_in_path,
+            data_dir_path=args.data_dir_path,
+            blocks_out_path=args.blocks_out_path,
+        )
     else:
-        load_urban_blocks("./temp/urban atlas")
+        load_urban_blocks(
+            bounds_in_path="temp/datasets/boundaries.gpkg",
+            data_dir_path="temp/Results-UA_2018_3035_eu",
+            blocks_out_path="temp/cities_data/blocks.gpkg",
+        )
