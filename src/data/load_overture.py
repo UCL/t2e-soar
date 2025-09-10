@@ -8,6 +8,7 @@ from pathlib import Path
 
 os.environ["CITYSEER_QUIET_MODE"] = "true"
 
+import fiona
 import geopandas as gpd
 from cityseer.tools import graphs, io
 from shapely import geometry, wkt
@@ -20,6 +21,30 @@ logger = tools.get_logger(__name__)
 
 
 WORKING_CRS = 3035
+
+# Layers expected to be present in each per-boundary GeoPackage
+REQUIRED_LAYERS = [
+    "nodes",
+    "edges",
+    "clean_edges",
+    "dual_nodes",
+    "dual_edges",
+    "infrastructure",
+    "places",
+    "buildings",
+]
+
+
+def gpkg_has_all_layers(gpkg_path: str) -> bool:
+    """Return True if the GeoPackage at `gpkg_path` contains all `required_layers`.
+
+    Uses fiona to list layers. Any error while inspecting the file is treated as "not all layers present".
+    """
+    try:
+        layers = fiona.listlayers(gpkg_path)
+    except Exception:
+        return False
+    return set(REQUIRED_LAYERS).issubset(set(layers))
 
 
 def load_overture_layers(bounds_fid: str, bounds_geom_wgs_wkt: str, output_path: str) -> None:
@@ -98,9 +123,17 @@ def load_overture_for_bounds(
             # loop through bounds and load networks
             for bounds_fid, bounds_row in bounds_gdf.iterrows():
                 output_path = Path(cities_data_out_dir) / f"overture_{bounds_fid}.gpkg"
-                if output_path.exists() and overwrite is not True:
-                    logger.info(f"Skipping existing file: {output_path}")
-                    continue
+                # If the file exists and overwrite is False, check whether it
+                # already contains all required layers. If so, skip. If not,
+                # rebuild (i.e., set overwrite for layers to True so existing
+                # incomplete layers are replaced).
+                if output_path.exists() and not overwrite:
+                    has_all = gpkg_has_all_layers(str(output_path))
+                    if has_all:
+                        logger.info(f"Skipping existing file with all layers: {output_path}")
+                        continue
+                    else:
+                        logger.info(f"File missing some layers, will overwrite: {output_path}")
                 # Pass WKT to workers to avoid pickling Shapely geometry objects
                 args = (bounds_fid, bounds_row.geometry.wkt, output_path)
                 futs[executor.submit(load_overture_layers, *args)] = args  # type: ignore
