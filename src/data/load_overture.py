@@ -8,9 +8,7 @@ from pathlib import Path
 
 os.environ["CITYSEER_QUIET_MODE"] = "true"
 
-import fiona
 import geopandas as gpd
-from cityseer.tools import graphs, io
 from shapely import geometry, wkt
 from tqdm import tqdm
 
@@ -27,38 +25,22 @@ REQUIRED_LAYERS = [
     "nodes",
     "edges",
     "clean_edges",
-    "dual_nodes",
-    "dual_edges",
     "infrastructure",
     "places",
     "buildings",
 ]
 
 
-def gpkg_has_all_layers(gpkg_path: str) -> bool:
-    """Return True if the GeoPackage at `gpkg_path` contains all `required_layers`.
-
-    Uses fiona to list layers. Any error while inspecting the file is treated as "not all layers present".
-    """
-    try:
-        layers = fiona.listlayers(gpkg_path)
-    except Exception:
-        return False
-    return set(REQUIRED_LAYERS).issubset(set(layers))
-
-
-def load_overture_layers(bounds_fid: str, bounds_geom_wgs_wkt: str, output_path: str) -> None:
-    """Create and write per-boundary GeoPackage layers.
-
-    This function receives a WKT representation of the boundary geometry
-    (so it can be safely sent to worker processes), reconstructs the
-    Shapely geometry, and uses loader helpers to read and write the
-    resulting GeoDataFrames into `output_path`.
-    """
+def load_overture_layers(bounds_fid: str, bounds_geom_wkt: str, output_path: str) -> None:
+    """ """
     # Reconstruct geometry from WKT (safe for multiprocessing)
-    bounds_geom_wgs: geometry.Polygon = wkt.loads(bounds_geom_wgs_wkt)  # type: ignore
+    bounds_geom: geometry.Polygon = wkt.loads(bounds_geom_wkt)  # type: ignore
+    bounds_geom_2km = bounds_geom.buffer(2000)
+    bounds_geom_2km_wgs = tools.reproject_geometry(bounds_geom_2km, from_crs=WORKING_CRS, to_crs=4326)
+    bounds_geom_10km = bounds_geom.buffer(10000)
+    bounds_geom_10km_wgs = tools.reproject_geometry(bounds_geom_10km, from_crs=WORKING_CRS, to_crs=4326)
     # NETWORK
-    nodes_gdf, edges_gdf, clean_edges_gdf = overture_data.load_network(bounds_geom_wgs, to_crs=WORKING_CRS)
+    nodes_gdf, edges_gdf, clean_edges_gdf = overture_data.load_network(bounds_geom_10km_wgs, to_crs=WORKING_CRS)
     # nodes
     nodes_gdf["bounds_fid"] = bounds_fid
     nodes_gdf.to_file(output_path, driver="GPKG", layer="nodes")
@@ -68,31 +50,19 @@ def load_overture_layers(bounds_fid: str, bounds_geom_wgs_wkt: str, output_path:
     # clean edges
     clean_edges_gdf["bounds_fid"] = bounds_fid
     clean_edges_gdf.to_file(output_path, driver="GPKG", layer="clean_edges")
-    # DUAL CLEAN NETWORK
-    nx_clean = io.nx_from_generic_geopandas(clean_edges_gdf)
-    # cast to dual
-    nx_dual = graphs.nx_to_dual(nx_clean)
-    # back to GDF
-    nodes_dual_gdf, edges_dual_gdf, _network_structure = io.network_structure_from_nx(nx_dual)
-    # write dual nodes
-    nodes_dual_gdf["bounds_fid"] = bounds_fid
-    nodes_dual_gdf.to_file(output_path, driver="GPKG", layer="dual_nodes")
-    # write dual edges
-    edges_dual_gdf["bounds_fid"] = bounds_fid
-    edges_dual_gdf.to_file(output_path, driver="GPKG", layer="dual_edges")
 
     # OVERTURE INFRASTRUCTURE
-    infrast_gdf = overture_data.load_infrastructure(bounds_geom_wgs, to_crs=WORKING_CRS)
+    infrast_gdf = overture_data.load_infrastructure(bounds_geom_2km_wgs, to_crs=WORKING_CRS)
     infrast_gdf["bounds_fid"] = bounds_fid
     infrast_gdf.to_file(output_path, driver="GPKG", layer="infrastructure")
 
     # OVERTURE PLACES
-    places_gdf = overture_data.load_places(bounds_geom_wgs, to_crs=WORKING_CRS)
+    places_gdf = overture_data.load_places(bounds_geom_2km_wgs, to_crs=WORKING_CRS)
     places_gdf["bounds_fid"] = bounds_fid
     places_gdf.to_file(output_path, driver="GPKG", layer="places")
 
     # OVERTURE BUILDINGS
-    buildings_gdf = overture_data.load_buildings(bounds_geom_wgs, to_crs=WORKING_CRS)
+    buildings_gdf = overture_data.load_buildings(bounds_geom_2km_wgs, to_crs=WORKING_CRS)
     buildings_gdf["bounds_fid"] = bounds_fid
     buildings_gdf.to_file(output_path, driver="GPKG", layer="buildings")
 
@@ -109,11 +79,7 @@ def load_overture_for_bounds(bounds_in_path: str, data_out_dir: str, parallel_wo
     tools.validate_directory(data_out_dir, create=True)
     logger.info("Loading overture networks")
     bounds_gdf = gpd.read_file(bounds_in_path, layer="bounds")
-    # Buffer in a projected CRS so the 2000-unit buffer is in metres.
     bounds_gdf = bounds_gdf.to_crs(WORKING_CRS)
-    bounds_gdf.geometry = bounds_gdf.geometry.buffer(2000)
-    # Convert back to WGS84 for downstream loaders that expect geographic CRS
-    bounds_gdf = bounds_gdf.to_crs(4326)
     # use futures to parallelize
     futs = {}
     with futures.ProcessPoolExecutor(max_workers=parallel_workers) as executor:
@@ -126,7 +92,7 @@ def load_overture_for_bounds(bounds_in_path: str, data_out_dir: str, parallel_wo
                 # rebuild (i.e., set overwrite for layers to True so existing
                 # incomplete layers are replaced).
                 if output_path.exists() and not overwrite:
-                    has_all = gpkg_has_all_layers(str(output_path))
+                    has_all = tools.gpkg_has_all_layers(str(output_path), REQUIRED_LAYERS)
                     if has_all:
                         logger.info(f"Skipping existing file with all layers: {output_path}")
                         continue

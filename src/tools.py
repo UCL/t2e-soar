@@ -7,6 +7,7 @@ import warnings
 from pathlib import Path
 from typing import Any, cast
 
+import fiona
 import geopandas as gpd
 import networkx as nx
 import numpy as np
@@ -45,6 +46,18 @@ def validate_directory(path: str, create: bool = False) -> str:
         else:
             raise ValueError(f"Directory does not exist: {path}")
     return path
+
+
+def gpkg_has_all_layers(gpkg_path: str, required_layers: list[str]) -> bool:
+    """Return True if the GeoPackage at `gpkg_path` contains all `required_layers`.
+
+    Uses fiona to list layers. Any error while inspecting the file is treated as "not all layers present".
+    """
+    try:
+        layers = fiona.listlayers(gpkg_path)
+    except Exception:
+        return False
+    return set(required_layers).issubset(set(layers))
 
 
 def convert_ndarrays(obj: Any) -> Any:
