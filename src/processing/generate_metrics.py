@@ -41,6 +41,10 @@ def process_metrics(
         logger.info(f"Processing metrics for bounds fid: {bounds_fid}")
         tools.validate_directory(overture_data_dir)
         overture_path = Path(overture_data_dir) / f"overture_{bounds_fid}.gpkg"
+        if not overture_path.exists():
+            logger.warning(f"Missing overture file for bounds fid {bounds_fid}, skipping: {overture_path}")
+            continue
+        # output path
         tools.validate_directory(processed_data_dir, create=True)
         output_path = Path(processed_data_dir) / f"metrics_{bounds_fid}.gpkg"
         # check if already exists
