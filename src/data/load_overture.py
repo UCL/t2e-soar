@@ -1,12 +1,9 @@
 """ """
 
 import argparse
-import os
 import traceback
 from concurrent import futures
 from pathlib import Path
-
-os.environ["CITYSEER_QUIET_MODE"] = "true"
 
 import geopandas as gpd
 from shapely import geometry, wkt

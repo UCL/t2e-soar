@@ -3,6 +3,11 @@ See src/raw_landuse_schema.csv
 Taken from https://github.com/OvertureMaps/schema/blob/0f9fdbcd88e7c0fc08e9c8c68d32cb334dd1d450/docs/schema/concepts/by-theme/places/overture_categories.csv#L16
 """
 
+from cityseer import config
+
+config.SKIP_VALIDATION = True
+config.QUIET_MODE = True
+
 import geopandas as gpd
 from cityseer.tools import io
 from overturemaps import core
@@ -47,7 +52,7 @@ def load_network(
         multigraph,
         geom_wgs=bounds_geom_wgs,
         to_crs_code=to_crs,
-        final_clean_distances=(5, 10),
+        final_clean_distances=(8,),
         remove_disconnected=100,
         green_footways=True,
         green_service_roads=False,
