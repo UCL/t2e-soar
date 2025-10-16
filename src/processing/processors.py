@@ -240,7 +240,6 @@ def process_blocks_buildings(
         blocks_gdf["block_orientation"] = momepy.orientation(blocks_gdf)
     # joint metrics require spatial join
     if not blocks_gdf.empty and not bldgs_gdf.empty:
-        # Add unique identifiers for both dataframes
         blocks_gdf["uID"] = blocks_gdf.index.values
         merged_gdf = gpd.sjoin(
             bldgs_gdf,
@@ -250,15 +249,14 @@ def process_blocks_buildings(
             lsuffix="bldg",
             rsuffix="block",
         )
-        blocks_gdf["block_covered_ratio"] = momepy.AreaRatio(
-            blocks_gdf,
-            merged_gdf,
-            "block_area",
-            "area",
-            left_unique_id="uID",
-            right_unique_id="uID",
-        ).series
-    # calculate
+        # Calculate covered ratio: sum of building areas per block / block area
+        # Group buildings by block ID and sum their areas
+        building_area_per_block = merged_gdf.groupby("uID")["area"].sum()
+        # Divide by block area to get coverage ratio
+        blocks_gdf["block_covered_ratio"] = building_area_per_block / blocks_gdf["block_area"]
+        # Fill NaN values (blocks with no buildings) with 0
+        blocks_gdf["block_covered_ratio"] = blocks_gdf["block_covered_ratio"].fillna(0)
+    # block stats
     blocks_gdf["centroid"] = blocks_gdf.geometry.centroid
     blocks_gdf.set_geometry("centroid", inplace=True)
     block_stats_cols = [
