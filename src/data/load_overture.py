@@ -100,11 +100,18 @@ def load_overture_for_bounds(bounds_in_path: str, data_out_dir: str, parallel_wo
                 futs[executor.submit(load_overture_layers, *args)] = args  # type: ignore
             # iterate over completed futures and update progress with tqdm
             for fut in tqdm(futures.as_completed(futs), total=len(futs), desc="Loading Overture"):
+                # Immediately raise any exception that occurred in the worker
+                # This will stop processing and report the error right away
+                args = futs[fut]
+                bounds_fid = args[0]
                 try:
                     fut.result()
+                    logger.info(f"Successfully completed: {bounds_fid}")
                 except Exception as exc:
+                    logger.error(f"Error processing {bounds_fid}:")
                     logger.error(traceback.format_exc())
-                    raise RuntimeError("An error occurred in the background task") from exc
+                    # Immediately raise to stop all processing
+                    raise RuntimeError(f"Error processing {bounds_fid}") from exc
         except KeyboardInterrupt:
             executor.shutdown(wait=True, cancel_futures=True)
             raise

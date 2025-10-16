@@ -1,10 +1,12 @@
 """ """
 
+from pathlib import Path
+
 import geopandas as gpd
 import momepy
 import numpy as np
+import rasterio
 from cityseer.metrics import layers, networks
-from rasterio.io import MemoryFile
 from rasterio.mask import mask
 from tqdm import tqdm
 
@@ -12,15 +14,14 @@ from src import tools
 
 logger = tools.get_logger(__name__)
 
-OVERTURE_SCHEMA = tools.generate_overture_schema()
+OVERTURE_SCHEMA = tools.generate_overture_schema()  # type: ignore
+DISTANCES = [80, 400, 800, 1200, 1600]
 
 
 def process_centrality(nodes_gdf: gpd.GeoDataFrame, network_structure) -> gpd.GeoDataFrame:
     """ """
     logger.info("Computing centrality")
-    nodes_gdf = networks.node_centrality_shortest(
-        network_structure, nodes_gdf, distances=[500, 1000, 2000, 5000, 10000]
-    )
+    nodes_gdf = networks.node_centrality_shortest(network_structure, nodes_gdf, distances=DISTANCES + [4800])
     return nodes_gdf
 
 
@@ -29,29 +30,54 @@ def process_places(
 ) -> gpd.GeoDataFrame:
     """ """
     logger.info("Computing places")
-    # prepare keys
-    landuse_keys = list(OVERTURE_SCHEMA.keys())
-    # remove structure and geography category
-    landuse_keys.remove("structure_and_geography")
-    places_gdf = places_gdf[places_gdf["main_cat"] != "structure_and_geography"]  # type: ignore
-    # remove mass_media category
-    landuse_keys.remove("mass_media")
-    places_gdf = places_gdf[places_gdf["main_cat"] != "mass_media"]  # type: ignore
+    # filter to schema classes
+    places_gdf = places_gdf[places_gdf["major_lu_schema_class"].isin(list(OVERTURE_SCHEMA.keys()))]
+    # create merged categories
+    places_gdf["merged_cats"] = places_gdf["major_lu_schema_class"]
+    # merge eat_and_drink
+    places_gdf.loc[places_gdf["major_lu_schema_class"].isin(["restaurant", "bar", "cafe"]), "merged_cats"] = (
+        "eat_and_drink"
+    )
+    # merge business_and_services
+    places_gdf.loc[
+        places_gdf["major_lu_schema_class"].isin(
+            [
+                "automotive",
+                "beauty_and_spa",
+                "pets",
+                "real_estate",
+                "travel",
+                "home_service",
+                "financial_service",
+                "private_establishments_and_corporates",
+                "business_to_business",
+                "professional_services",
+                "mass_media",
+            ]
+        ),
+        "merged_cats",
+    ] = "business_and_services"
+    places_gdf["merged_cats"].unique()
+    # rename some categories
+    places_gdf.loc[places_gdf["merged_cats"] == "public_service_and_government", "merged_cats"] = "public_services"
+    places_gdf.loc[places_gdf["merged_cats"] == "religious_organization", "merged_cats"] = "religious"
+    # landuses
+    landuse_keys = places_gdf["merged_cats"].unique().tolist()
     # compute accessibilities
     nodes_gdf, places_gdf = layers.compute_accessibilities(
         places_gdf,  # type: ignore
-        landuse_column_label="main_cat",
+        landuse_column_label="merged_cats",
         accessibility_keys=landuse_keys,
         nodes_gdf=nodes_gdf,
         network_structure=network_structure,
-        distances=[100, 500, 1500],
+        distances=DISTANCES,
     )
     nodes_gdf, places_gdf = layers.compute_mixed_uses(
         places_gdf,
-        landuse_column_label="main_cat",
+        landuse_column_label="merged_cats",
         nodes_gdf=nodes_gdf,
         network_structure=network_structure,
-        distances=[100, 500, 1500],
+        distances=DISTANCES,
     )
     # infrastructure
     street_furn_keys = [
@@ -93,7 +119,7 @@ def process_places(
         accessibility_keys=landuse_keys,
         nodes_gdf=nodes_gdf,
         network_structure=network_structure,
-        distances=[100, 500, 1500],
+        distances=DISTANCES,
     )
     return nodes_gdf
 
@@ -102,7 +128,7 @@ def process_blocks_buildings(
     nodes_gdf: gpd.GeoDataFrame,
     bldgs_gdf: gpd.GeoDataFrame,
     blocks_gdf: gpd.GeoDataFrame,
-    raster_bytes: bytes | None,
+    hts_path: str | Path,
     network_structure,
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """ """
@@ -127,22 +153,31 @@ def process_blocks_buildings(
         bldgs_gdf.reset_index(drop=True, inplace=True)
         bldgs_gdf.index = bldgs_gdf.index.astype(str)
         # sample heights
-        if raster_bytes is None:
-            bldgs_gdf["mean_height"] = np.nan
-        else:
+        with rasterio.open(hts_path) as rast_src:
             logger.info("Sampling building heights")
             heights = []
-            with MemoryFile(raster_bytes) as memfile, memfile.open() as rast_data:
-                for _idx, bldg_row in tqdm(bldgs_gdf.iterrows(), total=len(bldgs_gdf)):
-                    try:
-                        # raster values within building polygon
-                        out_image, _ = mask(rast_data, [bldg_row.geom.buffer(5)], crop=True)
-                        # mean height, excluding nodata values
-                        valid_pixels = out_image[0][out_image[0] != rast_data.nodata]
-                        mean_height = np.mean(valid_pixels) if len(valid_pixels) > 0 else np.nan
-                        heights.append(mean_height)
-                    except ValueError:
-                        heights.append(np.nan)
+            for _idx, bldg_row in tqdm(bldgs_gdf.iterrows(), total=len(bldgs_gdf)):
+                try:
+                    # raster values within building polygon
+                    out_image, _ = mask(
+                        rast_src,
+                        [bldg_row.geometry.buffer(10)],
+                        all_touched=True,
+                        crop=True,
+                        nodata=rast_src.nodata,
+                    )
+                    # Filter out nodata values before computing mean
+                    raster_data = out_image[0]
+                    if rast_src.nodata is not None:
+                        # Mask out nodata values
+                        valid_data = raster_data[raster_data != rast_src.nodata]
+                    else:
+                        valid_data = raster_data
+                    # Compute mean, excluding NaN values as well
+                    mean_height = np.nanmean(valid_data) if len(valid_data) > 0 else np.nan
+                    heights.append(mean_height)
+                except ValueError:
+                    heights.append(np.nan)
             bldgs_gdf["mean_height"] = heights
         # bldg metrics
         area = bldgs_gdf.area
@@ -179,7 +214,7 @@ def process_blocks_buildings(
         stats_column_labels=bldg_stats_cols,
         nodes_gdf=nodes_gdf,
         network_structure=network_structure,
-        distances=[100, 500, 1500],
+        distances=DISTANCES,
     )
     for bldg_stats_col in bldg_stats_cols:
         trim_columns = []
@@ -205,10 +240,23 @@ def process_blocks_buildings(
         blocks_gdf["block_orientation"] = momepy.orientation(blocks_gdf)
     # joint metrics require spatial join
     if not blocks_gdf.empty and not bldgs_gdf.empty:
-        blocks_gdf["index_bl"] = blocks_gdf.index.values
-        merged_gdf = gpd.sjoin(bldgs_gdf, blocks_gdf, how="left", predicate="intersects", lsuffix="bldg", rsuffix="bl")
+        # Add unique identifiers for both dataframes
+        blocks_gdf["uID"] = blocks_gdf.index.values
+        merged_gdf = gpd.sjoin(
+            bldgs_gdf,
+            blocks_gdf,
+            how="left",
+            predicate="intersects",
+            lsuffix="bldg",
+            rsuffix="block",
+        )
         blocks_gdf["block_covered_ratio"] = momepy.AreaRatio(
-            blocks_gdf, merged_gdf, "block_area", "area", left_unique_id="index_bl", right_unique_id="index_bl"
+            blocks_gdf,
+            merged_gdf,
+            "block_area",
+            "area",
+            left_unique_id="uID",
+            right_unique_id="uID",
         ).series
     # calculate
     blocks_gdf["centroid"] = blocks_gdf.geometry.centroid
@@ -225,7 +273,7 @@ def process_blocks_buildings(
         stats_column_labels=block_stats_cols,
         nodes_gdf=nodes_gdf,
         network_structure=network_structure,
-        distances=[100, 500, 1500],
+        distances=DISTANCES,
     )
     for block_stats_col in block_stats_cols:
         trim_columns = []
@@ -234,8 +282,10 @@ def process_blocks_buildings(
                 trim_columns.append(column_name)
         nodes_gdf.drop(columns=trim_columns, inplace=True)
     # reset geometry
-    bldgs_gdf.set_geometry("geom", inplace=True)
-    blocks_gdf.set_geometry("geom", inplace=True)
+    bldgs_gdf.set_geometry("geometry", inplace=True)
+    bldgs_gdf.drop(columns=["centroid"], inplace=True)
+    blocks_gdf.set_geometry("geometry", inplace=True)
+    blocks_gdf.drop(columns=["centroid"], inplace=True)
 
     return nodes_gdf, bldgs_gdf, blocks_gdf
 
@@ -244,7 +294,14 @@ def process_green(
     nodes_gdf: gpd.GeoDataFrame, green_gdf: gpd.GeoDataFrame, trees_gdf: gpd.GeoDataFrame, network_structure
 ) -> gpd.GeoDataFrame:
     """ """
+    # Intentionally using points for handling extra large features like rivers
     logger.info("Computing green")
+    # check Polygons
+    green_gdf = green_gdf.explode(index_parts=False)  # type: ignore
+    green_gdf.reset_index(drop=True, inplace=True)
+    # check Polygons
+    trees_gdf = trees_gdf.explode(index_parts=False)  # type: ignore
+    trees_gdf.reset_index(drop=True, inplace=True)
 
     # function for extracting points
     def generate_points(fid, categ, polygon, interval=20, simplify=20):
@@ -257,13 +314,14 @@ def process_green(
     # extract points
     points = []
     # for green
-    for fid, geom in zip(green_gdf.index, green_gdf.geom, strict=True):  # type: ignore
+    for fid, geom in zip(green_gdf.index, green_gdf.geometry, strict=True):  # type: ignore
         if geom.geom_type == "Polygon":
             points.extend(generate_points(fid, "green", geom, interval=20, simplify=10))
     # for trees
-    for fid, geom in zip(trees_gdf.index, trees_gdf.geom, strict=True):  # type: ignore
+    for fid, geom in zip(trees_gdf.index, trees_gdf.geometry, strict=True):  # type: ignore
         if geom.geom_type == "Polygon":
             points.extend(generate_points(fid, "trees", geom, interval=20, simplify=5))
+
     # create GDF
     points_gdf = gpd.GeoDataFrame(  # type: ignore
         points,
@@ -272,6 +330,7 @@ def process_green(
         crs=trees_gdf.crs,  # type: ignore
     )
     points_gdf.index = points_gdf.index.astype(str)
+
     # compute accessibilities
     nodes_gdf, points_gdf = layers.compute_accessibilities(
         points_gdf,  # type: ignore
@@ -279,23 +338,23 @@ def process_green(
         accessibility_keys=["green", "trees"],
         nodes_gdf=nodes_gdf,
         network_structure=network_structure,
-        distances=[1500],
+        distances=[1600],
         data_id_col="fid",  # deduplicate
     )
     # drop - aggregation columns since these are not meaningful for interpolated aggs - only using distances
     nodes_gdf = nodes_gdf.drop(
         columns=[
-            "cc_green_1500_nw",
-            "cc_green_1500_wt",
-            "cc_trees_1500_nw",
-            "cc_trees_1500_wt",
+            "cc_green_1600_nw",
+            "cc_green_1600_wt",
+            "cc_trees_1600_nw",
+            "cc_trees_1600_wt",
         ]
     )
     # set contained green nodes to zero
     contained_green_idx = gpd.sjoin(nodes_gdf, green_gdf, predicate="intersects", how="inner")
-    nodes_gdf.loc[contained_green_idx.index, "cc_green_nearest_max_1500"] = 0
+    nodes_gdf.loc[contained_green_idx.index, "cc_green_nearest_max_1600"] = 0
     # same for trees
     contained_trees_idx = gpd.sjoin(nodes_gdf, trees_gdf, predicate="intersects", how="inner")
-    nodes_gdf.loc[contained_trees_idx.index, "cc_trees_nearest_max_1500"] = 0
+    nodes_gdf.loc[contained_trees_idx.index, "cc_trees_nearest_max_1600"] = 0
 
     return nodes_gdf

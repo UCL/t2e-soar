@@ -5,7 +5,6 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
-import rasterio
 from cityseer.tools import graphs, io
 from scipy.interpolate import griddata
 from tqdm import tqdm
@@ -21,6 +20,7 @@ REQUIRED_LAYERS = [
     "blocks",
     "streets",
 ]
+WORKING_CRS = 3035
 
 
 def process_metrics(
@@ -36,6 +36,7 @@ def process_metrics(
     """ """
     tools.validate_filepath(bounds_in_path)
     bounds_gdf = gpd.read_file(bounds_in_path, layer="bounds")
+    bounds_gdf = bounds_gdf.to_crs(WORKING_CRS)
     # process each boundary
     for bounds_fid, bounds_row in bounds_gdf.iterrows():
         logger.info(f"Processing metrics for bounds fid: {bounds_fid}")
@@ -57,38 +58,44 @@ def process_metrics(
                 logger.info(f"File missing some layers, will overwrite: {output_path}")
         # CENTRALITY
         clean_edges_gdf = gpd.read_file(overture_path, layer="clean_edges")
+        clean_edges_gdf = clean_edges_gdf.to_crs(WORKING_CRS)
         # DUAL CLEAN NETWORK
         nx_clean = io.nx_from_generic_geopandas(clean_edges_gdf)
+        # decompose
+        nx_decomp = graphs.nx_decompose(nx_clean, 80)  # corresponding to 1min walking distance used in distances
         # cast to dual
-        nx_dual = graphs.nx_to_dual(nx_clean)
+        nx_dual = graphs.nx_to_dual(nx_decomp)
         # back to GDF
         nodes_gdf, _edges_gdf, network_structure = io.network_structure_from_nx(nx_dual)
         # process centrality
         nodes_gdf = processors.process_centrality(nodes_gdf, network_structure)
         # POI
         places_gdf = gpd.read_file(overture_path, layer="places")
+        places_gdf = places_gdf.to_crs(WORKING_CRS)
+        # infrast
         infrast_gdf = gpd.read_file(overture_path, layer="infrastructure")
+        infrast_gdf = infrast_gdf.to_crs(WORKING_CRS)
         nodes_gdf = processors.process_places(nodes_gdf, places_gdf, infrast_gdf, network_structure)
-        # BUILDINGS
         # buildings
         bldgs_gdf = gpd.read_file(overture_path, layer="buildings")
+        bldgs_gdf = bldgs_gdf.to_crs(WORKING_CRS)
         # blocks
         tools.validate_filepath(blocks_path)
         blocks_gdf = gpd.read_file(blocks_path, bbox=bounds_row.geometry.bounds)
+        blocks_gdf = blocks_gdf.to_crs(WORKING_CRS)
         # process
         tools.validate_directory(hts_raster_data_dir)
-        with rasterio.open(hts_raster_data_dir) as src:
-            hts_raster_bytes = src.read(1)
-            nodes_gdf, bldgs_gdf, blocks_gdf = processors.process_blocks_buildings(
-                nodes_gdf, bldgs_gdf, blocks_gdf, hts_raster_bytes, network_structure
-            )
+        hts_path = Path(hts_raster_data_dir) / f"bldg_hts_{bounds_fid}.tif"
+        tools.validate_filepath(hts_path)
+        nodes_gdf, bldgs_gdf, blocks_gdf = processors.process_blocks_buildings(
+            nodes_gdf, bldgs_gdf, blocks_gdf, hts_path, network_structure
+        )
         if not bldgs_gdf.empty:
             bldgs_gdf["bounds_fid"] = bounds_fid
             bldgs_gdf.to_file(output_path, driver="GPKG", layer="buildings")
         if not blocks_gdf.empty:
             blocks_gdf["bounds_fid"] = bounds_fid
             blocks_gdf.to_file(output_path, driver="GPKG", layer="blocks")
-        # GREEN
         # green spaces
         green_gdf = blocks_gdf[
             blocks_gdf["class_2018"].isin(
@@ -111,17 +118,19 @@ def process_metrics(
         # trees - simplify
         tools.validate_filepath(trees_path)
         trees_gdf = gpd.read_file(trees_path, bbox=bounds_row.geometry.bounds)
+        trees_gdf = trees_gdf.to_crs(WORKING_CRS)
         trees_gdf.geometry = trees_gdf.geometry.simplify(2.0)
         nodes_gdf = processors.process_green(nodes_gdf, green_gdf, trees_gdf, network_structure)
-        # STATS
+        # stats
         logger.info("Computing stats")
         # fetch stats
         tools.validate_filepath(stats_path)
         stats_gdf = gpd.read_file(stats_path, bbox=bounds_row.geometry.bounds)
-        # interpolate to nodes
-        grid_coords = np.array([(point.x, point.y) for point in stats_gdf.cent])  # type: ignore
-        target_coords = np.column_stack((nodes_gdf.x, nodes_gdf.y))  # type: ignore
+        stats_gdf = stats_gdf.to_crs(WORKING_CRS)
+        # prepare for interpolation
+        stats_gdf = stats_gdf.rename(columns={col: col.lower() for col in stats_gdf.columns})
         cols = [
+            "density",
             "t",
             "m",
             "f",
@@ -136,6 +145,17 @@ def process_metrics(
             "chg_in",
             "chg_out",
         ]
+        # ratios
+        stats_gdf["density"] = stats_gdf["t"] / stats_gdf["land_surface"]
+        for col in cols:
+            if col == "density" or col == "t" or "%" in col:
+                continue
+            col_perc = f"{col}_%"
+            stats_gdf[col_perc] = stats_gdf[col] / stats_gdf["t"]
+            cols.append(col_perc)  # guard against re-adding
+        # interpolate
+        grid_coords = np.array([(point.x, point.y) for point in stats_gdf.geometry.centroid])  # type: ignore
+        target_coords = np.column_stack((nodes_gdf.x, nodes_gdf.y))  # type: ignore
         for col in tqdm(cols):
             grid_values = stats_gdf[col].values  # type: ignore
             # use linear because cubic goes negative
@@ -189,8 +209,8 @@ if __name__ == "__main__":
         process_metrics(
             bounds_in_path="temp/datasets/boundaries.gpkg",
             overture_data_dir="temp/cities_data/overture",
-            blocks_path="temp/datasets/blocks",
-            trees_path="temp/datasets/trees",
+            blocks_path="temp/datasets/blocks.gpkg",
+            trees_path="temp/datasets/tree_canopies.gpkg",
             hts_raster_data_dir="temp/cities_data/heights",
             stats_path="temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg",
             processed_data_dir="temp/cities_data/processed",

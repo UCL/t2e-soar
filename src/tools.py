@@ -27,14 +27,14 @@ def get_logger(name: str, log_level: int = logging.INFO) -> logging.Logger:
 logger = get_logger(__name__)
 
 
-def validate_filepath(path: str) -> str:
+def validate_filepath(path: str | Path) -> str:
     """ """
     if not Path(path).exists():
         raise ValueError(f"Path does not exist: {path}")
-    return path
+    return str(path)
 
 
-def validate_directory(path: str, create: bool = False) -> str:
+def validate_directory(path: str | Path, create: bool = False) -> str | Path:
     """ """
     # handle if path is a file
     if Path(path).is_file() or Path(path).suffix != "":
@@ -246,7 +246,7 @@ def generate_overture_schema() -> dict[str, list[str]]:
     logger.info("Preparing Overture schema")
     overture_csv_file_path = "./src/raw_landuse_schema.csv"
     schema = {
-        # "eat_and_drink": [], - don't use because places overriden by more specific categories
+        # "eat_and_drink": [], - don't use because places overriden by more specific restaurant etc.
         "restaurant": [],
         "bar": [],
         "cafe": [],
@@ -270,11 +270,42 @@ def generate_overture_schema() -> dict[str, list[str]]:
         "mass_media": [],
         "home_service": [],
         "professional_services": [],
-        # "structure_and_geography": [],
+        # "community_services": [], - don't use because places overriden by more specific public_service_and_government
     }
+    """
+    # Unused categories (not in schema):
+    {
+        "tower",
+        "structure_and_geography",
+        "boat_hire_service",
+        "weir",
+        "dam",
+        "forest",
+        "public_plaza",
+        "diving_instruction",
+        "electric_vehicle_charging_station",
+        "river",
+        "quay",
+        "island",
+        "canal",
+        "desert",
+        "pier",
+        "natural_hot_springs",
+        "aircraft_services_and_repair",
+        "eat_and_drink",  # use more specific restaurant, bar, cafe
+        "mountain",
+        "skyscraper",
+        "geologic_formation",
+        "nature_reserve",
+        "community_services",  # use more specific public_service_and_government
+        "bridge",
+    }
+    """
+    # read through csv and populate schema
+    other_categories = set([])
     for category, _list_val in schema.items():
         with open(overture_csv_file_path) as schema_csv:
-            logger.info(f"Gathering category: {category}")
+            # logger.info(f"Gathering category: {category}")
             for line in schema_csv:
                 # remove header line
                 if "Overture Taxonomy" in line:
@@ -283,10 +314,17 @@ def generate_overture_schema() -> dict[str, list[str]]:
                 if "[" not in splits[1]:
                     logger.info(f"Skipping line {line}")
                     continue
-                cats = splits[1].strip("\n[]")
+                cats = splits[1]
+                cats = cats.strip(" \n[]")
                 cats = cats.split(",")
+                # assign to category if found - only first match
                 if category in cats:
                     schema[category].append(splits[0])
+                else:
+                    other_categories.update(cats)
+    # for checking
+    # logger.info(f"Other categories found: {other_categories}")
+
     return schema
 
 
