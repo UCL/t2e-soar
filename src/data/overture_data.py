@@ -48,15 +48,22 @@ def load_network(
         # not dropping "parking_aisle" because this sometimes removes important links
     )
     multigraph.graph["crs"] = to_crs
-    multigraph = io._auto_clean_network(
-        multigraph,
-        geom_wgs=bounds_geom_wgs,
-        to_crs_code=to_crs,
-        final_clean_distances=(8,),
-        remove_disconnected=100,
-        green_footways=True,
-        green_service_roads=False,
-    )
+    try:
+        multigraph = io._auto_clean_network(
+            multigraph,
+            geom_wgs=bounds_geom_wgs,
+            to_crs_code=to_crs,
+            final_clean_distances=(8,),
+            remove_disconnected=100,
+            green_footways=True,
+            green_service_roads=False,
+        )
+    except Exception as e:
+        # logger.error(f"Error cleaning network: {e}")
+        # nds, egs = io.geopandas_from_nx(multigraph)
+        # nds.to_file("error_nodes.gpkg", driver="GPKG", layer="nodes")
+        # egs.to_file("error_edges.gpkg", driver="GPKG", layer="edges")
+        raise e
     clean_edges_gdf = io.geopandas_from_nx(multigraph)
     # JSON
     nodes_gdf["sources"] = nodes_gdf["sources"].apply(tools.col_to_json)  # type: ignore

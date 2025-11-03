@@ -51,12 +51,12 @@ dependencies = [
   "fiona>=1.9.5",
   "scipy>=1.11.3",
   "seaborn>=0.13.2",
-  "overturemaps>=0.16.0",
+  "overturemaps>=0.17.0",
   "psycopg[binary]>=3.2.1",
 ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
   "pyright>=1.1.320",
   "pytest>=7.4.0",
   "pip>=23.2.1",
@@ -66,7 +66,7 @@ dev-dependencies = [
   "ipykernel>=6.25.1",
   "ruff>=0.5.1",
   "pyright>=1.1.380",
-  "poethepoet>=0.29.0",
+  "poethepoet>=0.37.0",
 ]
 
 [tool.ruff]

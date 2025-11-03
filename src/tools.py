@@ -82,7 +82,7 @@ def col_to_json(obj: Any) -> str | None:
     return json.dumps(obj)
 
 
-Connector = tuple[str, geometry.Point]
+Connector = tuple[Any, geometry.Point]
 
 
 def split_street_segment(
@@ -133,19 +133,18 @@ def generate_graph(
     # create graph
     multigraph = nx.MultiGraph()
     # filter by boundary and build nx
-    # dedupe nodes
-    node_map = {}
-    for node_row in nodes_gdf.itertuples():
-        # catch duplicates in case of overture dupes by xy or database dupes
-        x = node_row.geom.x  # type: ignore
-        y = node_row.geom.y  # type: ignore
+    # dedupe nodes by coordinate while keeping a lookup back to original ids
+    xy_to_id: dict[str, Any] = {}
+    id_to_merged: dict[Any, Any] = {}
+    for node_idx, node_geom in nodes_gdf["geom"].items():
+        node_geom_point = cast(geometry.Point, node_geom)
+        x = node_geom_point.x
+        y = node_geom_point.y
         xy_key = f"{x}-{y}"
-        if xy_key not in node_map:
-            node_map[xy_key] = node_row.Index
-        # merged key
-        merged_key = node_map[xy_key]
-        # only insert if new
-        if not multigraph.has_node(node_row.Index):
+        merged_key = xy_to_id.setdefault(xy_key, node_idx)
+        id_to_merged[node_idx] = merged_key
+        id_to_merged[str(node_idx)] = merged_key
+        if not multigraph.has_node(merged_key):
             multigraph.add_node(
                 merged_key,
                 x=x,
@@ -159,19 +158,25 @@ def generate_graph(
             dropped_road_types.add(road_class)
             continue
         kept_road_types.add(road_class)
+        connectors_data = edges_data["connectors"]
+        if not isinstance(connectors_data, (list, tuple, np.ndarray)) or len(connectors_data) == 0:
+            continue
         uniq_fids = set()
-        connector_fids: list[str] = [connector["connector_id"] for connector in edges_data["connectors"]]
-        connector_infos: list[tuple[str, geometry.Point]] = []
+        connector_fids: list[Any] = []
+        for connector in connectors_data:
+            connector_fid = connector.get("connector_id")
+            if connector_fid is not None:
+                connector_fids.append(connector_fid)
+        connector_infos: list[Connector] = []
         missing_connectors = False
         for connector_fid in connector_fids:
             # skip malformed edges - this happens at boundary thresholds with missing nodes in relation to edges
-            if connector_fid not in multigraph:
+            merged_key = id_to_merged.get(connector_fid)
+            if merged_key is None or not multigraph.has_node(merged_key):
                 missing_connectors = True
                 break
             # deduplicate
-            x, y = multigraph.nodes[connector_fid]["x"], multigraph.nodes[connector_fid]["y"]
-            xy_key = f"{x}-{y}"
-            merged_key = node_map[xy_key]
+            x, y = multigraph.nodes[merged_key]["x"], multigraph.nodes[merged_key]["y"]
             if merged_key in uniq_fids:
                 continue
             uniq_fids.add(merged_key)
@@ -209,7 +214,8 @@ def generate_graph(
         if road_class is not None and road_class not in ["unknown"]:
             highways.append(road_class)
         # split segments and build
-        street_segs = split_street_segment(edges_data.geom, connector_infos)
+        edge_geom = cast(geometry.LineString, edges_data["geom"])
+        street_segs = split_street_segment(edge_geom, connector_infos)
         for seg_geom, node_info_a, node_info_b in street_segs:
             if not node_info_a[1].touches(seg_geom) or not node_info_b[1].touches(seg_geom):
                 raise ValueError(
