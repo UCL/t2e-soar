@@ -59,10 +59,7 @@ def load_network(
             green_service_roads=False,
         )
     except Exception as e:
-        # logger.error(f"Error cleaning network: {e}")
-        # nds, egs = io.geopandas_from_nx(multigraph)
-        # nds.to_file("error_nodes.gpkg", driver="GPKG", layer="nodes")
-        # egs.to_file("error_edges.gpkg", driver="GPKG", layer="edges")
+        logger.error(f"Error cleaning network: {e}")
         raise e
     clean_edges_gdf = io.geopandas_from_nx(multigraph)
     # JSON
