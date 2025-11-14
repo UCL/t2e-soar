@@ -15,7 +15,7 @@ from src import tools
 logger = tools.get_logger(__name__)
 
 OVERTURE_SCHEMA = tools.generate_overture_schema()  # type: ignore
-DISTANCES = [80, 400, 800, 1200, 1600]
+DISTANCES = [400, 800, 1200, 1600]
 
 
 def process_centrality(nodes_gdf: gpd.GeoDataFrame, network_structure) -> gpd.GeoDataFrame:
@@ -336,7 +336,7 @@ def process_green(
         accessibility_keys=["green", "trees"],
         nodes_gdf=nodes_gdf,
         network_structure=network_structure,
-        distances=[1600],
+        distances=[max(DISTANCES)],
         data_id_col="fid",  # deduplicate
     )
     # drop - aggregation columns since these are not meaningful for interpolated aggs - only using distances
