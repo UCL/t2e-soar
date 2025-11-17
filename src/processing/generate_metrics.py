@@ -169,11 +169,11 @@ def process_metrics(
 
 if __name__ == "__main__":
     """
-    python -m src.data.generate_metrics \
+    python -m src.processing.generate_metrics \
         temp/datasets/boundaries.gpkg \
             temp/cities_data/overture \
                 temp/datasets/blocks.gpkg \
-                    temp/datasets/trees.gpkg \
+                    temp/datasets/tree_canopies.gpkg \
                         temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg \
                             temp/cities_data/processed
     """
