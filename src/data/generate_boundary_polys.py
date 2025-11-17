@@ -4,6 +4,7 @@ import argparse
 
 import geopandas as gpd
 import osmnx as ox
+from overturemaps import core
 from rasterio.features import shapes
 from rasterio.io import MemoryFile
 from shapely import geometry
@@ -11,6 +12,7 @@ from shapely import geometry
 from src import tools
 
 logger = tools.get_logger(__name__)
+WORKING_CRS = 3035
 
 
 def extract_boundary_polys(raster_in_path: str, bounds_out_path: str) -> None:
@@ -51,22 +53,50 @@ def extract_boundary_polys(raster_in_path: str, bounds_out_path: str) -> None:
     # generate the gdf
     data = {"geom": polys}
     bounds_gdf = gpd.GeoDataFrame(data, geometry="geom", crs=dataset.crs)  # type:ignore
-    bounds_gdf["geom_2000"] = bounds_gdf["geom"].buffer(2000)  # type:ignore
-    bounds_gdf["geom_10000"] = bounds_gdf["geom"].buffer(10000)  # type:ignore
-    # unioned boundaries using GeoPandas/Shapely
-    unioned_2000 = bounds_gdf["geom_2000"].union_all()
-    unioned_10000 = bounds_gdf["geom_10000"].union_all()
-    # save bounds
-    bounds_gdf = bounds_gdf.drop(columns=["geom_2000", "geom_10000"])
-    bounds_gdf.to_file(bounds_out_path, driver="GPKG", layer="bounds")
-    # 2km buffer
-    unioned_2000_gdf = gpd.GeoDataFrame({"geom": [unioned_2000]}, geometry="geom", crs=bounds_gdf.crs)
-    unioned_2000_gdf = unioned_2000_gdf.explode(index_parts=False).reset_index(drop=True)
-    unioned_2000_gdf.to_file(bounds_out_path, driver="GPKG", layer="unioned_bounds_2000")
-    # 10km buffer
-    unioned_10000_gdf = gpd.GeoDataFrame({"geom": [unioned_10000]}, geometry="geom", crs=bounds_gdf.crs)
-    unioned_10000_gdf = unioned_10000_gdf.explode(index_parts=False).reset_index(drop=True)
-    unioned_10000_gdf.to_file(bounds_out_path, driver="GPKG", layer="unioned_bounds_10000")
+    bounds_gdf = bounds_gdf.to_crs(WORKING_CRS)
+    bounds_gdf["label"] = None
+
+    # query overture divisions for entire bounds_gdf at once
+    overall_bounds_wgs = tools.reproject_geometry(
+        geometry.box(*bounds_gdf.total_bounds),  # type: ignore
+        from_crs=bounds_gdf.crs.to_epsg(),  # type: ignore
+        to_crs=4326,  # type: ignore
+    )
+    logger.info("Querying divisions for entire dataset bounds")
+    division_gdf = core.geodataframe("division", overall_bounds_wgs.bounds)  # type:ignore
+
+    # helper function to extract first locality from hierarchy
+    def get_first_localadmin(hierarchies_value):
+        """Extract the first (parent) locality from the hierarchy."""
+        try:
+            if len(hierarchies_value) == 0:
+                return None
+            hierarchy = hierarchies_value[0]
+            localities = [d.get("name") for d in hierarchy if d.get("subtype") == "localadmin"]
+            if not localities:
+                localities = [d.get("name") for d in hierarchy if d.get("subtype") == "locality"]
+            return localities[0] if localities else None
+        except (IndexError, TypeError, AttributeError):
+            return None
+
+    if not division_gdf.empty:
+        division_gdf = division_gdf.set_crs(4326)
+        division_gdf = division_gdf.to_crs(WORKING_CRS)
+        division_gdf.to_file("temp/divisions.gpkg", driver="GPKG", layer="divisions")
+        division_gdf["admin_name"] = division_gdf["hierarchies"].apply(get_first_localadmin)
+        # now filter for each boundary polygon
+        for bounds_fid, bounds_row in bounds_gdf.iterrows():
+            # filter divisions that are contained within this boundary
+            contained_divisions = division_gdf[bounds_row.geom.contains(division_gdf.geometry)]
+            if not contained_divisions.empty:
+                locality_counts = contained_divisions["admin_name"].value_counts()
+                most_common_locality = locality_counts.index[0] if not locality_counts.empty else None
+            else:
+                most_common_locality = None
+            bounds_gdf.loc[bounds_fid, "label"] = most_common_locality  # type: ignore
+            logger.info(f"Assigned label '{most_common_locality}' to boundary {bounds_fid}")
+
+    bounds_gdf.to_file(bounds_out_path, driver="GPKG", layer="bounds", index=True)
 
 
 if __name__ == "__main__":

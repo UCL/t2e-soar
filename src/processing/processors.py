@@ -31,7 +31,8 @@ def process_places(
     """ """
     logger.info("Computing places")
     # filter to schema classes
-    places_gdf = places_gdf[places_gdf["major_lu_schema_class"].isin(list(OVERTURE_SCHEMA.keys()))]
+    valid_schema_mask = places_gdf["major_lu_schema_class"].isin(list(OVERTURE_SCHEMA.keys()))
+    places_gdf = places_gdf.loc[valid_schema_mask].copy()
     # create merged categories
     places_gdf["merged_cats"] = places_gdf["major_lu_schema_class"]
     # merge eat_and_drink

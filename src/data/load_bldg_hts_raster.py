@@ -101,6 +101,6 @@ if __name__ == "__main__":
     else:
         load_bldg_hts(
             "temp/datasets/boundaries.gpkg",
-            "temp/Results-Building_Height_2012_3035_eu",
+            "temp/Building_Height_2012_3035_eu",
             "temp/cities_data/heights",
         )
