@@ -86,7 +86,11 @@ def process_metrics(
         # process
         tools.validate_directory(hts_raster_data_dir)
         hts_path = Path(hts_raster_data_dir) / f"bldg_hts_{bounds_fid}.tif"
-        tools.validate_filepath(hts_path)
+        if not hts_path.exists():
+            logger.warning(
+                "Missing building heights raster for bounds fid %s, continuing without height sampling", bounds_fid
+            )
+            hts_path = None
         nodes_gdf, bldgs_gdf, blocks_gdf = processors.process_blocks_buildings(
             nodes_gdf, bldgs_gdf, blocks_gdf, hts_path, network_structure
         )
@@ -174,8 +178,9 @@ if __name__ == "__main__":
             temp/cities_data/overture \
                 temp/datasets/blocks.gpkg \
                     temp/datasets/tree_canopies.gpkg \
-                        temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg \
-                            temp/cities_data/processed
+                        temp/cities_data/heights \
+                            temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg \
+                               temp/cities_data/processed
     """
     if False:
         parser = argparse.ArgumentParser(description="Load overture networks.")

@@ -108,6 +108,7 @@ python -m src.processing.generate_metrics \
         temp/cities_data/overture \
             temp/datasets/blocks.gpkg \
                 temp/datasets/tree_canopies.gpkg \
-                    temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg \
-                        temp/cities_data/processed
+                    temp/cities_data/heights \
+                        temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg \
+                            temp/cities_data/processed
 ```

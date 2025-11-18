@@ -129,7 +129,7 @@ def process_blocks_buildings(
     nodes_gdf: gpd.GeoDataFrame,
     bldgs_gdf: gpd.GeoDataFrame,
     blocks_gdf: gpd.GeoDataFrame,
-    hts_path: str | Path,
+    hts_path: str | Path | None,
     network_structure,
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """ """
@@ -153,33 +153,41 @@ def process_blocks_buildings(
         bldgs_gdf = bldgs_gdf.explode(index_parts=False)  # type: ignore
         bldgs_gdf.reset_index(drop=True, inplace=True)
         bldgs_gdf.index = bldgs_gdf.index.astype(str)
-        # sample heights
-        with rasterio.open(hts_path) as rast_src:
-            logger.info("Sampling building heights")
-            heights = []
-            for _idx, bldg_row in tqdm(bldgs_gdf.iterrows(), total=len(bldgs_gdf)):
-                try:
-                    # raster values within building polygon
-                    out_image, _ = mask(
-                        rast_src,
-                        [bldg_row.geometry.buffer(10)],
-                        all_touched=True,
-                        crop=True,
-                        nodata=rast_src.nodata,
-                    )
-                    # Filter out nodata values before computing mean
-                    raster_data = out_image[0]
-                    if rast_src.nodata is not None:
-                        # Mask out nodata values
-                        valid_data = raster_data[raster_data != rast_src.nodata]
-                    else:
-                        valid_data = raster_data
-                    # Compute mean, excluding NaN values as well
-                    mean_height = np.nanmean(valid_data) if len(valid_data) > 0 else np.nan
-                    heights.append(mean_height)
-                except ValueError:
-                    heights.append(np.nan)
-            bldgs_gdf["mean_height"] = heights
+        bldgs_gdf["mean_height"] = np.nan
+        # sample heights when a raster is available
+        if hts_path is not None:
+            hts_path = Path(hts_path)
+            if hts_path.exists():
+                with rasterio.open(hts_path) as rast_src:
+                    logger.info("Sampling building heights")
+                    heights = []
+                    for _idx, bldg_row in tqdm(bldgs_gdf.iterrows(), total=len(bldgs_gdf)):
+                        try:
+                            # raster values within building polygon
+                            out_image, _ = mask(
+                                rast_src,
+                                [bldg_row.geometry.buffer(10)],
+                                all_touched=True,
+                                crop=True,
+                                nodata=rast_src.nodata,
+                            )
+                            # Filter out nodata values before computing mean
+                            raster_data = out_image[0]
+                            if rast_src.nodata is not None:
+                                # Mask out nodata values
+                                valid_data = raster_data[raster_data != rast_src.nodata]
+                            else:
+                                valid_data = raster_data
+                            # Compute mean, excluding NaN values as well
+                            mean_height = np.nanmean(valid_data) if len(valid_data) > 0 else np.nan
+                            heights.append(mean_height)
+                        except ValueError:
+                            heights.append(np.nan)
+                    bldgs_gdf["mean_height"] = heights
+            else:
+                logger.warning("Building heights raster not available at %s", hts_path)
+        else:
+            logger.warning("No building heights raster available; leaving height metrics empty")
         # bldg metrics
         area = bldgs_gdf.area
         ht = bldgs_gdf.loc[:, "mean_height"]
