@@ -21,7 +21,7 @@ DISTANCES = [400, 800, 1200, 1600]
 def process_centrality(nodes_gdf: gpd.GeoDataFrame, network_structure) -> gpd.GeoDataFrame:
     """ """
     logger.info("Computing centrality")
-    nodes_gdf = networks.node_centrality_shortest(network_structure, nodes_gdf, distances=DISTANCES + [4800])
+    nodes_gdf = networks.node_centrality_shortest(network_structure, nodes_gdf, distances=DISTANCES + [4800, 9600])
     return nodes_gdf
 
 
