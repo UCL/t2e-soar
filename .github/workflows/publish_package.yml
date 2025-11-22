@@ -4,8 +4,8 @@ on:
   push:
     tags:
       - "v*.*.*"
-    tags-ignore:
-      - "v*.*.*a*"
+      - "!v*.*.*a*"
+      - "!v*.*.*b*"
 
 jobs:
   build-and-publish:
@@ -36,25 +36,29 @@ jobs:
 
       - name: Extract tag name
         id: tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Determine if this is a prerelease
         id: check_prerelease
         run: |
-          if [[ "${{ env.VERSION }}" == *a* || "${{ env.VERSION }}" == *b* ]]; then
-            echo "IS_PRERELEASE=true" >> $GITHUB_ENV
+          VERSION="${{ steps.tag.outputs.version }}"
+          if [[ "$VERSION" == *a* || "$VERSION" == *b* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
           else
-            echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*
-          prerelease: ${{ env.IS_PRERELEASE == 'true' }}
-          name: Release v${{ env.VERSION }}
+          prerelease: ${{ steps.check_prerelease.outputs.is_prerelease == 'true' }}
+          name: Release v${{ steps.tag.outputs.version }}
           body: |
-            Release of ba-ebdp-toolkit version ${{ env.VERSION }}
+            Release of ba-ebdp-toolkit version ${{ steps.tag.outputs.version }}
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
