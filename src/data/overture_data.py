@@ -25,7 +25,7 @@ def load_network(
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """ """
     # NODES
-    nodes_gdf = core.geodataframe("connector", bounds_geom_wgs.bounds)  # type:ignore
+    nodes_gdf = core.geodataframe("connector", bounds_geom_wgs.bounds, stac=True)  # type:ignore
     nodes_gdf.set_crs(4326, inplace=True)
     nodes_gdf.to_crs(to_crs, inplace=True)
     nodes_gdf.set_index("id", inplace=True)
@@ -33,7 +33,7 @@ def load_network(
     nodes_gdf.set_geometry("geom", inplace=True)
     nodes_gdf.drop(columns=["bbox"], inplace=True)
     # EDGES
-    edges_gdf = core.geodataframe("segment", bounds_geom_wgs.bounds)  # type:ignore
+    edges_gdf = core.geodataframe("segment", bounds_geom_wgs.bounds, stac=True)  # type:ignore
     edges_gdf.set_crs(4326, inplace=True)
     edges_gdf.to_crs(to_crs, inplace=True)
     edges_gdf.set_index("id", inplace=True)
@@ -94,7 +94,7 @@ def load_buildings(
     to_crs: int,
 ) -> gpd.GeoDataFrame:
     """ """
-    buildings_gdf = core.geodataframe("building", bounds_geom_wgs.bounds)  # type:ignore
+    buildings_gdf = core.geodataframe("building", bounds_geom_wgs.bounds, stac=True)  # type:ignore
     buildings_gdf.set_crs(4326, inplace=True)
     buildings_gdf.to_crs(to_crs, inplace=True)
     buildings_gdf.set_index("id", inplace=True)
@@ -115,7 +115,7 @@ def load_infrastructure(
 ) -> gpd.GeoDataFrame:
     """ """
     # INFRASTRUCTURE
-    infrast_gdf = core.geodataframe("infrastructure", bounds_geom_wgs.bounds)  # type:ignore
+    infrast_gdf = core.geodataframe("infrastructure", bounds_geom_wgs.bounds, stac=True)  # type:ignore
     infrast_gdf.set_crs(4326, inplace=True)
     infrast_gdf.to_crs(to_crs, inplace=True)
     infrast_gdf.set_index("id", inplace=True)
@@ -153,7 +153,7 @@ def load_places(
     """ """
     OVERTURE_SCHEMA = tools.generate_overture_schema()
     # PLACES
-    places_gdf = core.geodataframe("place", bounds_geom_wgs.bounds)  # type:ignore
+    places_gdf = core.geodataframe("place", bounds_geom_wgs.bounds, stac=True)  # type:ignore
     places_gdf.set_crs(4326, inplace=True)
     places_gdf.to_crs(to_crs, inplace=True)
     places_gdf.set_index("id", inplace=True)
