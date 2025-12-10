@@ -5,7 +5,6 @@ Taken from https://github.com/OvertureMaps/schema/blob/0f9fdbcd88e7c0fc08e9c8c68
 
 from cityseer import config
 
-config.SKIP_VALIDATION = True
 config.QUIET_MODE = True
 
 import geopandas as gpd
