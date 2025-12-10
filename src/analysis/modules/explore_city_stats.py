@@ -232,7 +232,56 @@ def explore_city_stats(
 
     logger.info(f"Saved distribution histograms to {eda_dir}")
 
-    # 7. SUMMARY REPORT
+    # 7. COUNTRY-LEVEL ANALYSIS
+    if "country" in df.columns and df["country"].notna().sum() > 0:
+        logger.info("Generating country-level analysis")
+
+        country_df = df[df["country"].notna()].copy()
+
+        # Basic country statistics
+        country_stats = (
+            country_df.groupby("country")
+            .agg(
+                {"bounds_fid": "count", "population": ["sum", "mean", "median"], "area_km2": ["sum", "mean", "median"]}
+            )
+            .round(2)
+        )
+        country_stats.columns = ["_".join(col).strip() for col in country_stats.columns.values]
+        country_stats = country_stats.sort_values("population_sum", ascending=False)
+        country_stats.to_csv(eda_dir / "country_statistics.csv")
+        logger.info(f"Saved country statistics to {eda_dir / 'country_statistics.csv'}")
+
+        # POI statistics by country
+        poi_cols = [
+            f"{cat}_count" for cat in landuse_categories.COMMON_LANDUSE_CATEGORIES if f"{cat}_count" in df.columns
+        ]
+
+        if poi_cols:
+            country_poi_stats = country_df.groupby("country")[poi_cols].agg(["sum", "mean"]).round(1)
+            country_poi_stats.columns = ["_".join(col).strip() for col in country_poi_stats.columns.values]
+            country_poi_stats.to_csv(eda_dir / "country_poi_statistics.csv")
+            logger.info(f"Saved country POI statistics to {eda_dir / 'country_poi_statistics.csv'}")
+
+            # Create country comparison plots for key categories
+            key_categories = ["eat_and_drink", "retail", "education", "healthcare"]
+            for cat in key_categories:
+                col = f"{cat}_count"
+                if col in df.columns:
+                    country_summary = country_df.groupby("country")[col].sum().sort_values(ascending=False)
+
+                    if len(country_summary) > 0:
+                        fig, ax = plt.subplots(figsize=(12, max(6, len(country_summary) * 0.3)))
+                        country_summary.plot(kind="barh", ax=ax)
+                        ax.set_title(f"Total {cat.replace('_', ' ').title()} POIs by Country")
+                        ax.set_xlabel("Total POI Count")
+                        ax.set_ylabel("Country")
+                        plt.tight_layout()
+                        plt.savefig(eda_dir / f"country_comparison_{cat}.png", dpi=150, bbox_inches="tight")
+                        plt.close()
+
+            logger.info(f"Saved country comparison plots to {eda_dir}")
+
+    # 8. SUMMARY REPORT
     logger.info("Generating summary report")
     with open(eda_dir / "summary_report.txt", "w") as f:
         f.write("=" * 80 + "\n")
@@ -266,6 +315,27 @@ def explore_city_stats(
                 f.write(f"    Min: {df[col].min():.0f}\n")
                 f.write(f"    Max: {df[col].max():.0f}\n")
                 f.write(f"    Cities with zero: {(df[col] == 0).sum()}\n")
+
+        # Add country statistics if available
+        if "country" in df.columns and df["country"].notna().sum() > 0:
+            f.write("\n" + "=" * 80 + "\n")
+            f.write("COUNTRY-LEVEL SUMMARY:\n")
+            f.write("=" * 80 + "\n\n")
+
+            country_df = df[df["country"].notna()]
+            f.write(f"Cities with country data: {len(country_df)} ({len(country_df) / len(df) * 100:.1f}%)\n")
+            f.write(f"Number of countries: {country_df['country'].nunique()}\n\n")
+
+            # Top countries by city count
+            f.write("Top 10 Countries by Number of Cities:\n")
+            top_countries = country_df["country"].value_counts().head(10)
+            for country, count in top_countries.items():
+                f.write(f"  {country}: {count} cities\n")
+
+            f.write("\nTop 10 Countries by Total Population:\n")
+            pop_by_country = country_df.groupby("country")["population"].sum().sort_values(ascending=False).head(10)
+            for country, pop in pop_by_country.items():
+                f.write(f"  {country}: {pop:,.0f}\n")
 
     logger.info(f"Saved summary report to {eda_dir / 'summary_report.txt'}")
     logger.info("Exploratory data analysis complete!")

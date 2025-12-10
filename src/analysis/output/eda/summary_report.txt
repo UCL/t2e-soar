@@ -5,11 +5,11 @@ CITY-LEVEL DATA EXPLORATORY ANALYSIS SUMMARY
 Total cities: 699
 
 POPULATION STATISTICS:
-  Mean: 252286
-  Median: 111062
-  Std: 556467
-  Min: 24377
-  Max: 9846854
+  Mean: 242190
+  Median: 103614
+  Std: 549498
+  Min: 13045
+  Max: 9773325
 
 AREA STATISTICS (km²):
   Mean: 84.14
@@ -21,89 +21,120 @@ AREA STATISTICS (km²):
 POI COUNT STATISTICS BY CATEGORY:
 
   Business And Services:
-    Mean: 4679.0
-    Median: 2424.0
-    Std: 7049.1
-    Min: 286
-    Max: 57860
+    Mean: 3716.5
+    Median: 1787.5
+    Std: 7155.4
+    Min: 135
+    Max: 103597
     Cities with zero: 0
 
   Active Life:
-    Mean: 480.4
-    Median: 268.5
-    Std: 674.2
-    Min: 35
-    Max: 5075
+    Mean: 373.0
+    Median: 194.0
+    Std: 671.9
+    Min: 13
+    Max: 9583
     Cities with zero: 0
 
   Arts And Entertainment:
-    Mean: 229.6
-    Median: 109.5
-    Std: 371.7
-    Min: 17
-    Max: 3115
+    Mean: 192.8
+    Median: 92.5
+    Std: 389.5
+    Min: 1
+    Max: 5891
     Cities with zero: 0
 
   Public Services:
-    Mean: 526.8
-    Median: 277.0
-    Std: 802.2
-    Min: 47
-    Max: 6768
+    Mean: 435.5
+    Median: 214.0
+    Std: 880.2
+    Min: 16
+    Max: 14537
     Cities with zero: 0
 
   Retail:
-    Mean: 2198.2
-    Median: 1178.5
-    Std: 3113.9
-    Min: 206
-    Max: 25667
+    Mean: 1899.0
+    Median: 998.0
+    Std: 3649.2
+    Min: 49
+    Max: 58573
     Cities with zero: 0
 
   Health And Medical:
-    Mean: 771.7
-    Median: 407.5
-    Std: 1237.1
-    Min: 26
-    Max: 10781
+    Mean: 628.3
+    Median: 322.5
+    Std: 1125.4
+    Min: 11
+    Max: 13009
     Cities with zero: 0
 
   Eat And Drink:
-    Mean: 1067.7
-    Median: 482.5
-    Std: 1855.4
-    Min: 81
-    Max: 16932
+    Mean: 1038.9
+    Median: 481.5
+    Std: 2370.4
+    Min: 14
+    Max: 41241
     Cities with zero: 0
 
   Education:
-    Mean: 508.5
-    Median: 261.5
-    Std: 749.5
-    Min: 68
-    Max: 6030
+    Mean: 422.3
+    Median: 212.0
+    Std: 797.5
+    Min: 10
+    Max: 12290
     Cities with zero: 0
 
   Attractions And Activities:
-    Mean: 325.2
-    Median: 146.0
-    Std: 540.2
-    Min: 15
-    Max: 4559
+    Mean: 259.4
+    Median: 111.5
+    Std: 573.1
+    Min: 7
+    Max: 9015
     Cities with zero: 0
 
   Religious:
-    Mean: 123.9
-    Median: 64.5
-    Std: 188.2
-    Min: 13
-    Max: 1698
+    Mean: 103.2
+    Median: 53.0
+    Std: 196.1
+    Min: 3
+    Max: 3085
     Cities with zero: 0
 
   Accommodation:
-    Mean: 181.8
-    Median: 84.5
-    Std: 301.1
-    Min: 9
-    Max: 2183
+    Mean: 177.8
+    Median: 77.0
+    Std: 382.8
+    Min: 3
+    Max: 6280
     Cities with zero: 0
+
+================================================================================
+COUNTRY-LEVEL SUMMARY:
+================================================================================
+
+Cities with country data: 694 (99.3%)
+Number of countries: 29
+
+Top 10 Countries by Number of Cities:
+  ES: 111 cities
+  DE: 110 cities
+  IT: 87 cities
+  FR: 76 cities
+  PL: 54 cities
+  NL: 51 cities
+  RO: 32 cities
+  CH: 20 cities
+  CZ: 16 cities
+  SE: 16 cities
+
+Top 10 Countries by Total Population:
+  DE: 28,887,204
+  FR: 24,709,969
+  ES: 24,690,036
+  IT: 21,170,494
+  PL: 11,331,325
+  NL: 9,107,666
+  RO: 6,143,803
+  GR: 5,168,028
+  BE: 3,923,683
+  SE: 3,655,146

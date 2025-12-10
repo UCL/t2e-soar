@@ -56,11 +56,23 @@ def aggregate_city_stats(
         # Compute area in km²
         stats["area_km2"] = bounds_row.geometry.area / 1_000_000
 
-        # Intersect with census to get population
+        # Intersect with census to get population (weighted by area proportion)
         try:
-            census_intersect = census_gdf[census_gdf.intersects(bounds_row.geometry)]
-            # Sum total population (column 't')
-            stats["population"] = census_intersect["t"].sum() if not census_intersect.empty else 0
+            census_intersect = census_gdf[census_gdf.intersects(bounds_row.geometry)].copy()
+            if not census_intersect.empty:
+                # Calculate intersection geometry and area ratio for each census square
+                census_intersect["intersection"] = census_intersect.geometry.intersection(bounds_row.geometry)
+                census_intersect["intersection_area"] = census_intersect["intersection"].area
+                census_intersect["original_area"] = census_intersect.geometry.area
+                census_intersect["area_ratio"] = (
+                    census_intersect["intersection_area"] / census_intersect["original_area"]
+                )
+
+                # Apply area ratio to population
+                census_intersect["weighted_population"] = census_intersect["t"] * census_intersect["area_ratio"]
+                stats["population"] = census_intersect["weighted_population"].sum()
+            else:
+                stats["population"] = 0
         except Exception as e:
             logger.warning(f"Error computing population for bounds_fid {bounds_fid}: {e}")
             stats["population"] = None
@@ -79,6 +91,9 @@ def aggregate_city_stats(
             # Load places layer
             places_gdf = gpd.read_file(overture_path, layer="places")
             places_gdf = places_gdf.to_crs(WORKING_CRS)
+
+            # Intersect places with bounds geometry to ensure only POIs within the boundary are counted
+            places_gdf = places_gdf[places_gdf.intersects(bounds_row.geometry)]
 
             # Apply category merging
             places_gdf = landuse_categories.merge_landuse_categories(places_gdf)
