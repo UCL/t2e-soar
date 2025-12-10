@@ -10,7 +10,7 @@ from cityseer.metrics import layers, networks
 from rasterio.mask import mask
 from tqdm import tqdm
 
-from src import tools
+from src import landuse_categories, tools
 
 logger = tools.get_logger(__name__)
 
@@ -30,38 +30,8 @@ def process_places(
 ) -> gpd.GeoDataFrame:
     """ """
     logger.info("Computing places")
-    # filter to schema classes
-    valid_schema_mask = places_gdf["major_lu_schema_class"].isin(list(OVERTURE_SCHEMA.keys()))
-    places_gdf = places_gdf.loc[valid_schema_mask].copy()
-    # create merged categories
-    places_gdf["merged_cats"] = places_gdf["major_lu_schema_class"]
-    # merge eat_and_drink
-    places_gdf.loc[places_gdf["major_lu_schema_class"].isin(["restaurant", "bar", "cafe"]), "merged_cats"] = (
-        "eat_and_drink"
-    )
-    # merge business_and_services
-    places_gdf.loc[
-        places_gdf["major_lu_schema_class"].isin(
-            [
-                "automotive",
-                "beauty_and_spa",
-                "pets",
-                "real_estate",
-                "travel",
-                "home_service",
-                "financial_service",
-                "private_establishments_and_corporates",
-                "business_to_business",
-                "professional_services",
-                "mass_media",
-            ]
-        ),
-        "merged_cats",
-    ] = "business_and_services"
-    places_gdf["merged_cats"].unique()
-    # rename some categories
-    places_gdf.loc[places_gdf["merged_cats"] == "public_service_and_government", "merged_cats"] = "public_services"
-    places_gdf.loc[places_gdf["merged_cats"] == "religious_organization", "merged_cats"] = "religious"
+    # apply standardized category merging
+    places_gdf = landuse_categories.merge_landuse_categories(places_gdf)
     # landuses
     landuse_keys = places_gdf["merged_cats"].unique().tolist()
     # compute accessibilities

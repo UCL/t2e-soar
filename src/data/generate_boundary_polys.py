@@ -63,7 +63,7 @@ def extract_boundary_polys(raster_in_path: str, bounds_out_path: str) -> None:
         to_crs=4326,  # type: ignore
     )
     logger.info("Querying divisions for entire dataset bounds")
-    division_gdf = core.geodataframe("division", overall_bounds_wgs.bounds)  # type:ignore
+    division_gdf = core.geodataframe("division", overall_bounds_wgs.bounds, stac=True)  # type:ignore
 
     # helper function to extract first locality from hierarchy
     def get_first_localadmin(hierarchies_value):
@@ -94,9 +94,18 @@ def extract_boundary_polys(raster_in_path: str, bounds_out_path: str) -> None:
             else:
                 most_common_locality = None
             bounds_gdf.loc[bounds_fid, "label"] = most_common_locality  # type: ignore
-            logger.info(f"Assigned label '{most_common_locality}' to boundary {bounds_fid}")
-
-    bounds_gdf.to_file(bounds_out_path, driver="GPKG", layer="bounds", index=True)
+            if not contained_divisions.empty:
+                locality_counts = contained_divisions["country"].value_counts()
+                most_common_country = locality_counts.index[0] if not locality_counts.empty else None
+            else:
+                most_common_country = None
+            bounds_gdf.loc[bounds_fid, "country"] = most_common_country  # type: ignore
+            # filter country codes
+            logger.info(
+                f"Assigned label '{most_common_locality}' to boundary {bounds_fid} and country '{most_common_country}'"
+            )
+    bounds_gdf["bounds_fid"] = bounds_gdf.index
+    bounds_gdf.to_file(bounds_out_path, driver="GPKG", layer="bounds")
 
 
 if __name__ == "__main__":
@@ -104,7 +113,7 @@ if __name__ == "__main__":
     python -m src.data.generate_boundary_polys temp/HDENS-CLST-2021/HDENS_CLST_2021.tif temp/datasets/boundaries.gpkg
     """
     logger.info("Converting raster boundaries to polygons.")
-    if True:
+    if False:
         parser = argparse.ArgumentParser(description="Load building heights raster data.")
         parser.add_argument("raster_data_path", type=str, help="Path to the raster data.")
         parser.add_argument("bounds_output_path", type=str, help="Path to the data output.")

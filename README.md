@@ -112,3 +112,61 @@ python -m src.processing.generate_metrics \
                         temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg \
                             temp/cities_data/processed
 ```
+
+## Data Quality Analysis
+
+After computing metrics, you can assess the quality and completeness of POI (Point of Interest) data across all cities using regression-based confidence scoring. This analysis identifies cities with unexpectedly low land-use counts that likely indicate data quality issues rather than genuine urban characteristics.
+
+### Confidence Scoring Workflow
+
+Open `src/analysis/analysis_notebook.py` in VS Code and run all cells sequentially. The notebook uses `# %%` cell markers for interactive execution.
+
+**Configuration**: Modify the paths in the second cell:
+
+- `BOUNDS_PATH` - Path to boundaries GPKG
+- `OVERTURE_DATA_DIR` - Directory with Overture data
+- `CENSUS_PATH` - Path to census GPKG
+- `OUTPUT_DIR` - Where to save results
+
+This workflow performs four steps:
+
+1. **City-level aggregation**: Aggregates population, area, and POI counts by land-use category for each city boundary
+2. **Exploratory data analysis**: Generates descriptive statistics, scatter plots, correlation matrices, and distribution histograms
+3. **Confidence scoring**: Fits regression models (`POI_count ~ population + area`) for each land-use category and computes standardized residuals to flag cities with unexpectedly low counts
+4. **Report generation**: Creates a comprehensive markdown report ranking cities by data quality
+
+### Output Files
+
+The analysis generates:
+
+- `city_stats.gpkg` - City-level aggregated statistics (population, area, POI counts) with city boundary geometries
+- `city_confidence.gpkg` - Confidence scores, z-scores, and flagged categories per city with geometries
+- `confidence_report.md` - Main analysis report with top/bottom 50 cities and recommendations
+- `regression_diagnostics.csv` - Model fit statistics (R², coefficients) per land-use category
+- `top_50_cities.csv` / `bottom_50_cities.csv` - Ranked city lists
+- `eda/` - Exploratory data analysis visualizations and tables
+
+**Note**: The main output files (`city_stats.gpkg` and `city_confidence.gpkg`) are GeoPackages that can be opened in QGIS for spatial visualization and exploration.
+
+### Workflow Options
+
+**Skip exploratory data analysis** (faster execution):
+
+Set `SKIP_EDA = True` in the configuration cell (second cell) before running.
+
+**Skip aggregation if already completed**:
+
+The notebook automatically detects if `city_stats.gpkg` exists and skips re-aggregation. To force re-aggregation, delete the file first.
+
+### Interpreting Results
+
+The confidence score (0-1) is computed based on:
+
+- **Number of flagged categories**: Cities with z-scores < -2.0 in multiple land-use categories
+- **Severity of residuals**: How far below expected POI counts the city falls
+
+**Recommended usage:**
+
+- **High confidence (≥0.7)**: Suitable for all analyses
+- **Moderate confidence (0.4-0.7)**: Use with caution for category-specific studies
+- **Low confidence (<0.4)**: Consider excluding from analyses or treating as missing data
