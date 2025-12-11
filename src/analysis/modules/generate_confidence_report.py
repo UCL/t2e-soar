@@ -47,12 +47,12 @@ def generate_confidence_report(
     logger.info(f"Loading regression diagnostics from {regression_diagnostics_path}")
     reg_df = pd.read_csv(regression_diagnostics_path, index_col=0)
 
-    # Sort by confidence score
-    df_sorted = df.sort_values("confidence_score", ascending=False)
+    # Sort by number of flagged categories (ascending = fewer flags first)
+    df_sorted = df.sort_values("n_flagged_categories", ascending=True)
 
-    # Select top and bottom cities
-    top_cities = df_sorted.head(top_n)
-    bottom_cities = df_sorted.tail(bottom_n)
+    # Select cities with fewest and most flags
+    top_cities = df_sorted.head(top_n)  # Cities with fewest flags
+    bottom_cities = df_sorted.tail(bottom_n)  # Cities with most flags
 
     # Generate markdown report
     report_path = output_path / "confidence_report.md"
@@ -68,32 +68,48 @@ def generate_confidence_report(
         # Executive Summary
         f.write("## Executive Summary\n\n")
         f.write(f"- **Total cities analyzed**: {len(df)}\n")
-        f.write(f"- **Mean confidence score**: {df['confidence_score'].mean():.3f}\n")
-        f.write(f"- **Median confidence score**: {df['confidence_score'].median():.3f}\n")
-        f.write(
-            f"- **Cities with confidence < 0.5**: {(df['confidence_score'] < 0.5).sum()} "
-            f"({(df['confidence_score'] < 0.5).sum() / len(df) * 100:.1f}%)\n"
-        )
         f.write(
             f"- **Cities with at least one flagged category**: {(df['n_flagged_categories'] > 0).sum()} "
             f"({(df['n_flagged_categories'] > 0).sum() / len(df) * 100:.1f}%)\n"
         )
-        f.write(f"- **Mean flagged categories per city**: {df['n_flagged_categories'].mean():.2f}\n\n")
+        f.write(f"- **Mean flagged categories per city**: {df['n_flagged_categories'].mean():.2f}\n")
+        f.write(f"- **Median flagged categories per city**: {df['n_flagged_categories'].median():.1f}\n")
+        f.write(f"- **Max flagged categories**: {int(df['n_flagged_categories'].max())}\n\n")
 
         # Methodology
         f.write("## Methodology\n\n")
+
+        # Detect regression type from diagnostics
+        regression_type = "OLS (Ordinary Least Squares)"
+        if "regression_type" in reg_df.columns and not reg_df.empty:
+            first_type = reg_df["regression_type"].iloc[0]
+            if "quantile" in str(first_type):
+                quantile_val = str(first_type).split("_")[1]
+                regression_type = f"Quantile Regression (q={quantile_val})"
+
         f.write("Confidence scores are computed using regression analysis to identify cities with ")
         f.write("unexpectedly low POI counts given their population and area:\n\n")
-        f.write("1. **Regression models**: For each common land-use category (eat_and_drink, retail, ")
-        f.write("education, etc.), fit linear regression: `POI_count ~ population + area_km2`\n")
-        f.write("2. **Residual analysis**: Compute standardized residuals (z-scores) for each city\n")
-        f.write("3. **Flagging**: Cities with z-scores < -2.0 in a category are flagged as having ")
+        f.write(f"1. **Regression type**: {regression_type}\n")
+        f.write("2. **Regression models**: For each common land-use category (eat_and_drink, retail, ")
+        f.write("education, etc.), fit regression: `POI_count ~ population + area_km2`\n")
+
+        if "quantile" in regression_type.lower():
+            f.write("   - **Quantile regression**: Fits to cities with HIGHER POI coverage (above the quantile), ")
+            f.write("not the mean. This defines what 'good coverage' looks like.\n")
+            f.write("   - Cities below this line are more likely to have data quality issues.\n")
+
+        f.write("3. **Residual analysis**: Compute standardized residuals (z-scores) for each city\n")
+        f.write("4. **Flagging**: Cities with z-scores < -2.0 in a category are flagged as having ")
         f.write("likely data quality issues\n")
-        f.write("4. **Confidence score**: Computed as 1.0 minus a weighted penalty based on number of ")
-        f.write("flagged categories (60%) and severity of residuals (40%)\n\n")
+        f.write("5. **Quality assessment**: Based on number of flagged categories and severity of z-scores\n\n")
 
         # Regression Diagnostics
         f.write("## Regression Model Diagnostics\n\n")
+
+        # Add regression type info if available
+        if "regression_type" in reg_df.columns:
+            f.write(f"**Regression Type**: {regression_type}\n\n")
+
         f.write("Model fit quality (R²) for each land-use category:\n\n")
         f.write("| Land Use Category | R² Score | N Cities | Coef (Population) | Coef (Area) | Intercept |\n")
         f.write("|-------------------|----------|----------|-------------------|-------------|----------|\n")
@@ -106,6 +122,29 @@ def generate_confidence_report(
             )
 
         f.write("\n")
+
+        # Add regression fit visualizations if available
+        plots_dir = output_path / "regression_plots"
+        if plots_dir.exists():
+            f.write("### Regression Fit Visualizations\n\n")
+            f.write(
+                "The following plots show the regression fit for each category. "
+                "Blue dots represent cities with acceptable POI coverage, while red X marks "
+                "indicate flagged cities (those significantly below the expected line).\n\n"
+            )
+
+            # Add plots for key categories
+            key_categories = ["eat_and_drink", "retail", "education", "business_and_services"]
+            for cat in key_categories:
+                plot_file = plots_dir / f"{cat}_regression_fit.png"
+                if plot_file.exists():
+                    cat_name = cat.replace("_", " ").title()
+                    # Use relative path from output_dir
+                    rel_path = f"regression_plots/{cat}_regression_fit.png"
+                    f.write(f"#### {cat_name}\n\n")
+                    f.write(f"![{cat_name} Regression Fit]({rel_path})\n\n")
+
+            f.write("*Additional regression plots available in the `regression_plots/` directory.*\n\n")
 
         # Category-specific issues
         f.write("## Most Commonly Flagged Categories\n\n")
@@ -135,30 +174,30 @@ def generate_confidence_report(
             bins=[0, 100000, 500000, float("inf")],
             labels=["Small (<100k)", "Medium (100k-500k)", "Large (>500k)"],
         )
-        pop_summary = df.groupby("pop_bin", observed=True)["confidence_score"].agg(["mean", "count"])
+        pop_summary = df.groupby("pop_bin", observed=True)["n_flagged_categories"].agg(["mean", "count"])
 
-        f.write("### Confidence by City Size\n\n")
-        f.write("| City Size | Mean Confidence | N Cities |\n")
-        f.write("|-----------|-----------------|----------|\n")
+        f.write("### Flagged Categories by City Size\n\n")
+        f.write("| City Size | Mean Flagged Categories | N Cities |\n")
+        f.write("|-----------|-------------------------|----------|\n")
         for size, row in pop_summary.iterrows():
-            f.write(f"| {size} | {row['mean']:.3f} | {int(row['count'])} |\n")
+            f.write(f"| {size} | {row['mean']:.2f} | {int(row['count'])} |\n")
         f.write("\n")
 
         # By country
         if "country" in df.columns and df["country"].notna().sum() > 0:
             country_summary = (
                 df[df["country"].notna()]
-                .groupby("country")["confidence_score"]
+                .groupby("country")["n_flagged_categories"]
                 .agg(["mean", "median", "count"])
-                .sort_values("mean", ascending=False)
+                .sort_values("mean", ascending=True)  # Fewer flags is better
             )
 
-            f.write("### Confidence by Country\n\n")
-            f.write("Countries ranked by mean confidence score:\n\n")
-            f.write("| Country | Mean Confidence | Median Confidence | N Cities |\n")
-            f.write("|---------|-----------------|-------------------|----------|\n")
+            f.write("### Flagged Categories by Country\n\n")
+            f.write("Countries ranked by mean flagged categories (fewer is better):\n\n")
+            f.write("| Country | Mean Flags | Median Flags | N Cities |\n")
+            f.write("|---------|------------|--------------|----------|\n")
             for country, row in country_summary.iterrows():
-                f.write(f"| {country} | {row['mean']:.3f} | {row['median']:.3f} | {int(row['count'])} |\n")
+                f.write(f"| {country} | {row['mean']:.2f} | {row['median']:.1f} | {int(row['count'])} |\n")
             f.write("\n")
 
             # Country-level statistics
@@ -184,50 +223,45 @@ def generate_confidence_report(
             labeled_cities = df["label"].notna().sum()
             f.write(f"- **Cities with geographic labels**: {labeled_cities} ({labeled_cities / len(df) * 100:.1f}%)\n")
             f.write(
-                f"- **Mean confidence (labeled cities)**: {df[df['label'].notna()]['confidence_score'].mean():.3f}\n"
+                f"- **Mean flagged categories (labeled cities)**: {df[df['label'].notna()]['n_flagged_categories'].mean():.2f}\n"
             )
             f.write(
-                f"- **Mean confidence (unlabeled cities)**: {df[df['label'].isna()]['confidence_score'].mean():.3f}\n\n"
+                f"- **Mean flagged categories (unlabeled cities)**: {df[df['label'].isna()]['n_flagged_categories'].mean():.2f}\n\n"
             )
 
-        # Top 50 Most Robust Cities
-        f.write(f"## Top {top_n} Most Robust Cities\n\n")
-        f.write("Cities with highest confidence scores (best data quality):\n\n")
+        # Top 50 Cities with Fewest Flags
+        f.write(f"## Top {top_n} Cities with Fewest Flagged Categories\n\n")
+        f.write("Cities with best data quality (fewest flagged categories):\n\n")
         f.write(
-            "| Rank | Bounds FID | City Label | Population | Area (km²) | Confidence | "
+            "| Rank | Bounds FID | City Label | Population | Area (km²) | N Flags | "
             "Mean Z-Score | Flagged Categories |\n"
         )
         f.write(
-            "|------|------------|------------|------------|------------|------------|--------------|-------------------|\n"
+            "|------|------------|------------|------------|------------|---------|--------------|-------------------|\n"
         )
 
         for rank, (_, row) in enumerate(top_cities.iterrows(), 1):
             label = row["label"] if pd.notna(row["label"]) else "N/A"
             pop = f"{int(row['population']):,}" if pd.notna(row["population"]) else "N/A"
             area = f"{row['area_km2']:.1f}" if pd.notna(row["area_km2"]) else "N/A"
-            conf = f"{row['confidence_score']:.3f}"
+            n_flags = int(row["n_flagged_categories"]) if pd.notna(row["n_flagged_categories"]) else 0
             mean_z = f"{row['mean_zscore']:.2f}" if pd.notna(row["mean_zscore"]) else "N/A"
             flags = row["flagged_categories"] if row["flagged_categories"] else "None"
 
-            f.write(f"| {rank} | {row['bounds_fid']} | {label} | {pop} | {area} | {conf} | {mean_z} | {flags} |\n")
+            f.write(f"| {rank} | {row['bounds_fid']} | {label} | {pop} | {area} | {n_flags} | {mean_z} | {flags} |\n")
 
         f.write("\n")
 
-        # Bottom 50 Least Confident Cities
-        f.write(f"## Bottom {bottom_n} Least Confident Cities\n\n")
-        f.write("Cities with lowest confidence scores (likely data quality issues):\n\n")
-        f.write(
-            "| Rank | Bounds FID | City Label | Population | Area (km²) | Confidence | N Flags | Flagged Categories |\n"
-        )
-        f.write(
-            "|------|------------|------------|------------|------------|------------|---------|-------------------|\n"
-        )
+        # Bottom 50 Cities with Most Flags
+        f.write(f"## Bottom {bottom_n} Cities with Most Flagged Categories\n\n")
+        f.write("Cities with likely data quality issues (most flagged categories):\n\n")
+        f.write("| Rank | Bounds FID | City Label | Population | Area (km²) | N Flags | Flagged Categories |\n")
+        f.write("|------|------------|------------|------------|------------|---------|-------------------|\n")
 
         for rank, (_, row) in enumerate(bottom_cities[::-1].iterrows(), 1):
             label = row["label"] if pd.notna(row["label"]) else "N/A"
             pop = f"{int(row['population']):,}" if pd.notna(row["population"]) else "N/A"
             area = f"{row['area_km2']:.1f}" if pd.notna(row["area_km2"]) else "N/A"
-            conf = f"{row['confidence_score']:.3f}"
             n_flags = int(row["n_flagged_categories"]) if pd.notna(row["n_flagged_categories"]) else 0
             flags = row["flagged_categories"] if row["flagged_categories"] else "None"
 
@@ -235,7 +269,7 @@ def generate_confidence_report(
             if len(flags) > 60:
                 flags = flags[:57] + "..."
 
-            f.write(f"| {rank} | {row['bounds_fid']} | {label} | {pop} | {area} | {conf} | {n_flags} | {flags} |\n")
+            f.write(f"| {rank} | {row['bounds_fid']} | {label} | {pop} | {area} | {n_flags} | {flags} |\n")
 
         f.write("\n")
 
@@ -249,7 +283,6 @@ def generate_confidence_report(
                 f.write(f" - {row['label']}")
             f.write("\n\n")
 
-            f.write(f"- **Confidence Score**: {row['confidence_score']:.3f}\n")
             f.write(
                 f"- **Population**: {int(row['population']):,}"
                 if pd.notna(row["population"])
@@ -284,30 +317,31 @@ def generate_confidence_report(
         # Recommendations
         f.write("## Recommendations for Dataset Usage\n\n")
 
-        low_conf_count = (df["confidence_score"] < 0.4).sum()
-        moderate_conf_count = ((df["confidence_score"] >= 0.4) & (df["confidence_score"] < 0.7)).sum()
+        high_flags = (df["n_flagged_categories"] >= 3).sum()
+        moderate_flags = ((df["n_flagged_categories"] >= 1) & (df["n_flagged_categories"] < 3)).sum()
+        low_flags = (df["n_flagged_categories"] == 0).sum()
 
         f.write("### Data Quality Tiers\n\n")
-        f.write(f"1. **High Confidence (≥0.7)**: {(df['confidence_score'] >= 0.7).sum()} cities - ")
+        f.write(f"1. **High Quality (0 flags)**: {low_flags} cities - ")
         f.write("Suitable for all analyses including detailed land-use studies\n")
-        f.write(f"2. **Moderate Confidence (0.4-0.7)**: {moderate_conf_count} cities - ")
+        f.write(f"2. **Moderate Quality (1-2 flags)**: {moderate_flags} cities - ")
         f.write("Suitable for aggregate analyses; use caution for category-specific studies\n")
-        f.write(f"3. **Low Confidence (<0.4)**: {low_conf_count} cities - ")
+        f.write(f"3. **Low Quality (≥3 flags)**: {high_flags} cities - ")
         f.write("Recommend excluding from analyses or treating as missing data\n\n")
 
         f.write("### Specific Recommendations\n\n")
 
-        if low_conf_count > 0:
-            f.write(f"1. **Exclusion criterion**: Consider excluding {low_conf_count} cities with ")
-            f.write("confidence < 0.4 from regression analyses to avoid biasing results\n\n")
+        if high_flags > 0:
+            f.write(f"1. **Exclusion criterion**: Consider excluding {high_flags} cities with ")
+            f.write("3+ flagged categories from regression analyses to avoid biasing results\n\n")
 
         f.write("2. **Category-specific caution**: For analyses focused on specific land uses, ")
-        f.write("filter cities based on category-specific z-scores rather than overall confidence\n\n")
+        f.write("filter cities based on category-specific z-scores rather than overall flag count\n\n")
 
         f.write("3. **Robust methods**: Use robust regression techniques (e.g., M-estimators) that ")
         f.write("downweight outliers when including all cities\n\n")
 
-        f.write("4. **Data improvement**: Cities with low confidence scores may benefit from manual ")
+        f.write("4. **Data improvement**: Cities with many flagged categories may benefit from manual ")
         f.write("validation or supplementary data sources (e.g., official business registries)\n\n")
 
         # Footer
@@ -322,7 +356,6 @@ def generate_confidence_report(
         "label",
         "population",
         "area_km2",
-        "confidence_score",
         "n_flagged_categories",
         "mean_zscore",
         "flagged_categories",
@@ -346,15 +379,14 @@ def generate_confidence_report(
             .groupby("country")
             .agg(
                 {
-                    "confidence_score": ["mean", "median", "std", "min", "max"],
+                    "n_flagged_categories": ["mean", "median", "std", "min", "max"],
                     "bounds_fid": "count",
-                    "n_flagged_categories": "mean",
                     "population": "sum",
                 }
             )
             .round(3)
         )
         country_summary.columns = ["_".join(col).strip() for col in country_summary.columns.values]
-        country_summary = country_summary.sort_values("confidence_score_mean", ascending=False)
+        country_summary = country_summary.sort_values("n_flagged_categories_mean", ascending=True)
         country_summary.to_csv(output_path / "country_summary.csv")
         logger.info("Saved country summary: country_summary.csv")

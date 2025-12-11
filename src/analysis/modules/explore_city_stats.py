@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from sklearn.linear_model import QuantileRegressor
 
 from src import landuse_categories, tools
 
@@ -110,33 +111,81 @@ def explore_city_stats(
         # vs Population
         valid_data = df.dropna(subset=[col, "population"])
         if len(valid_data) > 0:
-            axes[0].scatter(valid_data["population"], valid_data[col], alpha=0.5, s=20)
+            axes[0].scatter(valid_data["population"], valid_data[col], alpha=0.5, s=20, c="blue")
             axes[0].set_xlabel("Population")
             axes[0].set_ylabel(f"{cat} Count")
             axes[0].set_title(f"{cat.replace('_', ' ').title()} vs Population")
 
-            # Add regression line
+            # Add regression lines with log transformation and weighting
             if len(valid_data) > 2:
-                z = np.polyfit(valid_data["population"], valid_data[col], 1)
-                p = np.poly1d(z)
+                # Log-transformed quantile regression (75th percentile)
+                epsilon = 1.0
+                X_log = np.log(valid_data[["population"]].values + epsilon)
+                y_log = np.log(valid_data[col].values.astype(float) + epsilon)
+                
+                # Compute sample weights to balance small vs large cities
+                pop_bins = pd.qcut(valid_data["population"], q=10, duplicates="drop", labels=False)
+                bin_counts = pop_bins.value_counts()
+                sample_weights = np.array([1.0 / bin_counts[bin_id] for bin_id in pop_bins])
+                sample_weights = sample_weights * len(sample_weights) / sample_weights.sum()
+                
+                qr_model = QuantileRegressor(quantile=0.75, alpha=0, solver="highs")
+                qr_model.fit(X_log, y_log, sample_weight=sample_weights)
+                
+                # Generate smooth line for plotting
                 x_line = np.linspace(valid_data["population"].min(), valid_data["population"].max(), 100)
-                axes[0].plot(x_line, p(x_line), "r--", alpha=0.8, linewidth=2, label=f"y={z[0]:.2e}x+{z[1]:.2f}")
+                x_line_log = np.log(x_line + epsilon)
+                y_q75_log = qr_model.predict(x_line_log.reshape(-1, 1))
+                y_q75 = np.exp(y_q75_log) - epsilon
+                
+                axes[0].plot(
+                    x_line,
+                    y_q75,
+                    "g--",
+                    alpha=0.8,
+                    linewidth=2,
+                    label=f"Q75 (weighted log): coef={qr_model.coef_[0]:.2f}",
+                )
+
                 axes[0].legend()
 
         # vs Area
         valid_data = df.dropna(subset=[col, "area_km2"])
         if len(valid_data) > 0:
-            axes[1].scatter(valid_data["area_km2"], valid_data[col], alpha=0.5, s=20)
+            axes[1].scatter(valid_data["area_km2"], valid_data[col], alpha=0.5, s=20, c="blue")
             axes[1].set_xlabel("Area (km²)")
             axes[1].set_ylabel(f"{cat} Count")
             axes[1].set_title(f"{cat.replace('_', ' ').title()} vs Area")
 
-            # Add regression line
+            # Add log-transformed quantile regression line with weighting
             if len(valid_data) > 2:
-                z = np.polyfit(valid_data["area_km2"], valid_data[col], 1)
-                p = np.poly1d(z)
+                epsilon = 1.0
+                X_log = np.log(valid_data[["area_km2"]].values + epsilon)
+                y_log = np.log(valid_data[col].values.astype(float) + epsilon)
+                
+                # Weight by area bins
+                area_bins = pd.qcut(valid_data["area_km2"], q=10, duplicates="drop", labels=False)
+                bin_counts = area_bins.value_counts()
+                sample_weights = np.array([1.0 / bin_counts[bin_id] for bin_id in area_bins])
+                sample_weights = sample_weights * len(sample_weights) / sample_weights.sum()
+                
+                qr_model = QuantileRegressor(quantile=0.75, alpha=0, solver="highs")
+                qr_model.fit(X_log, y_log, sample_weight=sample_weights)
+                
                 x_line = np.linspace(valid_data["area_km2"].min(), valid_data["area_km2"].max(), 100)
-                axes[1].plot(x_line, p(x_line), "r--", alpha=0.8, linewidth=2, label=f"y={z[0]:.2f}x+{z[1]:.2f}")
+                x_line_log = np.log(x_line + epsilon)
+                y_q75_log = qr_model.predict(x_line_log.reshape(-1, 1))
+                y_q75 = np.exp(y_q75_log) - epsilon
+                
+                axes[1].plot(
+                    x_line,
+                    y_q75,
+                    "g--",
+                    alpha=0.8,
+                    linewidth=2,
+                    label=f"Q75 (weighted log): coef={qr_model.coef_[0]:.2f}",
+                )
+
                 axes[1].legend()
 
         plt.tight_layout()

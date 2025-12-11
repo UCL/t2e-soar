@@ -85,17 +85,30 @@ else:
 """
 ## Step 3: Confidence Scoring
 
-Fits regression models (POI_count ~ population + area) for each land-use category and computes standardized residuals.
-Cities with z-scores < -2.0 are flagged as having unexpectedly low POI counts.
+Fits quantile regression models (POI_count ~ population + area) to cities with higher POI coverage.
+Uses strict mode to more aggressively flag cities with unexpectedly low POI counts.
+
+**Strict Mode (Default)**:
+- Fits to 75th percentile (cities with good coverage define the expected line)
+- Uses only negative residuals for z-score calculation
+- Cities with z-scores < -2.0 are flagged as having data quality issues
+
+To use legacy OLS regression instead:
+compute_confidence_scores(..., use_quantile_regression=False, strict_mode=False)
 """
-logger.info("STEP 3: Computing confidence scores")
+logger.info("STEP 3: Computing confidence scores (STRICT MODE)")
 compute_confidence_scores(
     str(city_stats_file),
     OUTPUT_DIR,
+    use_quantile_regression=True,  # Fit to upper quantile, not mean
+    quantile=0.75,  # 75th percentile defines "good coverage"
+    strict_mode=True,  # More aggressive flagging
+    residual_threshold=-2.0,  # Z-score threshold for flagging
 )
 logger.info("Confidence scoring complete")
 logger.info(f"  Output: {output_path / 'city_confidence.gpkg'}")
 logger.info(f"  Diagnostics: {output_path / 'regression_diagnostics.csv'}")
+logger.info("  Mode: Quantile Regression (q=0.75) with Strict Z-scores")
 
 # %%
 """

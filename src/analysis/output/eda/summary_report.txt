@@ -21,91 +21,91 @@ AREA STATISTICS (km²):
 POI COUNT STATISTICS BY CATEGORY:
 
   Business And Services:
-    Mean: 3716.5
-    Median: 1787.5
-    Std: 7155.4
+    Mean: 3706.0
+    Median: 1708.0
+    Std: 7308.7
     Min: 135
     Max: 103597
     Cities with zero: 0
 
   Active Life:
-    Mean: 373.0
-    Median: 194.0
-    Std: 671.9
+    Mean: 371.9
+    Median: 182.0
+    Std: 700.7
     Min: 13
     Max: 9583
     Cities with zero: 0
 
   Arts And Entertainment:
-    Mean: 192.8
-    Median: 92.5
-    Std: 389.5
+    Mean: 196.6
+    Median: 88.0
+    Std: 413.5
     Min: 1
     Max: 5891
     Cities with zero: 0
 
   Public Services:
-    Mean: 435.5
-    Median: 214.0
-    Std: 880.2
-    Min: 16
+    Mean: 425.7
+    Median: 194.0
+    Std: 879.4
+    Min: 9
     Max: 14537
     Cities with zero: 0
 
   Retail:
-    Mean: 1899.0
-    Median: 998.0
-    Std: 3649.2
+    Mean: 2001.5
+    Median: 991.0
+    Std: 4019.5
     Min: 49
     Max: 58573
     Cities with zero: 0
 
   Health And Medical:
-    Mean: 628.3
-    Median: 322.5
-    Std: 1125.4
+    Mean: 632.0
+    Median: 300.0
+    Std: 1196.0
     Min: 11
     Max: 13009
     Cities with zero: 0
 
   Eat And Drink:
-    Mean: 1038.9
-    Median: 481.5
-    Std: 2370.4
+    Mean: 1133.8
+    Median: 498.0
+    Std: 2585.4
     Min: 14
     Max: 41241
     Cities with zero: 0
 
   Education:
-    Mean: 422.3
-    Median: 212.0
-    Std: 797.5
+    Mean: 430.2
+    Median: 201.0
+    Std: 844.5
     Min: 10
     Max: 12290
     Cities with zero: 0
 
   Attractions And Activities:
-    Mean: 259.4
-    Median: 111.5
-    Std: 573.1
+    Mean: 258.8
+    Median: 106.0
+    Std: 570.1
     Min: 7
     Max: 9015
     Cities with zero: 0
 
   Religious:
-    Mean: 103.2
-    Median: 53.0
-    Std: 196.1
+    Mean: 108.1
+    Median: 51.0
+    Std: 214.8
     Min: 3
     Max: 3085
     Cities with zero: 0
 
   Accommodation:
-    Mean: 177.8
+    Mean: 204.1
     Median: 77.0
-    Std: 382.8
-    Min: 3
-    Max: 6280
+    Std: 502.2
+    Min: 1
+    Max: 7485
     Cities with zero: 0
 
 ================================================================================
