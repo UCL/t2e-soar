@@ -122,22 +122,22 @@ def explore_city_stats(
                 epsilon = 1.0
                 X_log = np.log(valid_data[["population"]].values + epsilon)
                 y_log = np.log(valid_data[col].values.astype(float) + epsilon)
-                
+
                 # Compute sample weights to balance small vs large cities
                 pop_bins = pd.qcut(valid_data["population"], q=10, duplicates="drop", labels=False)
                 bin_counts = pop_bins.value_counts()
                 sample_weights = np.array([1.0 / bin_counts[bin_id] for bin_id in pop_bins])
                 sample_weights = sample_weights * len(sample_weights) / sample_weights.sum()
-                
+
                 qr_model = QuantileRegressor(quantile=0.75, alpha=0, solver="highs")
                 qr_model.fit(X_log, y_log, sample_weight=sample_weights)
-                
+
                 # Generate smooth line for plotting
                 x_line = np.linspace(valid_data["population"].min(), valid_data["population"].max(), 100)
                 x_line_log = np.log(x_line + epsilon)
                 y_q75_log = qr_model.predict(x_line_log.reshape(-1, 1))
                 y_q75 = np.exp(y_q75_log) - epsilon
-                
+
                 axes[0].plot(
                     x_line,
                     y_q75,
@@ -162,21 +162,21 @@ def explore_city_stats(
                 epsilon = 1.0
                 X_log = np.log(valid_data[["area_km2"]].values + epsilon)
                 y_log = np.log(valid_data[col].values.astype(float) + epsilon)
-                
+
                 # Weight by area bins
                 area_bins = pd.qcut(valid_data["area_km2"], q=10, duplicates="drop", labels=False)
                 bin_counts = area_bins.value_counts()
                 sample_weights = np.array([1.0 / bin_counts[bin_id] for bin_id in area_bins])
                 sample_weights = sample_weights * len(sample_weights) / sample_weights.sum()
-                
+
                 qr_model = QuantileRegressor(quantile=0.75, alpha=0, solver="highs")
                 qr_model.fit(X_log, y_log, sample_weight=sample_weights)
-                
+
                 x_line = np.linspace(valid_data["area_km2"].min(), valid_data["area_km2"].max(), 100)
                 x_line_log = np.log(x_line + epsilon)
                 y_q75_log = qr_model.predict(x_line_log.reshape(-1, 1))
                 y_q75 = np.exp(y_q75_log) - epsilon
-                
+
                 axes[1].plot(
                     x_line,
                     y_q75,
