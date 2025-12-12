@@ -113,7 +113,7 @@ if __name__ == "__main__":
     python -m src.data.generate_boundary_polys temp/HDENS-CLST-2021/HDENS_CLST_2021.tif temp/datasets/boundaries.gpkg
     """
     logger.info("Converting raster boundaries to polygons.")
-    if False:
+    if True:
         parser = argparse.ArgumentParser(description="Load building heights raster data.")
         parser.add_argument("raster_data_path", type=str, help="Path to the raster data.")
         parser.add_argument("bounds_output_path", type=str, help="Path to the data output.")
