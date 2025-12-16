@@ -2,34 +2,23 @@
 """
 # Grid-Based POI Quality Assessment Workflow
 
-This notebook implements a grid-based approach to assessing POI data quality
-using multi-scale neighborhood analysis of 1km census grid cells.
+Assesses POI data quality using multi-scale neighborhood analysis of 1km census grid cells.
 
-## Overview
-1. Aggregate grid-level statistics (direct POI counts, no buffering)
-2. Fit multiple regression using all 3 population scales as simultaneous features
-3. Identify underserved areas based on residuals
-4. Rank cities by coverage deficits
+## Steps
+1. Aggregate grid-level POI counts with multi-scale population neighborhoods
+2. Fit Random Forest regression: POI_count ~ pop_local + pop_intermediate + pop_large
+3. Aggregate to city level and classify by saturation quadrant
+4-7. EDA, regression diagnostics, feature importance, and report generation
 
-## Methodology
-- Use census 1km grid cells completely contained within city boundaries
-- Count POIs directly within grid cells (no buffering)
-- Compute 3 population scales: 1x1 (local), 3x3 (intermediate), 5x5 (large) neighborhoods
-- Fit single multiple regression per category: POI ~ log(pop_local) + log(pop_intermediate) + log(pop_large)
-- Calculate z-scores on residuals to identify underserved areas (users can set their own threshold)
-- Neighborhoods computed on full grid BEFORE filtering by boundaries (complete context)
-- All grid cells included (no minimum population threshold)
+## Key Outputs
+- **grid_multiscale.gpkg**: Grid cells with z-scores (deviation from expected POI counts)
+- **city_analysis_results.gpkg**: City-level statistics with quadrant classification
+- **city_assessment_report.md**: Comprehensive markdown report
 
-## Key Advantages
-- **Single unified model**: All scales used simultaneously to predict POI distribution
-- **Reveals dominant scale**: Coefficient magnitudes show which scale(s) drive POI location
-- **Accounts for multicollinearity**: Joint fitting extracts true independent effects
-- **Residual-based flagging**: Identifies grids with lower POIs than predicted by all-scales model
-- **Direct grid counting**: Avoids geometric complexity of buffering
-- **Complete spatial context**: Neighborhoods computed before boundary filtering
-
-## Usage
-Run all cells sequentially. Modify the configuration paths in the next cell as needed.
+## Z-Score Interpretation
+- z < 0: Fewer POIs than expected (undersaturated)
+- z > 0: More POIs than expected (saturated)
+- Quadrant analysis: mean z-score (level) × std z-score (variability)
 """
 
 from pathlib import Path
@@ -38,10 +27,13 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
+from matplotlib.colors import LogNorm
+from scipy import stats
 from sklearn.ensemble import RandomForestRegressor
 
 from src import tools
-from src.analysis.modules.aggregate_grid_stats import aggregate_grid_stats
+from src.analysis.aggregate_grid_stats import aggregate_grid_stats
 
 logger = tools.get_logger(__name__)
 
@@ -49,23 +41,13 @@ logger = tools.get_logger(__name__)
 BOUNDS_PATH = "temp/datasets/boundaries.gpkg"
 OVERTURE_DATA_DIR = "temp/cities_data/overture"
 CENSUS_PATH = "temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg"
-OUTPUT_DIR = "src/analysis/output_grid"
+OUTPUT_DIR = "src/analysis/outputs"
 
 # %%
 """
 ## Step 1: Aggregate Grid-Level Statistics
 
-Counts POIs directly within census grid cells (no buffering).
-Computes multi-scale population neighborhoods on full grid before filtering by boundaries.
-Keeps all grid cells (no minimum population threshold).
-
-**Multi-Scale Neighborhoods:**
-- `pop_local`: Population in single grid cell (1x1)
-- `pop_intermediate`: Population in 3x3 neighborhood (intermediate scale)
-- `pop_large`: Population in 5x5 neighborhood (large scale)
-
-These scales capture how POI distribution varies with neighborhood density,
-enabling analysis of multi-scale agglomeration effects.
+Counts POIs within census grid cells and computes multi-scale population neighborhoods.
 """
 
 output_path = Path(OUTPUT_DIR)
@@ -73,85 +55,54 @@ output_path.mkdir(parents=True, exist_ok=True)
 grid_stats_file = output_path / "grid_stats.gpkg"
 
 if grid_stats_file.exists():
-    logger.info("Skipping grid aggregation step (grid_stats.gpkg exists)")
+    logger.info("Skipping grid aggregation (grid_stats.gpkg exists)")
 else:
     logger.info("STEP 1: Aggregating grid-level statistics")
-    aggregate_grid_stats(
-        BOUNDS_PATH,
-        OVERTURE_DATA_DIR,
-        CENSUS_PATH,
-        OUTPUT_DIR,
+    bounds_gdf = gpd.read_file(BOUNDS_PATH)
+    census_gdf = gpd.read_file(CENSUS_PATH)
+
+    grid_stats = aggregate_grid_stats(
+        bounds_gdf=bounds_gdf,
+        census_gdf=census_gdf,
+        overture_data_dir=OVERTURE_DATA_DIR,
     )
-    logger.info("Grid aggregation complete")
-    logger.info(f"  Output: {grid_stats_file}")
+
+    grid_stats.to_file(grid_stats_file, driver="GPKG")
+    logger.info(f"Grid aggregation complete: {grid_stats_file}")
 
 # %%
 """
 ## Step 2: Multiple Regression Analysis
 
-Fit a single multiple regression model using all three population scales simultaneously as features.
-This reveals which scale(s) best predict POI distribution and enables residual-based flagging.
-
-**Model Specification:**
-- Response: POI_count (raw POI counts)
-- Features: pop_local, pop_intermediate, pop_large (raw population counts)
-- Model: Random Forest Regressor (handles non-linearity and scale differences automatically)
-- **Advantages**:
-  - Captures complex non-linear relationships without transformation
-  - Naturally handles nested population scales
-  - No manual feature engineering needed
-  - Interpretable feature importance values
-
-**Interpretation of Coefficients:**
-- Coefficients show **independent effects** after controlling for other scales
-- Nested structure: large ⊃ intermediate ⊃ local → high multicollinearity expected
-- Negative coefficient = "After controlling for other scales, this scale shows inverse relationship"
-  - This is mathematically valid; means the effect is captured elsewhere
-  - E.g., if local is positive and large is negative: local effect is the primary driver
-- **Focus on R² for model fit, and z-scores (residuals) for practical utility**
-
-**Z-Score Interpretation:**
-- Z-score = (residual - mean) / std_dev = standardized deviation from predicted value
-- Negative z-score = undersaturated (fewer POIs than predicted)
-- Positive z-score = fully saturated (more POIs than predicted)
-- |z| < 1: Normal (within 1 std dev)
-- |z| < 2: Expected (within 2 std devs, covers ~95% of normal distribution)
-- |z| > 2: Unusual (beyond 2 std devs)
-- Users can filter based on their own threshold (e.g., z < -1.5, z < -2.0, etc.)
-
-**Why All Scales Together:**
-- Eliminates scale-specific comparisons; uses holistic prediction
-- Accounts for correlation between scales
-- Single regression model per category
-- Residuals and z-scores indicate observed POI count deviation from all-scales prediction
+Fit Random Forest regression per category: POI_count ~ pop_local + pop_intermediate + pop_large
+Z-scores on residuals identify grids with more/fewer POIs than expected.
 """
 
-logger.info("STEP 2: Multiple regression analysis (all scales as features)")
+logger.info("STEP 2: Multiple regression analysis")
 
-# Load grid statistics
 grid_gdf = gpd.read_file(grid_stats_file)
-
-# Get list of POI categories (columns ending with "_count")
 poi_categories = sorted([col.replace("_count", "") for col in grid_gdf.columns if col.endswith("_count")])
 
-logger.info(f"Found {len(poi_categories)} POI categories")
-logger.info(f"Total grid cells: {len(grid_gdf)}")
+
+def format_category_name(cat):
+    """Format category names: remove underscores, title case."""
+    return cat.replace("_", " ").title()
+
+
+category_names = {cat: format_category_name(cat) for cat in poi_categories}
+
+logger.info(f"Found {len(poi_categories)} POI categories, {len(grid_gdf)} grid cells")
 
 # Initialize all output columns for all categories (even if some will be skipped)
 for cat in poi_categories:
-    grid_gdf[f"{cat}_flagged"] = False
     grid_gdf[f"{cat}_residual"] = np.nan
     grid_gdf[f"{cat}_zscore"] = np.nan
     grid_gdf[f"{cat}_predicted"] = np.nan
 
 # Store regression results
 regression_results = {}
-epsilon = 1e-6
 
 # Fit multiple regression for each category using all scales as features
-logger.info("\nFitting multiple regression models (all 3 scales as features):")
-logger.info("=" * 110)
-
 for cat in poi_categories:
     poi_col = f"{cat}_count"
 
@@ -161,20 +112,9 @@ for cat in poi_categories:
     pop_intermediate = grid_gdf["pop_intermediate"].values.astype(float)
     pop_large = grid_gdf["pop_large"].values.astype(float)
 
-    # Only use grids with valid POI data AND all populations > 0
-    valid_mask = (poi > 0) & (pop_local > 0) & (pop_intermediate > 0) & (pop_large > 0)
-    n_valid = valid_mask.sum()
-
-    if n_valid < 10:
-        logger.info(f"{cat:30s}: SKIPPED (only {n_valid} grids with complete data)")
-        regression_results[cat] = {
-            "n_samples": n_valid,
-            "r2": np.nan,
-            "importance_local": np.nan,
-            "importance_intermediate": np.nan,
-            "importance_large": np.nan,
-        }
-        continue
+    # Use grids with valid population data (POI count can be 0 - that's valid undersaturation!)
+    # Only require populations > 0 for meaningful regression
+    valid_mask = (pop_local > 0) & (pop_intermediate > 0) & (pop_large > 0)
 
     # Use raw POI counts and populations for regression
     poi_counts = poi[valid_mask]
@@ -189,7 +129,7 @@ for cat in poi_categories:
     # Fit Random Forest (handles non-linearity and interactions automatically)
     model = RandomForestRegressor(
         n_estimators=100,
-        max_depth=10,
+        max_depth=20,
         min_samples_leaf=5,
         random_state=42,
         n_jobs=-1,
@@ -208,7 +148,7 @@ for cat in poi_categories:
     # Calculate z-scores of log-scale residuals (standardized deviation from predicted)
     residual_mean = np.mean(residuals)
     residual_std = np.std(residuals)
-    z_scores = (residuals - residual_mean) / residual_std if residual_std > 0 else np.zeros(len(residuals))
+    z_scores = (residuals - residual_mean) / residual_std
 
     # Update grid_gdf with stats for valid grids
     grid_indices = np.where(valid_mask)[0]
@@ -217,71 +157,41 @@ for cat in poi_categories:
         grid_gdf.loc[grid_gdf.index[grid_idx], f"{cat}_zscore"] = z_scores[idx]
         grid_gdf.loc[grid_gdf.index[grid_idx], f"{cat}_predicted"] = predictions[idx]
 
+    # Check residual normality (Shapiro-Wilk on sample if large) - important for z-score validity
+    sample_size = min(5000, len(residuals))  # Shapiro-Wilk limited to 5000
+    residual_sample = np.random.default_rng(42).choice(residuals, size=sample_size, replace=False)
+    _, normality_p = stats.shapiro(residual_sample)
+
     regression_results[cat] = {
-        "n_samples": n_valid,
+        "n_samples": valid_mask.sum(),
         "r2": r2,
         "importance_local": model.feature_importances_[0],
         "importance_intermediate": model.feature_importances_[1],
         "importance_large": model.feature_importances_[2],
+        "residual_std": residual_std,
+        "normality_p": normality_p,
+        "model": model,
+        "valid_indices": grid_indices.tolist(),
     }
 
-    logger.info(f"{cat}: R²={r2:.4f}, n={n_valid}")
+    logger.info(f"{cat}: R²={r2:.4f}, n={valid_mask.sum()}")
 
-# Save grid results with flagged columns
+# Save grid dataset with z-scores
+output_path.mkdir(parents=True, exist_ok=True)
 grid_gdf.to_file(output_path / "grid_multiscale.gpkg", driver="GPKG")
-logger.info(f"\nSaved grid results to {output_path / 'grid_multiscale.gpkg'}")
-
-# Log summary of feature importances
-logger.info("=" * 110)
-logger.info("RANDOM FOREST FEATURE IMPORTANCES")
-logger.info("=" * 110)
-logger.info("Higher importance = feature contributes more to predictions")
-logger.info("=" * 110)
-logger.info(f"{'Category':<30s} {'Local':<12s} {'Intermediate':<12s} {'Large':<12s} {'R²':<8s}")
-logger.info("-" * 85)
-
-for cat in poi_categories:
-    try:
-        imp_local = regression_results[cat]["importance_local"]
-        imp_int = regression_results[cat]["importance_intermediate"]
-        imp_large = regression_results[cat]["importance_large"]
-        r2 = regression_results[cat]["r2"]
-
-        local_str = f"{imp_local:.4f}" if not np.isnan(imp_local) else "N/A"
-        int_str = f"{imp_int:.4f}" if not np.isnan(imp_int) else "N/A"
-        large_str = f"{imp_large:.4f}" if not np.isnan(imp_large) else "N/A"
-        r2_str = f"{r2:.3f}" if not np.isnan(r2) else "N/A"
-
-        logger.info(f"{cat:<30s} {local_str:<12s} {int_str:<12s} {large_str:<12s} {r2_str:<8s}")
-    except (KeyError, TypeError):
-        pass
+logger.info(f"Saved grid dataset to {output_path / 'grid_multiscale.gpkg'}")
 
 # %%
 """
-## Step 3: Results Summary
+## Step 3: City-Level Aggregation
 
-Aggregate grid-level results to city level and generate summary statistics.
+Aggregate z-score statistics per city and classify into quadrants.
 """
 
-logger.info("\n" + "=" * 80)
-logger.info("RESULTS SUMMARY")
-logger.info("=" * 80)
+logger.info("\nSTEP 3: City-level aggregation and quadrant analysis")
 
-# Summary by category - z-score statistics
-logger.info("\nZ-SCORE STATISTICS BY CATEGORY:")
-for cat in poi_categories:
-    zscore_col = f"{cat}_zscore"
-    valid_zscores = grid_gdf[zscore_col].dropna()
-
-    if len(valid_zscores) > 0:
-        logger.info(
-            f"{cat}: mean={valid_zscores.mean():.4f}, median={valid_zscores.median():.4f}, "
-            f"std={valid_zscores.std():.4f}, min={valid_zscores.min():.4f}, max={valid_zscores.max():.4f}"
-        )
-
-# City-level aggregation
-city_results = []
 bounds_gdf = gpd.read_file(BOUNDS_PATH)
+city_gdf = bounds_gdf.copy()
 
 for idx, row in bounds_gdf.iterrows():
     bounds_fid = row.get("bounds_fid", row.get("fid", idx))
@@ -290,160 +200,457 @@ for idx, row in bounds_gdf.iterrows():
     if len(city_grids) == 0:
         continue
 
-    city_result = {"bounds_fid": bounds_fid, "total_grids": len(city_grids)}
+    city_gdf.loc[idx, "total_grids"] = len(city_grids)
 
-    # Per-category z-score based metrics
     for cat in poi_categories:
-        zscore_col = f"{cat}_zscore"
-        zscores = city_grids[zscore_col].dropna()
+        zscores = city_grids[f"{cat}_zscore"].dropna()
 
+        # Z-score statistics
         if len(zscores) > 0:
-            city_result[f"{cat}_z_mean"] = zscores.mean()
-            city_result[f"{cat}_z_median"] = zscores.median()
-            city_result[f"{cat}_z_std"] = zscores.std()
-            city_result[f"{cat}_z_min"] = zscores.min()
-            city_result[f"{cat}_z_max"] = zscores.max()
+            city_gdf.loc[idx, f"{cat}_z_mean"] = zscores.mean()
+            city_gdf.loc[idx, f"{cat}_z_std"] = zscores.std()
         else:
-            # No data for this category in this city
-            city_result[f"{cat}_z_mean"] = np.nan
-            city_result[f"{cat}_z_median"] = np.nan
-            city_result[f"{cat}_z_std"] = np.nan
-            city_result[f"{cat}_z_min"] = np.nan
-            city_result[f"{cat}_z_max"] = np.nan
+            city_gdf.loc[idx, f"{cat}_z_mean"] = np.nan
+            city_gdf.loc[idx, f"{cat}_z_std"] = np.nan
 
-    city_results.append(city_result)
+# Calculate average z-score across all categories for each city
+for idx in city_gdf.index:
+    z_mean_cols = [f"{cat}_z_mean" for cat in poi_categories if f"{cat}_z_mean" in city_gdf.columns]
+    z_values = city_gdf.loc[idx, z_mean_cols].dropna()
+    city_gdf.loc[idx, "avg_z_mean"] = z_values.mean() if len(z_values) > 0 else np.nan
 
-city_df = pd.DataFrame(city_results)
-city_df.to_csv(output_path / "city_results.csv", index=False)
+# Quadrant Analysis: Classify cities by saturation level (mean) × variability (std)
+# Compute both std approaches for comparison
+z_mean_cols = [f"{cat}_z_mean" for cat in poi_categories]
+z_std_cols = [f"{cat}_z_std" for cat in poi_categories]
+city_gdf["overall_z_mean"] = city_gdf[z_mean_cols].mean(axis=1)
+# Spatial variability: avg of within-category stds (how even is coverage across grids?)
+city_gdf["overall_z_std_spatial"] = city_gdf[z_std_cols].mean(axis=1)
+# Category variability: std across category means (how consistent across POI types?)
+city_gdf["overall_z_std_category"] = city_gdf[z_mean_cols].std(axis=1)
 
-logger.info(f"\nCities analyzed: {len(city_df)}")
-logger.info(f"Saved city results to {output_path / 'city_results.csv'}")
+
+# Assign quadrant for a given mean/std pair relative to a std threshold
+def assign_quadrant(mean_z, std_z, std_threshold):
+    if pd.isna(mean_z) or pd.isna(std_z):
+        return np.nan
+    if mean_z < 0:
+        return "Consistently Undersaturated" if std_z < std_threshold else "Variable Undersaturated"
+    return "Consistently Saturated" if std_z < std_threshold else "Variable Saturated"
+
+
+# Compute global std threshold: median of all per-category stds pooled together
+all_category_stds = []
+for cat in poi_categories:
+    std_col = f"{cat}_z_std"
+    if std_col in city_gdf.columns:
+        all_category_stds.extend(city_gdf[std_col].dropna().tolist())
+global_std_threshold = np.median(all_category_stds)
+logger.info(f"\nGlobal std threshold for quadrant classification: {global_std_threshold:.4f}")
+
+# Per-category quadrants (using global threshold for consistency)
+for cat in poi_categories:
+    mean_col, std_col = f"{cat}_z_mean", f"{cat}_z_std"
+    city_gdf[f"{cat}_quadrant"] = city_gdf.apply(
+        lambda row, mc=mean_col, sc=std_col: assign_quadrant(row[mc], row[sc], global_std_threshold), axis=1
+    )
+
+# Between-category quadrant (using global threshold)
+city_gdf["between_category_quadrant"] = city_gdf.apply(
+    lambda row: assign_quadrant(row["overall_z_mean"], row["overall_z_std_category"], global_std_threshold), axis=1
+)
+
+# Legacy overall quadrant (using global threshold)
+city_gdf["overall_z_std"] = city_gdf["overall_z_std_spatial"]
+city_gdf["quadrant"] = city_gdf.apply(
+    lambda row: assign_quadrant(row["overall_z_mean"], row["overall_z_std"], global_std_threshold), axis=1
+)
+
+# Log quadrant summary
+logger.info("\nQuadrant Summary (between-category variability):")
+for quadrant, count in city_gdf["between_category_quadrant"].value_counts().items():
+    logger.info(f"  {quadrant}: {count} cities")
+
+# Save results
+results_gpkg_path = output_path / "city_analysis_results.gpkg"
+city_gdf.to_file(results_gpkg_path, driver="GPKG")
+logger.info(f"\nSaved: {results_gpkg_path}")
+
+# Quadrant visualization - 4x3 grid: 11 categories + 1 between-category summary
+fig, axes = plt.subplots(4, 3, figsize=(12, 14))
+axes = axes.flatten()
+city_quadrant = city_gdf[city_gdf["overall_z_mean"].notna()].copy()
+
+# Compute global std threshold: median of all per-category stds pooled together
+all_stds = []
+for cat in poi_categories:
+    std_col = f"{cat}_z_std"
+    if std_col in city_quadrant.columns:
+        all_stds.extend(city_quadrant[std_col].dropna().tolist())
+global_std_median = np.median(all_stds)
+
+# Compute consistent axis limits across all plots
+all_means = []
+for cat in poi_categories:
+    mean_col = f"{cat}_z_mean"
+    if mean_col in city_quadrant.columns:
+        all_means.extend(city_quadrant[mean_col].dropna().tolist())
+x_abs_max = max(abs(np.percentile(all_means, 1)), abs(np.percentile(all_means, 99))) * 1.1
+y_max = np.percentile(all_stds, 99) * 1.1
+
+
+def plot_quadrant_scatter(ax, x_data, y_data, std_med, title):
+    """Plot quadrant scatter with colors based on position relative to dividers."""
+    for i in range(len(x_data)):
+        x, y = x_data.iloc[i], y_data.iloc[i]
+        if pd.isna(x) or pd.isna(y):
+            continue
+        if x < 0:
+            color = "#d62728" if y < std_med else "#ff7f0e"
+        else:
+            color = "#2ca02c" if y < std_med else "#1f77b4"
+        ax.scatter(x, y, c=color, alpha=0.6, edgecolors="black", linewidths=0.3, s=25)
+
+    ax.axhline(y=std_med, color="gray", linestyle="--", linewidth=1, alpha=0.7)
+    ax.axvline(x=0, color="gray", linestyle="--", linewidth=1, alpha=0.7)
+    ax.set_xlim(-x_abs_max, x_abs_max)  # Center zero
+    ax.set_ylim(0, y_max)
+    ax.set_title(title, fontsize=9, fontweight="bold")
+    ax.tick_params(labelsize=7)
+    ax.grid(True, alpha=0.3)
+
+
+# Plot each category individually (mean vs std for that category)
+for i, cat in enumerate(poi_categories):
+    ax = axes[i]
+    x_col, y_col = f"{cat}_z_mean", f"{cat}_z_std"
+    if x_col in city_quadrant.columns and y_col in city_quadrant.columns:
+        x_data = city_quadrant[x_col].dropna()
+        y_data = city_quadrant.loc[x_data.index, y_col]
+        plot_quadrant_scatter(ax, x_data, y_data, global_std_median, category_names[cat])
+        ax.set_xlabel("Mean Z", fontsize=8)
+        ax.set_ylabel("Std Z", fontsize=8)
+
+# Final panel: Between-category summary (mean across cats vs std across cat means)
+ax_summary = axes[len(poi_categories)]
+between_cat_std_data = city_quadrant["overall_z_std_category"].dropna()
+between_cat_std_median = between_cat_std_data.median()
+between_cat_y_max = np.percentile(between_cat_std_data, 99) * 1.1
+
+# Plot with its own y-axis range
+for i in range(len(city_quadrant)):
+    x = city_quadrant["overall_z_mean"].iloc[i]
+    y = city_quadrant["overall_z_std_category"].iloc[i]
+    if pd.isna(x) or pd.isna(y):
+        continue
+    if x < 0:
+        color = "#d62728" if y < between_cat_std_median else "#ff7f0e"
+    else:
+        color = "#2ca02c" if y < between_cat_std_median else "#1f77b4"
+    ax_summary.scatter(x, y, c=color, alpha=0.6, edgecolors="black", linewidths=0.3, s=25)
+
+ax_summary.axhline(y=between_cat_std_median, color="gray", linestyle="--", linewidth=1, alpha=0.7)
+ax_summary.axvline(x=0, color="gray", linestyle="--", linewidth=1, alpha=0.7)
+ax_summary.set_xlim(-x_abs_max, x_abs_max)
+ax_summary.set_ylim(0, between_cat_y_max)
+ax_summary.set_title(
+    f"Between Categories\n(std threshold = {between_cat_std_median:.2f})", fontsize=9, fontweight="bold"
+)
+ax_summary.tick_params(labelsize=7)
+ax_summary.grid(True, alpha=0.3)
+ax_summary.set_xlabel("Mean Z (across cats)", fontsize=8)
+ax_summary.set_ylabel("Std Z (between cats)", fontsize=8)
+
+# Hide any unused subplots
+for i in range(len(poi_categories) + 1, len(axes)):
+    axes[i].set_visible(False)
+
+plt.suptitle(
+    f"City Quadrant Analysis by POI Category\n(Global std threshold = {global_std_median:.2f})",
+    fontsize=12,
+    fontweight="bold",
+)
+plt.tight_layout()
+
+viz_path = output_path / "city_quadrant_analysis.png"
+plt.savefig(viz_path, dpi=150, bbox_inches="tight")
+plt.show()
+
+logger.info(f"\nSaved quadrant analysis to {viz_path}")
 
 # %%
 """
-## Step 4: City-Level Data Quality Assessment
+## Step 4: Exploratory Data Analysis (EDA)
 
-Summarize z-score statistics by city for understanding coverage patterns.
+Model fit and z-score distribution visualization.
 """
 
-logger.info("\nSTEP 4: City-level data quality assessment")
-logger.info("\n" + "=" * 100)
-logger.info("CITY DATA QUALITY BY Z-SCORE THRESHOLDS")
-logger.info("=" * 100)
+logger.info("\nSTEP 4: Exploratory data analysis")
 
-# Create city summary for geopackage
-city_quality = []
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-for bounds_fid in sorted(city_df["bounds_fid"].unique()):
-    city_row = city_df[city_df["bounds_fid"] == bounds_fid].iloc[0]
+# Panel 1: R² values by category
+ax = axes[0]
+r2_values = [regression_results[cat]["r2"] for cat in poi_categories if not np.isnan(regression_results[cat]["r2"])]
+ax.bar(range(len(r2_values)), r2_values, color="green", alpha=0.7, edgecolor="black")
+ax.set_xticks(range(len(r2_values)))
+ax.set_xticklabels(
+    [category_names[cat] for cat in poi_categories if not np.isnan(regression_results[cat]["r2"])],
+    rotation=45,
+    ha="right",
+)
+ax.set_ylabel("R² Value", fontsize=11)
+ax.set_title("Model Fit by Category", fontsize=12, fontweight="bold")
+ax.set_ylim(0, 1)
+ax.grid(True, alpha=0.3, axis="y")
 
-    quality_row = {
-        "bounds_fid": bounds_fid,
-        "total_grids": int(city_row["total_grids"]),
-    }
-
-    # Add all z-score based metrics from city_row
-    for col in city_row.index:
-        if col not in ["bounds_fid", "total_grids"]:
-            quality_row[col] = city_row[col]
-
-    city_quality.append(quality_row)
-
-city_quality_df = pd.DataFrame(city_quality)
-
-# For ranking, use average z-score mean across all categories
-z_means = []
+# 2. Z-Score distribution by category (box plot)
+ax = axes[1]
+zscore_data = []
+valid_categories = []
 for cat in poi_categories:
-    col_name = f"{cat}_z_mean"
-    if col_name in city_quality_df.columns:
-        z_means.append(city_quality_df[col_name].values)
+    zscore_col = f"{cat}_zscore"
+    if zscore_col in grid_gdf.columns:
+        zscores = grid_gdf[zscore_col].dropna()
+        if len(zscores) > 0:
+            zscore_data.append(zscores.values)
+            valid_categories.append(cat)
 
-if z_means:
-    city_quality_df["avg_z_mean"] = np.mean(np.array(z_means), axis=0)
-    city_quality_df = city_quality_df.sort_values("avg_z_mean", ascending=True)
+if len(zscore_data) > 0:
+    # Create a dataframe for seaborn boxplot
+    z_df_list = []
+    for i, cat in enumerate(valid_categories):
+        for z_val in zscore_data[i]:
+            z_df_list.append({"Category": category_names[cat], "Z-Score": z_val})
+    z_df = pd.DataFrame(z_df_list)
+
+    sns.boxplot(data=z_df, x="Category", y="Z-Score", ax=ax, color="steelblue", fliersize=0)
+    # Set y-axis limits to focus on main distribution (exclude extreme outliers)
+    q1 = z_df["Z-Score"].quantile(0.05)
+    q3 = z_df["Z-Score"].quantile(0.95)
+    iqr = q3 - q1
+    ax.set_ylim(q1 - 0.5 * iqr, q3 + 0.5 * iqr)
+
+    ax.set_ylabel("Z-Score", fontsize=11)
+    ax.set_title("Z-Score Distribution by Category", fontsize=12, fontweight="bold")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+    ax.grid(True, alpha=0.3, axis="y")
 else:
-    city_quality_df["avg_z_mean"] = 0.0
+    ax.text(0.5, 0.5, "No z-score data available", ha="center", va="center", transform=ax.transAxes)
 
-# Load boundaries to create geopackage and get city names/countries
-bounds_gdf = gpd.read_file(BOUNDS_PATH)
-city_quality_geo = bounds_gdf.merge(city_quality_df, left_on="bounds_fid", right_on="bounds_fid", how="inner")
+plt.tight_layout()
+plt.savefig(output_path / "eda_analysis.png", dpi=150, bbox_inches="tight")
+plt.show()
 
-# Extract label and country columns for reporting
-city_names_df = bounds_gdf[["bounds_fid", "label", "country"]].copy()
-city_quality_df = city_quality_df.merge(city_names_df, left_on="bounds_fid", right_on="bounds_fid", how="left")
+logger.info(f"\nSaved EDA plots to {output_path / 'eda_analysis.png'}")
 
-# Save as geopackage
-quality_gpkg_path = output_path / "city_quality_ranking.gpkg"
-city_quality_geo.to_file(quality_gpkg_path, driver="GPKG")
-logger.info(f"\nSaved city quality ranking to {quality_gpkg_path}")
+# %%
+"""
+## Step 5: Regression Diagnostic Plots
 
-# Also save CSV for reference
-city_quality_df.to_csv(output_path / "city_quality_ranking.csv", index=False)
-logger.info(f"Saved quality ranking CSV to {output_path / 'city_quality_ranking.csv'}")
+Predicted vs observed POI counts for each category.
+"""
 
-# Log quality ranking summary
-logger.info("\n" + "-" * 100)
-logger.info(f"{'City':<30s} {'Country':<12s} {'Grids':<8s} {'Avg Z-Mean':<12s}")
-logger.info("-" * 100)
+logger.info("\nSTEP 5: Creating regression diagnostic plots")
 
-for _, row in city_quality_df.iterrows():
-    avg_z = row.get("avg_z_mean", 0)
-    city_label = str(row.get("label", row.get("bounds_fid", "Unknown")))
-    country = str(row.get("country", "Unknown"))
-    logger.info(f"{city_label:<30s} {country:<12s} {int(row['total_grids']):<8d} {avg_z:>10.4f}")
+n_cols = 3
+n_rows = int(np.ceil(len(poi_categories) / n_cols))
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 5 * n_rows))
+axes = axes.flatten() if n_rows > 1 or n_cols > 1 else [axes]
 
-logger.info("=" * 100)
-logger.info("Z-SCORE INTERPRETATION GUIDE")
-logger.info("=" * 100)
-logger.info("Z-scores measure standardized deviation from regression predictions:")
-logger.info("  z > 0: More POIs than predicted (fully saturated areas)")
-logger.info("  z < 0: Fewer POIs than predicted (undersaturated areas)")
-logger.info("  |z| < 1: Within 1 std dev (typical variation)")
-logger.info("  |z| < 2: Within 2 std devs (~95% of normal distribution)")
-logger.info("  z < -2: Extreme undersaturation (beyond normal range)")
-logger.info("\nYou control the threshold - use city_results.csv and grid_multiscale.gpkg")
-logger.info("to filter grids by your preferred z-score threshold (e.g., z < -1.0, z < -1.5, z < -2.0).")
-logger.info("=" * 100)
+for i, cat in enumerate(poi_categories):
+    ax = axes[i]
 
-# Generate markdown report
-logger.info("\nGenerating markdown report...")
+    # Get data
+    poi_col = f"{cat}_count"
+    poi = grid_gdf[poi_col].values.astype(float)
+    pop_local = grid_gdf["pop_local"].values.astype(float)
+    pop_intermediate = grid_gdf["pop_intermediate"].values.astype(float)
+    pop_large = grid_gdf["pop_large"].values.astype(float)
 
-# Filter cities with sufficient data (at least 10 grids and valid avg_z_mean)
-min_grids = 10
-city_quality_filtered = city_quality_df[
-    (city_quality_df["total_grids"] >= min_grids) & (city_quality_df["avg_z_mean"].notna())
-].copy()
+    # Filter for valid data
+    valid_mask = (poi > 0) & (pop_local > 0) & (pop_intermediate > 0) & (pop_large > 0)
 
+    if valid_mask.sum() < 10:
+        ax.text(0.5, 0.5, f"{cat}\n(insufficient data)", ha="center", va="center", transform=ax.transAxes)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        continue
+
+    # Prepare data (raw counts to match training)
+    poi_counts = poi[valid_mask]
+    pop_local_counts = pop_local[valid_mask]
+    pop_intermediate_counts = pop_intermediate[valid_mask]
+    pop_large_counts = pop_large[valid_mask]
+
+    # Reuse trained model from Step 2 when available to avoid retraining
+    X = np.column_stack([pop_local_counts, pop_intermediate_counts, pop_large_counts])
+    model_entry = regression_results.get(cat, {})
+    model = model_entry["model"]
+    predictions = model.predict(X)
+    residuals = poi_counts - predictions
+
+    # Set equal limits based on 95th percentile of max value
+    max_pred = np.percentile(predictions, 99.5)
+    max_obs = np.percentile(poi_counts, 99.5)
+    max_val = max(max_pred, max_obs)
+    ax_lim = int(max(25, max_val))
+
+    # Plot hexbin with 30 bins across the axis limits (not data range)
+    hb = ax.hexbin(
+        predictions,
+        poi_counts,
+        gridsize=25,  # 25 bins across extent
+        extent=(0, ax_lim, 0, ax_lim),  # force grid to cover full axis range
+        cmap="Reds",
+        norm=LogNorm(),
+        mincnt=1,
+        linewidths=0.2,
+        edgecolors="gray",
+    )
+    # Add colorbar
+    cb = plt.colorbar(hb, ax=ax)
+    cb.set_label("Point count")
+    cb.ax.tick_params(labelsize=8)
+
+    # Perfect prediction line
+    pred_range = np.linspace(predictions.min(), predictions.max(), 100)
+    ax.plot(pred_range, pred_range, "k--", alpha=0.5, linewidth=1, label="Target line")
+
+    # Get R²
+    r2 = model.score(X, poi_counts)
+
+    ax.set_xlabel("Predicted POI Count", fontsize=10)
+    ax.set_ylabel("Observed POI Count", fontsize=10)
+    ax.set_title(f"{category_names[cat]}\nR²={r2:.3f}", fontsize=11)
+    ax.grid(True, alpha=0.3)
+
+    # Set equal limits based on axis range calculated above
+    ax.set_xlim(left=0, right=ax_lim)
+    ax.set_ylim(bottom=0, top=ax_lim)
+
+    if i == 0:
+        ax.legend(fontsize=9, loc="upper left")
+
+# Hide unused subplots
+for i in range(len(poi_categories), len(axes)):
+    axes[i].set_visible(False)
+
+plt.suptitle("Multiple Regression Diagnostics: Predicted vs Observed", fontsize=14, fontweight="bold", y=1.00)
+plt.tight_layout()
+plt.savefig(output_path / "regression_diagnostics.png", dpi=150, bbox_inches="tight")
+plt.show()
+
+logger.info(f"Saved regression diagnostics to {output_path / 'regression_diagnostics.png'}")
+
+# %%
+"""
+## Step 6: Feature Importance Analysis
+
+Compare population scale contributions to POI prediction.
+"""
+
+logger.info("\nSTEP 6: Feature Importance Analysis")
+
+fig, ax = plt.subplots(figsize=(12, 6))
+
+x = np.arange(len(poi_categories))
+width = 0.25
+
+imp_local = [regression_results[cat]["importance_local"] for cat in poi_categories]
+imp_int = [regression_results[cat]["importance_intermediate"] for cat in poi_categories]
+imp_large = [regression_results[cat]["importance_large"] for cat in poi_categories]
+
+ax.bar(x - width, imp_local, width, label="Local", alpha=0.7, edgecolor="black")
+ax.bar(x, imp_int, width, label="Intermediate", alpha=0.7, edgecolor="black")
+ax.bar(x + width, imp_large, width, label="Large", alpha=0.7, edgecolor="black")
+
+ax.set_xlabel("POI Category", fontsize=11)
+ax.set_ylabel("Feature Importance", fontsize=11)
+ax.set_title("Scale Importance for POI Prediction (Random Forest)", fontsize=12, fontweight="bold")
+ax.set_xticks(x)
+ax.set_xticklabels([category_names[cat] for cat in poi_categories], rotation=45, ha="right")
+ax.legend()
+ax.grid(True, alpha=0.3, axis="y")
+
+plt.tight_layout()
+plt.savefig(output_path / "feature_importance.png", dpi=150, bbox_inches="tight")
+plt.show()
+
+logger.info(f"Saved feature importance analysis to {output_path / 'feature_importance.png'}")
+
+# %%
+"""
+## Step 7: Markdown Report Generation
+
+Generate final assessment report with statistics, visualizations, and analysis.
+"""
+
+logger.info("\nSTEP 7: Markdown Report Generation")
+
+# Generate comprehensive markdown report
 report_lines = [
     "# POI Quality Assessment Report",
     "",
     "## Executive Summary",
     "",
-    f"- **Total cities analyzed**: {len(city_quality_df)}",
-    f"- **Cities with sufficient data** (≥{min_grids} grids): {len(city_quality_filtered)}",
+    f"- **Total cities analyzed**: {len(city_gdf)}",
     f"- **Total grid cells**: {len(grid_gdf)}",
     f"- **POI categories**: {len(poi_categories)}",
     "",
+    "**Note**: Z-scores represent continuous deviations from expected POI counts.",
+    "No arbitrary thresholds are applied. The quadrant analysis identifies cities",
+    "based on their mean z-score (saturation level) and variability (consistency).",
+    "",
     "---",
     "",
-    "## City Rankings",
+    "## Z-Score Distribution by Category",
     "",
-    "### Most Undersaturated Cities (Lowest Avg Z-Score)",
-    "",
-    "| City | Country | Grids | Avg Z-Score |",
-    "|------|---------|-------|-------------|",
+    "| Category | Mean Z | Median Z | Std Z | Min Z | Max Z | N Grids |",
+    "|----------|--------|----------|-------|-------|-------|---------|",
 ]
 
-# Add top 10 most underserved
-for _, row in city_quality_filtered.head(10).iterrows():
-    city_label = str(row.get("label", row.get("bounds_fid", "Unknown")))
-    country = str(row.get("country", "Unknown"))
-    report_lines.append(f"| {city_label} | {country} | {int(row['total_grids'])} | {row.get('avg_z_mean', 0):.4f} |")
+# Add z-score distribution statistics per category
+for cat in poi_categories:
+    zscore_col = f"{cat}_zscore"
+    if zscore_col in grid_gdf.columns:
+        zscores = grid_gdf[zscore_col].dropna()
+        if len(zscores) > 0:
+            report_lines.append(
+                f"| {category_names[cat]} | {zscores.mean():.3f} | {zscores.median():.3f} | "
+                f"{zscores.std():.3f} | {zscores.min():.3f} | {zscores.max():.3f} | {len(zscores)} |"
+            )
 
 report_lines.extend(
     [
         "",
-        "### Most Fully Saturated Cities (Highest Avg Z-Score)",
+        "---",
+        "",
+        "## City Rankings",
+        "",
+        "### Most Undersaturated Cities (Lowest Avg Z-Score)",
+        "",
+        "| City | Country | Grids | Avg Z-Score |",
+        "|------|---------|-------|-------------|",
+    ]
+)
+
+# Add top 10 most underserved
+for _, row in city_gdf.sort_values("avg_z_mean").head(10).iterrows():
+    city_label = str(row.get("label", row.get("bounds_fid", "Unknown")))
+    country = str(row.get("country", "Unknown"))
+    total_grids_val = row.get("total_grids", 0)
+    if pd.isna(total_grids_val):
+        total_grids_val = 0
+    avg_z = row.get("avg_z_mean", 0)
+    if pd.isna(avg_z):
+        avg_z = 0
+    report_lines.append(f"| {city_label} | {country} | {int(total_grids_val)} | {avg_z:.4f} |")
+
+report_lines.extend(
+    [
+        "",
+        "### Most Saturated Cities (Highest Avg Z-Score)",
         "",
         "| City | Country | Grids | Avg Z-Score |",
         "|------|---------|-------|-------------|",
@@ -451,10 +658,16 @@ report_lines.extend(
 )
 
 # Add top 10 best served
-for _, row in city_quality_filtered.tail(10).iterrows():
+for _, row in city_gdf.sort_values("avg_z_mean", ascending=False).head(10).iterrows():
     city_label = str(row.get("label", row.get("bounds_fid", "Unknown")))
     country = str(row.get("country", "Unknown"))
-    report_lines.append(f"| {city_label} | {country} | {int(row['total_grids'])} | {row.get('avg_z_mean', 0):.4f} |")
+    total_grids_val = row.get("total_grids", 0)
+    if pd.isna(total_grids_val):
+        total_grids_val = 0
+    avg_z = row.get("avg_z_mean", 0)
+    if pd.isna(avg_z):
+        avg_z = 0
+    report_lines.append(f"| {city_label} | {country} | {int(total_grids_val)} | {avg_z:.4f} |")
 
 report_lines.extend(
     [
@@ -466,17 +679,17 @@ report_lines.extend(
     ]
 )
 
-# Add category statistics (using filtered dataset)
+# Add category statistics
 for cat in poi_categories:
     z_col = f"{cat}_z_mean"
-    if z_col in city_quality_filtered.columns:
-        z_values = city_quality_filtered[z_col].dropna()
+    if z_col in city_gdf.columns:
+        z_values = city_gdf[z_col].dropna()
         if len(z_values) > 0:
-            report_lines.append(f"### {cat}")
+            report_lines.append(f"### {category_names[cat]}")
             report_lines.append("")
             report_lines.append(f"- **Avg Z-Score**: {z_values.mean():.4f}")
             report_lines.append(f"- **Min Z-Score**: {z_values.min():.4f} (Most undersaturated)")
-            report_lines.append(f"- **Max Z-Score**: {z_values.max():.4f} (Most fully saturated)")
+            report_lines.append(f"- **Max Z-Score**: {z_values.max():.4f} (Most saturated)")
             report_lines.append(f"- **Std Dev**: {z_values.std():.4f}")
             report_lines.append(f"- **Cities with data**: {len(z_values)}")
             report_lines.append("")
@@ -486,20 +699,20 @@ for cat in poi_categories:
             most_overserved_idx = z_values.idxmax()
             most_underserved_z = z_values.min()
             most_overserved_z = z_values.max()
-            underserved_city = str(city_quality_filtered.loc[most_underserved_idx, "label"])
-            underserved_country = str(city_quality_filtered.loc[most_underserved_idx, "country"])
-            overserved_city = str(city_quality_filtered.loc[most_overserved_idx, "label"])
-            overserved_country = str(city_quality_filtered.loc[most_overserved_idx, "country"])
+            underserved_city = str(city_gdf.loc[most_underserved_idx, "label"])
+            underserved_country = str(city_gdf.loc[most_underserved_idx, "country"])
+            overserved_city = str(city_gdf.loc[most_overserved_idx, "label"])
+            overserved_country = str(city_gdf.loc[most_overserved_idx, "country"])
 
             report_lines.append(
                 f"**Most undersaturated**: {underserved_city}, {underserved_country} (z={most_underserved_z:.4f})"
             )
             report_lines.append(
-                f"**Most fully saturated**: {overserved_city}, {overserved_country} (z={most_overserved_z:.4f})"
+                f"**Most saturated**: {overserved_city}, {overserved_country} (z={most_overserved_z:.4f})"
             )
             report_lines.append("")
 
-# Add country-level summary section
+# Add country-level summary
 report_lines.extend(
     [
         "---",
@@ -509,9 +722,8 @@ report_lines.extend(
     ]
 )
 
-# Calculate country-level statistics
 country_stats = (
-    city_quality_filtered.groupby("country")
+    city_gdf.groupby("country")
     .agg(
         {
             "avg_z_mean": ["mean", "min", "max", "count"],
@@ -555,7 +767,7 @@ for cat in poi_categories:
         imp_local = regression_results[cat]["importance_local"]
         imp_int = regression_results[cat]["importance_intermediate"]
         imp_large = regression_results[cat]["importance_large"]
-        report_lines.append(f"| {cat} | {r2:.4f} | {imp_local:.4f} | {imp_int:.4f} | {imp_large:.4f} |")
+        report_lines.append(f"| {category_names[cat]} | {r2:.4f} | {imp_local:.4f} | {imp_int:.4f} | {imp_large:.4f} |")
 
 report_lines.extend(
     [
@@ -570,60 +782,45 @@ report_lines.extend(
         "![EDA Analysis](eda_analysis.png)",
         "",
         "Key insights:",
-        "- Percentage of undersaturated grids by POI category",
-        "- Distribution of local population across grids",
-        "- Model fit (R²) by category",
-        "- Distribution of mean z-scores across cities",
+        "- **Z-Score Distribution**: Distribution of z-scores across grid cells per category",
+        "- **Population Distribution**: Distribution of local population across census grid cells",
+        "- **Model Fit (R²)**: Model fit quality for each POI category",
+        "- **City Z-Score Distribution**: Distribution of mean z-scores across cities",
         "",
         "### Feature Importance Analysis",
         "![Feature Importance](feature_importance.png)",
         "",
         "Shows which population scale (local, intermediate, large) is most predictive for each POI category.",
+        "Higher values indicate the scale is more important for predicting POI distribution.",
         "",
         "### Regression Diagnostics",
         "![Regression Diagnostics](regression_diagnostics.png)",
         "",
         "Predicted vs observed POI counts for each category. Shows model fit quality and outliers.",
+        "Points closer to the diagonal line indicate better predictions.",
+        "",
+        "### City Quadrant Analysis",
+        "![City Quadrant Analysis](city_quadrant_analysis.png)",
+        "",
+        "Cities plotted by mean z-score (x-axis) vs variability (y-axis), forming four quadrants:",
+        "- **Consistently Undersaturated** (bottom-left): Low POI coverage with uniform pattern",
+        "- **Consistently Saturated** (bottom-right): High POI coverage with uniform pattern",
+        "- **Variable Undersaturated** (top-left): Low POI coverage with inconsistent pattern",
+        "- **Variable Saturated** (top-right): High POI coverage with inconsistent pattern",
         "",
         "---",
         "",
         "## Output Files",
         "",
         "### Data Files",
-        "- **[grid_multiscale.gpkg](grid_multiscale.gpkg)**:",
-        "  Vector grid dataset with z-scores and predictions for all POI categories.",
-        "  Contains residuals, z-scores, and model predictions at the grid cell level.",
-        "  Can be filtered by z-score thresholds to identify undersaturated/fully saturated areas.",
-        "",
-        "- **[city_results.csv](city_results.csv)**:",
-        "  City-level summary statistics with per-category z-score metrics",
-        "  (mean, median, std, min, max) for each city.",
-        "",
-        "- **[city_quality_ranking.gpkg](city_quality_ranking.gpkg)**:",
-        "  City ranking dataset with geographic boundaries, ranked by average z-score.",
-        "  Includes city names, countries, grid counts, and all performance metrics.",
+        "- **grid_multiscale.gpkg**: Vector grid dataset with z-scores and predictions",
+        "- **city_analysis_results.gpkg**: City-level z-score statistics and quadrant classification",
         "",
         "### Visualization Files",
-        "- **[eda_analysis.png](eda_analysis.png)**:",
-        "  Exploratory data analysis showing undersaturation %, population distribution,",
-        "  model fit (R²), and z-score distribution.",
-        "",
-        "- **[feature_importance.png](feature_importance.png)**:",
-        "  Random Forest feature importance comparing local, intermediate, and large",
-        "  population scales across POI categories.",
-        "",
-        "- **[regression_diagnostics.png](regression_diagnostics.png)**:",
-        "  Predicted vs observed scatter plots for model diagnostics and fit quality assessment.",
-        "",
-        "---",
-        "",
-        "## Z-Score Interpretation",
-        "",
-        "- **z < 0**: Fewer POIs than predicted (undersaturated)",
-        "- **z > 0**: More POIs than predicted (fully saturated)",
-        "- **z < -1**: Moderately undersaturated (1 std dev below predicted)",
-        "- **z < -2**: Severely undersaturated (2 std devs below predicted)",
-        "- **z > 2**: Significantly fully saturated (2 std devs above predicted)",
+        "- **eda_analysis.png**: Exploratory data analysis",
+        "- **feature_importance.png**: Random Forest feature importance comparison",
+        "- **regression_diagnostics.png**: Predicted vs observed plots for all categories",
+        "- **city_quadrant_analysis.png**: City quadrant scatter and distribution plot",
         "",
     ]
 )
@@ -634,239 +831,18 @@ with open(report_path, "w") as f:
     f.write("\n".join(report_lines))
 
 logger.info(f"Saved report to {report_path}")
-logger.info("=" * 100)
 
 # %%
 """
-## Step 5: Exploratory Data Analysis (EDA)
-
-Analyze distribution of POI counts and population scales.
+## Analysis Complete
 """
 
-logger.info("\nSTEP 5: Exploratory data analysis")
-
-logger.info("\n" + "=" * 80)
-logger.info("POI COUNT STATISTICS BY CATEGORY")
-logger.info("=" * 80)
-
-for cat in poi_categories:
-    poi_counts = grid_gdf[f"{cat}_count"].values.astype(float)
-    nonzero_counts = poi_counts[poi_counts > 0]
-
-    logger.info(
-        f"\n{cat}:"
-        f"\n  Grids with data: {len(nonzero_counts)}/{len(grid_gdf)} ({100 * len(nonzero_counts) / len(grid_gdf):.1f}%)"
-        f"\n  Mean count: {nonzero_counts.mean():.1f}"
-        f"\n  Median count: {np.median(nonzero_counts):.1f}"
-        f"\n  Max count: {nonzero_counts.max():.0f}"
-        f"\n  Std dev: {nonzero_counts.std():.1f}"
-    )
-
-# Create EDA visualization
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-
-# 1. Percentage of underserved grids by category (z < -1)
-ax = axes[0, 0]
-underserved_pcts = []
-valid_categories = []
-for cat in poi_categories:
-    zscore_col = f"{cat}_zscore"
-    if zscore_col in grid_gdf.columns:
-        zscores = grid_gdf[zscore_col].dropna()
-        if len(zscores) > 0:
-            pct_underserved = 100 * (zscores < -1).sum() / len(zscores)
-            underserved_pcts.append(pct_underserved)
-            valid_categories.append(cat)
-
-if len(underserved_pcts) > 0:
-    colors = ["coral" if pct > 10 else "steelblue" for pct in underserved_pcts]
-    ax.barh(valid_categories, underserved_pcts, color=colors, alpha=0.7, edgecolor="black")
-    ax.axvline(x=5, color="gray", linestyle="--", linewidth=1, alpha=0.5, label="5% threshold")
-    ax.set_xlabel("Percentage of Grids (%)", fontsize=11)
-    ax.set_title("Underserved Grids by Category (z < -1)", fontsize=12, fontweight="bold")
-    ax.grid(True, alpha=0.3, axis="x")
-    ax.legend()
-else:
-    ax.text(0.5, 0.5, "No z-score data available", ha="center", va="center", transform=ax.transAxes)
-
-# 2. Population distribution
-ax = axes[0, 1]
-pop_local = grid_gdf["pop_local"].values.astype(float)
-pop_local_nonzero = pop_local[pop_local > 0]
-if len(pop_local_nonzero) > 0:
-    ax.hist(np.log10(pop_local_nonzero + 1), bins=30, edgecolor="black", alpha=0.7, color="steelblue")
-    ax.set_xlabel("log10(Local Population)", fontsize=11)
-    ax.set_ylabel("Number of Grids", fontsize=11)
-    ax.set_title("Distribution of Local Population", fontsize=12, fontweight="bold")
-    ax.grid(True, alpha=0.3, axis="y")
-
-# 3. R² values by category
-ax = axes[1, 0]
-r2_values = [regression_results[cat]["r2"] for cat in poi_categories if not np.isnan(regression_results[cat]["r2"])]
-ax.bar(range(len(r2_values)), r2_values, color="green", alpha=0.7, edgecolor="black")
-ax.set_xticks(range(len(r2_values)))
-ax.set_xticklabels(
-    [cat for cat in poi_categories if not np.isnan(regression_results[cat]["r2"])], rotation=45, ha="right"
-)
-ax.set_ylabel("R² Value", fontsize=11)
-ax.set_title("Model Fit by Category", fontsize=12, fontweight="bold")
-ax.set_ylim(0, 1)
-ax.grid(True, alpha=0.3, axis="y")
-
-# 4. City-level mean z-score distribution
-ax = axes[1, 1]
-z_means_all = []
-for cat in poi_categories:
-    col_name = f"{cat}_z_mean"
-    if col_name in city_df.columns:
-        z_means_all.extend(city_df[col_name].dropna().values)
-
-if len(z_means_all) > 0:
-    ax.hist(z_means_all, bins=30, edgecolor="black", alpha=0.7, color="steelblue")
-    ax.axvline(
-        np.mean(z_means_all), color="red", linestyle="--", linewidth=2, label=f"Mean: {np.mean(z_means_all):.3f}"
-    )
-    ax.set_xlabel("Mean Z-Score per Category per City", fontsize=11)
-    ax.set_ylabel("Frequency", fontsize=11)
-    ax.set_title("Distribution of Mean Z-Scores", fontsize=12, fontweight="bold")
-    ax.legend()
-    ax.grid(True, alpha=0.3, axis="y")
-
-plt.tight_layout()
-plt.savefig(output_path / "eda_analysis.png", dpi=150, bbox_inches="tight")
-plt.show()
-
-logger.info(f"\nSaved EDA plots to {output_path / 'eda_analysis.png'}")
-
-# %%
-"""
-## Step 6: Regression Diagnostic Plots
-
-Visualize regression relationships for each POI category.
-"""
-
-logger.info("STEP 6: Creating regression diagnostic plots")
-
-# For each category, create a scatter plot showing residuals
-n_cols = 3
-n_rows = int(np.ceil(len(poi_categories) / n_cols))
-fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 5 * n_rows))
-axes = axes.flatten() if n_rows > 1 or n_cols > 1 else [axes]
-
-for i, cat in enumerate(poi_categories):
-    ax = axes[i]
-
-    # Get data
-    poi_col = f"{cat}_count"
-    poi = grid_gdf[poi_col].values.astype(float)
-    pop_local = grid_gdf["pop_local"].values.astype(float)
-    pop_intermediate = grid_gdf["pop_intermediate"].values.astype(float)
-    pop_large = grid_gdf["pop_large"].values.astype(float)
-    flagged = grid_gdf[f"{cat}_flagged"].values.astype(bool)
-
-    # Filter for valid data
-    valid_mask = (poi > 0) & (pop_local > 0) & (pop_intermediate > 0) & (pop_large > 0)
-
-    if valid_mask.sum() < 10:
-        ax.text(0.5, 0.5, f"{cat}\n(insufficient data)", ha="center", va="center", transform=ax.transAxes)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        continue
-
-    # Prepare data (raw counts to match training)
-    poi_counts = poi[valid_mask]
-    pop_local_counts = pop_local[valid_mask]
-    pop_intermediate_counts = pop_intermediate[valid_mask]
-    pop_large_counts = pop_large[valid_mask]
-
-    # Fit Random Forest (same as main regression)
-    X = np.column_stack([pop_local_counts, pop_intermediate_counts, pop_large_counts])
-    model = RandomForestRegressor(n_estimators=100, max_depth=10, min_samples_leaf=5, random_state=42, n_jobs=-1)
-    model.fit(X, poi_counts)
-    predictions = model.predict(X)
-    residuals = poi_counts - predictions
-
-    is_flagged = flagged[valid_mask]
-
-    # Plot: predicted vs observed
-    ax.scatter(predictions[~is_flagged], poi_counts[~is_flagged], alpha=0.3, s=15, c="steelblue", label="Normal")
-    if is_flagged.sum() > 0:
-        ax.scatter(predictions[is_flagged], poi_counts[is_flagged], alpha=0.6, s=30, c="red", label="Flagged")
-
-    # Perfect prediction line
-    pred_range = np.linspace(predictions.min(), predictions.max(), 100)
-    ax.plot(pred_range, pred_range, "k--", alpha=0.5, linewidth=1, label="Perfect")
-
-    # Get R²
-    r2 = model.score(X, poi_counts)
-
-    ax.set_xlabel("Predicted POI Count", fontsize=10)
-    ax.set_ylabel("Observed POI Count", fontsize=10)
-    ax.set_title(f"{cat}\nR²={r2:.3f}, Flagged={is_flagged.sum()}", fontsize=11)
-    ax.grid(True, alpha=0.3)
-    if i == 0:
-        ax.legend(fontsize=9, loc="upper left")
-
-# Hide unused subplots
-for i in range(len(poi_categories), len(axes)):
-    axes[i].set_visible(False)
-
-plt.suptitle("Multiple Regression Diagnostics: Predicted vs Observed", fontsize=14, fontweight="bold", y=1.00)
-plt.tight_layout()
-plt.savefig(output_path / "regression_diagnostics.png", dpi=150, bbox_inches="tight")
-plt.show()
-
-logger.info(f"Saved regression diagnostics to {output_path / 'regression_diagnostics.png'}")
-
-# %%
-"""
-## Step 7: Feature Importance Analysis
-
-Compare how different population scales contribute to POI prediction across categories.
-"""
-
-logger.info("\n" + "=" * 80)
-logger.info("STEP 7: Feature Importance Analysis")
-logger.info("=" * 80)
-
-# Create feature importance comparison plot
-fig, ax = plt.subplots(figsize=(12, 6))
-
-x = np.arange(len(poi_categories))
-width = 0.25
-
-imp_local = [regression_results[cat]["importance_local"] for cat in poi_categories]
-imp_int = [regression_results[cat]["importance_intermediate"] for cat in poi_categories]
-imp_large = [regression_results[cat]["importance_large"] for cat in poi_categories]
-
-ax.bar(x - width, imp_local, width, label="Local", alpha=0.7, edgecolor="black")
-ax.bar(x, imp_int, width, label="Intermediate", alpha=0.7, edgecolor="black")
-ax.bar(x + width, imp_large, width, label="Large", alpha=0.7, edgecolor="black")
-
-ax.set_xlabel("POI Category", fontsize=11)
-ax.set_ylabel("Feature Importance", fontsize=11)
-ax.set_title("Scale Importance for POI Prediction (Random Forest)", fontsize=12, fontweight="bold")
-ax.set_xticks(x)
-ax.set_xticklabels(poi_categories, rotation=45, ha="right")
-ax.legend()
-ax.grid(True, alpha=0.3, axis="y")
-
-plt.tight_layout()
-plt.savefig(output_path / "feature_importance.png", dpi=150, bbox_inches="tight")
-plt.show()
-
-logger.info(f"Saved feature importance analysis to {output_path / 'feature_importance.png'}")
-
-logger.info("\n" + "=" * 80)
-logger.info("ANALYSIS COMPLETE")
-logger.info("=" * 80)
-logger.info(f"\nOutput directory: {output_path}")
-logger.info("  - grid_multiscale.gpkg: Grid-level results with z-scores and residuals")
-logger.info("  - city_results.csv: City-level z-score statistics")
-logger.info("  - city_quality_ranking.gpkg: City quality ranking by avg z-score")
-logger.info("  - city_assessment_report.md: Markdown report with city rankings and statistics")
-logger.info("  - regression_diagnostics.png: Predicted vs observed plots")
-logger.info("  - feature_importance.png: Scale importance comparison (Random Forest)")
-logger.info("  - eda_analysis.png: Exploratory data analysis visualizations")
+logger.info("\nANALYSIS COMPLETE")
+logger.info(f"Output directory: {output_path}")
+logger.info("  - grid_multiscale.gpkg: Grid z-scores")
+logger.info("  - city_analysis_results.gpkg: City statistics and quadrant classification")
+logger.info("  - city_assessment_report.md: Full markdown report")
+logger.info("  - Visualizations: eda_analysis.png, regression_diagnostics.png,")
+logger.info("    feature_importance.png, city_quadrant_analysis.png")
 
 # %%
