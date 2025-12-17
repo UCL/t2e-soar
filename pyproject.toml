@@ -1,6 +1,6 @@
 [project]
 name = "ebdp-toolkit"
-version = "0.4.0b2"
+version = "0.5.0"
 description = "describe"
 readme = "README.md"
 requires-python = ">=3.11, <3.14"

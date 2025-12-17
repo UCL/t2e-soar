@@ -115,58 +115,61 @@ python -m src.processing.generate_metrics \
 
 ## Data Quality Analysis
 
-After computing metrics, you can assess the quality and completeness of POI (Point of Interest) data across all cities using regression-based confidence scoring. This analysis identifies cities with unexpectedly low land-use counts that likely indicate data quality issues rather than genuine urban characteristics.
+After computing metrics, you can assess POI (Point of Interest) data saturation across all cities using a grid-based multi-scale regression approach. This analysis compares each city's POI density against population-based expectations, identifying cities that are undersaturated (fewer POIs than expected) or saturated (at or above expected levels).
 
-### Confidence Scoring Workflow
+### POI Saturation Assessment Workflow
 
-Open `src/analysis/analysis_notebook.py` in VS Code and run all cells sequentially. The notebook uses `# %%` cell markers for interactive execution.
+Open `src/analysis/poi_saturation_notebook.py` in VS Code and run all cells sequentially. The notebook uses `# %%` cell markers for interactive execution.
 
-**Configuration**: Modify the paths in the second cell:
+**Configuration**: Modify the paths in the configuration cell:
 
 - `BOUNDS_PATH` - Path to boundaries GPKG
 - `OVERTURE_DATA_DIR` - Directory with Overture data
 - `CENSUS_PATH` - Path to census GPKG
 - `OUTPUT_DIR` - Where to save results
 
-This workflow performs four steps:
+This workflow performs seven steps:
 
-1. **City-level aggregation**: Aggregates population, area, and POI counts by land-use category for each city boundary
-2. **Exploratory data analysis**: Generates descriptive statistics, scatter plots, correlation matrices, and distribution histograms
-3. **Confidence scoring**: Fits regression models (`POI_count ~ population + area`) for each land-use category and computes standardized residuals to flag cities with unexpectedly low counts
-4. **Report generation**: Creates a comprehensive markdown report ranking cities by data quality
+1. **Grid-level aggregation**: Counts POIs within 1km² census grid cells and computes multi-scale population neighborhoods (local, intermediate, large radii)
+2. **Random Forest regression**: For each POI category, fits a model in log-space: `log(POI_count) ~ log(pop_local) + log(pop_intermediate) + log(pop_large)`. Log transformation linearizes power-law relationships between population and POI counts.
+3. **Z-score computation**: Standardized residuals identify grid cells with more/fewer POIs than expected given their multi-scale population context
+4. **City-level aggregation**: Aggregates grid z-scores per city, computing mean (saturation level) and standard deviation (spatial variability)
+5. **Quadrant classification**: Cities are classified into four quadrants based on mean z-score × variability:
+   - **Consistently Undersaturated**: Low POI coverage, uniform distribution (potential data gap)
+   - **Variable Undersaturated**: Low coverage, high spatial variability
+   - **Consistently Saturated**: Expected or above POI coverage, uniform distribution
+   - **Variable Saturated**: High coverage, high spatial variability
+6. **Feature importance analysis**: Compares which population scale (local, intermediate, large) best predicts each POI category
+7. **Report generation**: Creates comprehensive markdown report with quadrant classifications and visualizations
 
 ### Output Files
 
 The analysis generates:
 
-- `city_stats.gpkg` - City-level aggregated statistics (population, area, POI counts) with city boundary geometries
-- `city_confidence.gpkg` - Confidence scores, z-scores, and flagged categories per city with geometries
-- `confidence_report.md` - Main analysis report with top/bottom 50 cities and recommendations
-- `regression_diagnostics.csv` - Model fit statistics (R², coefficients) per land-use category
-- `top_50_cities.csv` / `bottom_50_cities.csv` - Ranked city lists
-- `eda/` - Exploratory data analysis visualizations and tables
+- `grid_stats.gpkg` - Grid-level POI counts with multi-scale population neighborhoods
+- `grid_counts_regress.gpkg` - Grid cells with z-scores and predicted values per category
+- `city_analysis_results.gpkg` - City-level z-score statistics and quadrant classifications
+- `city_assessment_report.md` - Comprehensive analysis report
 
-**Note**: The main output files (`city_stats.gpkg` and `city_confidence.gpkg`) are GeoPackages that can be opened in QGIS for spatial visualization and exploration.
+**Visualizations**:
+- `eda_analysis.png` - Model fit (R²) and z-score distributions by category
+- `regression_diagnostics.png` - Predicted vs observed POI counts per category
+- `feature_importance.png` - Population scale importance for each POI type
+- `city_quadrant_analysis.png` - 12-panel visualization showing per-category and between-category quadrant classification
 
-### Workflow Options
-
-**Skip exploratory data analysis** (faster execution):
-
-Set `SKIP_EDA = True` in the configuration cell (second cell) before running.
-
-**Skip aggregation if already completed**:
-
-The notebook automatically detects if `city_stats.gpkg` exists and skips re-aggregation. To force re-aggregation, delete the file first.
+**Note**: All GeoPackage outputs can be opened in QGIS for spatial visualization and exploration.
 
 ### Interpreting Results
 
-The confidence score (0-1) is computed based on:
+Z-scores represent continuous deviations from expected POI counts:
+- **z < 0**: Fewer POIs than expected (undersaturated)
+- **z > 0**: More POIs than expected (saturated)
 
-- **Number of flagged categories**: Cities with z-scores < -2.0 in multiple land-use categories
-- **Severity of residuals**: How far below expected POI counts the city falls
+The quadrant analysis combines:
+- **Mean z-score**: Overall saturation level (negative = undersaturated, positive = saturated)
+- **Std z-score**: Spatial variability (low = consistent across grids, high = variable)
 
-**Recommended usage:**
-
-- **High confidence (≥0.7)**: Suitable for all analyses
-- **Moderate confidence (0.4-0.7)**: Use with caution for category-specific studies
-- **Low confidence (<0.4)**: Consider excluding from analyses or treating as missing data
+**Recommended interpretation**:
+- **Consistently Undersaturated cities**: May indicate data quality issues; use with caution
+- **Variable Undersaturated cities**: Partial coverage; some areas may be reliable
+- **Consistently/Variable Saturated cities**: Suitable for most analyses

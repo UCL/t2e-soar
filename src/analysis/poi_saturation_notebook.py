@@ -1,4 +1,4 @@
-# %% [markdown]
+# %% [markdown];
 """
 # Grid-Based POI Quality Assessment Workflow
 
@@ -11,7 +11,7 @@ Assesses POI data quality using multi-scale neighborhood analysis of 1km census 
 4-7. EDA, regression diagnostics, feature importance, and report generation
 
 ## Key Outputs
-- **grid_multiscale.gpkg**: Grid cells with z-scores (deviation from expected POI counts)
+- **grid_counts_regress.gpkg**: Grid cells with z-scores (deviation from expected POI counts)
 - **city_analysis_results.gpkg**: City-level statistics with quadrant classification
 - **city_assessment_report.md**: Comprehensive markdown report
 
@@ -76,6 +76,11 @@ else:
 
 Fit Random Forest regression per category: POI_count ~ pop_local + pop_intermediate + pop_large
 Z-scores on residuals identify grids with more/fewer POIs than expected.
+
+**Log Transform Rationale**: Both features and target are log-transformed because:
+1. POI counts follow a power-law relationship with population (POI ∝ pop^β), which becomes linear in log-log space
+2. Log-scale residuals are more normally distributed for count data, making z-scores statistically valid
+3. Interpretation becomes multiplicative (% deviation) rather than additive (count deviation), which is more meaningful across density ranges
 """
 
 logger.info("STEP 2: Multiple regression analysis")
@@ -112,21 +117,22 @@ for cat in poi_categories:
     pop_intermediate = grid_gdf["pop_intermediate"].values.astype(float)
     pop_large = grid_gdf["pop_large"].values.astype(float)
 
-    # Use grids with valid population data (POI count can be 0 - that's valid undersaturation!)
-    # Only require populations > 0 for meaningful regression
-    valid_mask = (pop_local > 0) & (pop_intermediate > 0) & (pop_large > 0)
+    # Use grids with valid population data AND poi > 0 for log transform
+    # (grids with poi=0 will get z-scores based on prediction alone after)
+    valid_mask = (poi > 0) & (pop_local > 0) & (pop_intermediate > 0) & (pop_large > 0)
 
-    # Use raw POI counts and populations for regression
-    poi_counts = poi[valid_mask]
-    pop_local_counts = pop_local[valid_mask]
-    pop_intermediate_counts = pop_intermediate[valid_mask]
-    pop_large_counts = pop_large[valid_mask]
+    # Log-transform both features and target to linearize power-law relationships
+    # This helps RF capture the full range of POI counts without underpredicting high values
+    log_poi = np.log1p(poi[valid_mask])  # log(1+x) handles edge cases
+    log_pop_local = np.log1p(pop_local[valid_mask])
+    log_pop_intermediate = np.log1p(pop_intermediate[valid_mask])
+    log_pop_large = np.log1p(pop_large[valid_mask])
 
-    # Prepare feature matrix: [pop_local, pop_intermediate, pop_large]
-    X = np.column_stack([pop_local_counts, pop_intermediate_counts, pop_large_counts])
-    y = poi_counts
+    # Prepare feature matrix in log space
+    X = np.column_stack([log_pop_local, log_pop_intermediate, log_pop_large])
+    y = log_poi
 
-    # Fit Random Forest (handles non-linearity and interactions automatically)
+    # Fit Random Forest in log space
     model = RandomForestRegressor(
         n_estimators=100,
         max_depth=20,
@@ -136,30 +142,34 @@ for cat in poi_categories:
     )
     model.fit(X, y)
 
-    # Get predictions and residuals (on log scale)
-    predictions = model.predict(X)
-    residuals = y - predictions
+    # Get predictions in log space, then transform back for interpretable residuals
+    log_predictions = model.predict(X)
+    predictions = np.expm1(log_predictions)  # Back to original scale
+    observed = poi[valid_mask]
 
-    # Calculate R²
-    ss_res = np.sum(residuals**2)
+    # Compute residuals in log space (more normally distributed for z-scores)
+    log_residuals = log_poi - log_predictions
+
+    # Calculate R² in log space (where model was fit)
+    ss_res = np.sum(log_residuals**2)
     ss_tot = np.sum((y - np.mean(y)) ** 2)
     r2 = 1 - (ss_res / ss_tot)
 
     # Calculate z-scores of log-scale residuals (standardized deviation from predicted)
-    residual_mean = np.mean(residuals)
-    residual_std = np.std(residuals)
-    z_scores = (residuals - residual_mean) / residual_std
+    residual_mean = np.mean(log_residuals)
+    residual_std = np.std(log_residuals)
+    z_scores = (log_residuals - residual_mean) / residual_std
 
     # Update grid_gdf with stats for valid grids
     grid_indices = np.where(valid_mask)[0]
     for idx, grid_idx in enumerate(grid_indices):
-        grid_gdf.loc[grid_gdf.index[grid_idx], f"{cat}_residual"] = residuals[idx]
+        grid_gdf.loc[grid_gdf.index[grid_idx], f"{cat}_residual"] = log_residuals[idx]
         grid_gdf.loc[grid_gdf.index[grid_idx], f"{cat}_zscore"] = z_scores[idx]
         grid_gdf.loc[grid_gdf.index[grid_idx], f"{cat}_predicted"] = predictions[idx]
 
     # Check residual normality (Shapiro-Wilk on sample if large) - important for z-score validity
-    sample_size = min(5000, len(residuals))  # Shapiro-Wilk limited to 5000
-    residual_sample = np.random.default_rng(42).choice(residuals, size=sample_size, replace=False)
+    sample_size = min(5000, len(log_residuals))  # Shapiro-Wilk limited to 5000
+    residual_sample = np.random.default_rng(42).choice(log_residuals, size=sample_size, replace=False)
     _, normality_p = stats.shapiro(residual_sample)
 
     regression_results[cat] = {
@@ -178,8 +188,8 @@ for cat in poi_categories:
 
 # Save grid dataset with z-scores
 output_path.mkdir(parents=True, exist_ok=True)
-grid_gdf.to_file(output_path / "grid_multiscale.gpkg", driver="GPKG")
-logger.info(f"Saved grid dataset to {output_path / 'grid_multiscale.gpkg'}")
+grid_gdf.to_file(output_path / "grid_counts_regress.gpkg", driver="GPKG")
+logger.info(f"Saved grid dataset to {output_path / 'grid_counts_regress.gpkg'}")
 
 # %%
 """
@@ -469,31 +479,30 @@ for i, cat in enumerate(poi_categories):
         ax.set_yticks([])
         continue
 
-    # Prepare data (raw counts to match training)
+    # Prepare data in log space (matching training)
     poi_counts = poi[valid_mask]
-    pop_local_counts = pop_local[valid_mask]
-    pop_intermediate_counts = pop_intermediate[valid_mask]
-    pop_large_counts = pop_large[valid_mask]
+    log_poi = np.log1p(poi_counts)  # Keep in log space for plotting
+    log_pop_local = np.log1p(pop_local[valid_mask])
+    log_pop_intermediate = np.log1p(pop_intermediate[valid_mask])
+    log_pop_large = np.log1p(pop_large[valid_mask])
 
-    # Reuse trained model from Step 2 when available to avoid retraining
-    X = np.column_stack([pop_local_counts, pop_intermediate_counts, pop_large_counts])
+    # Reuse trained model from Step 2 (trained in log space)
+    X = np.column_stack([log_pop_local, log_pop_intermediate, log_pop_large])
     model_entry = regression_results.get(cat, {})
     model = model_entry["model"]
-    predictions = model.predict(X)
-    residuals = poi_counts - predictions
+    log_predictions = model.predict(X)
 
-    # Set equal limits based on 95th percentile of max value
-    max_pred = np.percentile(predictions, 99.5)
-    max_obs = np.percentile(poi_counts, 99.5)
-    max_val = max(max_pred, max_obs)
-    ax_lim = int(max(25, max_val))
+    # Set equal limits in log space
+    max_pred = np.percentile(log_predictions, 99.9)
+    max_obs = np.percentile(log_poi, 99.9)
+    log_lim = max(max_pred, max_obs) * 1.05
 
-    # Plot hexbin with 30 bins across the axis limits (not data range)
+    # Plot hexbin in log-log space (where model was trained)
     hb = ax.hexbin(
-        predictions,
-        poi_counts,
+        log_predictions,
+        log_poi,
         gridsize=25,  # 25 bins across extent
-        extent=(0, ax_lim, 0, ax_lim),  # force grid to cover full axis range
+        extent=(0, log_lim, 0, log_lim),  # force grid to cover full axis range (log space)
         cmap="Reds",
         norm=LogNorm(),
         mincnt=1,
@@ -505,21 +514,20 @@ for i, cat in enumerate(poi_categories):
     cb.set_label("Point count")
     cb.ax.tick_params(labelsize=8)
 
-    # Perfect prediction line
-    pred_range = np.linspace(predictions.min(), predictions.max(), 100)
-    ax.plot(pred_range, pred_range, "k--", alpha=0.5, linewidth=1, label="Target line")
+    # Perfect prediction line (diagonal in log space)
+    ax.plot([0, log_lim], [0, log_lim], "k--", alpha=0.5, linewidth=1, label="Perfect prediction")
 
-    # Get R²
-    r2 = model.score(X, poi_counts)
+    # Get R² (use stored value from log-space training)
+    r2 = regression_results[cat]["r2"]
 
-    ax.set_xlabel("Predicted POI Count", fontsize=10)
-    ax.set_ylabel("Observed POI Count", fontsize=10)
+    ax.set_xlabel("Predicted log(POI+1)", fontsize=10)
+    ax.set_ylabel("Observed log(POI+1)", fontsize=10)
     ax.set_title(f"{category_names[cat]}\nR²={r2:.3f}", fontsize=11)
     ax.grid(True, alpha=0.3)
 
-    # Set equal limits based on axis range calculated above
-    ax.set_xlim(left=0, right=ax_lim)
-    ax.set_ylim(bottom=0, top=ax_lim)
+    # Set equal limits based on log-space range
+    ax.set_xlim(left=0, right=log_lim)
+    ax.set_ylim(bottom=0, top=log_lim)
 
     if i == 0:
         ax.legend(fontsize=9, loc="upper left")
@@ -629,8 +637,8 @@ for quad, desc in quadrants:
                 ]
             )
 
-        # Add up to 10 cities per quadrant
-        for _, row in quad_cities.head(10).iterrows():
+        # Add up to 30 cities per quadrant to provide more geographic examples
+        for _, row in quad_cities.head(30).iterrows():
             city_label = str(row.get("label", row.get("bounds_fid", "Unknown")))
             country = str(row.get("country", "Unknown"))
             mean_z = row.get("overall_z_mean_category", 0)
@@ -709,7 +717,7 @@ report_lines.extend(
         "## Output Files",
         "",
         "### Data Files",
-        "- **grid_multiscale.gpkg**: Vector grid dataset with z-scores and predictions",
+        "- **grid_counts_regress.gpkg**: Vector grid dataset with z-scores and predictions",
         "- **city_analysis_results.gpkg**: City-level z-score statistics and per-category + between-category quadrant classifications",
         "",
         "### Visualization Files",
@@ -734,7 +742,7 @@ logger.info(f"Saved report to {report_path}")
 
 logger.info("\nANALYSIS COMPLETE")
 logger.info(f"Output directory: {output_path}")
-logger.info("  - grid_multiscale.gpkg: Grid z-scores")
+logger.info("  - grid_counts_regress.gpkg: Grid z-scores")
 logger.info("  - city_analysis_results.gpkg: City statistics and quadrant classification")
 logger.info("  - city_assessment_report.md: Full markdown report")
 logger.info("  - Visualizations: eda_analysis.png, regression_diagnostics.png,")

@@ -19,41 +19,72 @@ Low POI coverage with uniform spatial distribution across categories.
 
 | City | Country | Mean Z | Between-Cat Std |
 |------|---------|--------|-----------------|
-| Parla | ES | -1.0161 | 0.3234 |
-| Fuenlabrada | ES | -0.8996 | 0.2224 |
-| Vallès Occidental | ES | -0.7188 | 0.1485 |
-| Torrejón de Ardoz | ES | -0.6203 | 0.1718 |
-| Gasteizko kuadrilla / Cuadrilla de Vitoria | ES | -0.6186 | 0.1928 |
-| Pinto | ES | -0.5827 | 0.2223 |
-| Galați | RO | -0.5689 | 0.1623 |
-| Madrid | ES | -0.5508 | 0.1606 |
-| Alcalá de Henares | ES | -0.5345 | 0.1431 |
-| Bilbao | ES | -0.5339 | 0.1084 |
+| Parla | ES | -1.1013 | 0.3346 |
+| Brăila | RO | -0.8890 | 0.2680 |
+| Добрич | BG | -0.8739 | 0.2879 |
+| Ceuta | ES | -0.8649 | 0.4262 |
+| Valdemoro | ES | -0.8131 | 0.2979 |
+| Alcorcón | ES | -0.8128 | 0.3989 |
+| Fuenlabrada | ES | -0.7278 | 0.2478 |
+| Vallès Occidental | ES | -0.7264 | 0.2573 |
+| Arganda del Rey | ES | -0.7262 | 0.4988 |
+| Gasteizko kuadrilla / Cuadrilla de Vitoria | ES | -0.6792 | 0.1772 |
+| Сливен | BG | -0.6412 | 0.3742 |
+| Bydgoszcz | PL | -0.6337 | 0.4032 |
+| Melilla | ES | -0.6218 | 0.2717 |
+| Bilbao | ES | -0.6101 | 0.1781 |
+| Andria | IT | -0.6012 | 0.3279 |
+| Ostrava | CZ | -0.5817 | 0.2540 |
+| Coslada | ES | -0.5798 | 0.2925 |
+| Magheru | RO | -0.5782 | 0.2496 |
+| Mantes-la-Jolie | FR | -0.5769 | 0.2095 |
+| Cerignola | IT | -0.5700 | 0.2408 |
+| Хасково | BG | -0.5695 | 0.2984 |
+| Galați | RO | -0.5569 | 0.1625 |
+| None | None | -0.5550 | 0.0387 |
+| Ploiești | RO | -0.5455 | 0.2506 |
+| Torrejón de Ardoz | ES | -0.5435 | 0.3567 |
+| Плевен | BG | -0.5412 | 0.2344 |
+| Vallès Occidental | ES | -0.5389 | 0.1888 |
+| Buzău | RO | -0.5299 | 0.2169 |
+| Ortsbeirat 6 : Evershagen | DE | -0.5297 | 0.1855 |
+| Panevėžys | LT | -0.5282 | 0.3294 |
 
 ### Consistently Saturated
 High & Uniform
 
 | City | Country | Mean Z | Between-Cat Std |
 |------|---------|--------|-----------------|
-| Almere | NL | 0.0005 | 0.0632 |
-| Lugo | ES | 0.0005 | 0.1712 |
-| Prato | IT | 0.0008 | 0.0969 |
-| Carpi | IT | 0.0022 | 0.1140 |
-| Caserta | IT | 0.0030 | 0.0855 |
-| Gouda | NL | 0.0032 | 0.1313 |
-| Halle-Vilvoorde | BE | 0.0039 | 0.0725 |
-| Bönebüttel | DE | 0.0044 | 0.0902 |
-| Lüdenscheid | DE | 0.0049 | 0.0924 |
-| Bregenz | AT | 0.0063 | 0.0474 |
-
-### Variable Saturated
-High & Variable
-
-| City | Country | Mean Z | Between-Cat Std |
-|------|---------|--------|-----------------|
-| Matera | IT | 0.3987 | 0.6976 |
-| Rimini | IT | 0.4078 | 0.6134 |
-| Venezia | IT | 1.1563 | 1.1773 |
+| Enschede | NL | 0.0004 | 0.1896 |
+| Ridderkerk | NL | 0.0007 | 0.2651 |
+| Düren | DE | 0.0008 | 0.2378 |
+| Kaunas | LT | 0.0010 | 0.1732 |
+| Jürgensby | DE | 0.0024 | 0.1516 |
+| Västerås | SE | 0.0026 | 0.1511 |
+| Iserlohn | DE | 0.0027 | 0.2084 |
+| Košice | SK | 0.0028 | 0.2126 |
+| Porz | DE | 0.0031 | 0.2807 |
+| Wolfsburg | DE | 0.0042 | 0.1228 |
+| Anzio | IT | 0.0057 | 0.2693 |
+| Zamora | ES | 0.0065 | 0.2709 |
+| Jena-Zentrum | DE | 0.0077 | 0.2730 |
+| Aix-en-Provence | FR | 0.0087 | 0.2278 |
+| Hilden | DE | 0.0090 | 0.2166 |
+| Veenendaal | NL | 0.0096 | 0.2608 |
+| Antwerpen | BE | 0.0105 | 0.1257 |
+| Roosendaal | NL | 0.0106 | 0.3488 |
+| Durach | DE | 0.0116 | 0.1730 |
+| Perpignan | FR | 0.0123 | 0.1175 |
+| Milano | IT | 0.0125 | 0.1557 |
+| Neusäß | DE | 0.0142 | 0.1882 |
+| Tours | FR | 0.0144 | 0.1541 |
+| Saint-Julien-en-Genevois | CH | 0.0146 | 0.1208 |
+| Zagreb | HR | 0.0153 | 0.1456 |
+| Brackel | DE | 0.0158 | 0.2920 |
+| Κατσικάς | GR | 0.0158 | 0.3111 |
+| El Bierzo | ES | 0.0163 | 0.2655 |
+| Grenoble | FR | 0.0170 | 0.1993 |
+| Zielona Góra | PL | 0.0171 | 0.3045 |
 
 ---
 
@@ -61,17 +92,17 @@ High & Variable
 
 | Category | R² Score | Local Importance | Intermediate Importance | Large Importance |
 |----------|----------|------------------|-------------------------|------------------|
-| Accommodation | 0.3892 | 0.2632 | 0.3970 | 0.3398 |
-| Active Life | 0.6727 | 0.6428 | 0.2092 | 0.1480 |
-| Arts And Entertainment | 0.5525 | 0.2528 | 0.4828 | 0.2644 |
-| Attractions And Activities | 0.5321 | 0.2140 | 0.4254 | 0.3606 |
-| Business And Services | 0.6447 | 0.5907 | 0.2181 | 0.1912 |
-| Eat And Drink | 0.5998 | 0.3448 | 0.3889 | 0.2663 |
-| Education | 0.6598 | 0.6158 | 0.2161 | 0.1681 |
-| Health And Medical | 0.5975 | 0.6360 | 0.1882 | 0.1758 |
-| Public Services | 0.5789 | 0.4907 | 0.2806 | 0.2287 |
-| Religious | 0.5260 | 0.5489 | 0.2475 | 0.2036 |
-| Retail | 0.6031 | 0.6093 | 0.1704 | 0.2204 |
+| Accommodation | 0.5572 | 0.4040 | 0.3371 | 0.2589 |
+| Active Life | 0.6558 | 0.6385 | 0.2083 | 0.1532 |
+| Arts And Entertainment | 0.6320 | 0.4509 | 0.3644 | 0.1848 |
+| Attractions And Activities | 0.6029 | 0.2641 | 0.5289 | 0.2070 |
+| Business And Services | 0.7283 | 0.7559 | 0.1398 | 0.1043 |
+| Eat And Drink | 0.7148 | 0.7230 | 0.1549 | 0.1221 |
+| Education | 0.7256 | 0.7232 | 0.1572 | 0.1197 |
+| Health And Medical | 0.6933 | 0.7212 | 0.1435 | 0.1354 |
+| Public Services | 0.6848 | 0.6385 | 0.2109 | 0.1506 |
+| Religious | 0.5860 | 0.5569 | 0.2323 | 0.2108 |
+| Retail | 0.7016 | 0.7472 | 0.1367 | 0.1161 |
 
 ---
 
@@ -118,7 +149,7 @@ Each panel uses consistent color coding for quadrants:
 ## Output Files
 
 ### Data Files
-- **grid_multiscale.gpkg**: Vector grid dataset with z-scores and predictions
+- **grid_counts_regress.gpkg**: Vector grid dataset with z-scores and predictions
 - **city_analysis_results.gpkg**: City-level z-score statistics and per-category + between-category quadrant classifications
 
 ### Visualization Files
