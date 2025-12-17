@@ -217,15 +217,12 @@ for idx, row in bounds_gdf.iterrows():
 for idx in city_gdf.index:
     z_mean_cols = [f"{cat}_z_mean" for cat in poi_categories if f"{cat}_z_mean" in city_gdf.columns]
     z_values = city_gdf.loc[idx, z_mean_cols].dropna()
-    city_gdf.loc[idx, "avg_z_mean"] = z_values.mean() if len(z_values) > 0 else np.nan
 
 # Quadrant Analysis: Classify cities by saturation level (mean) × variability (std)
 # Compute both std approaches for comparison
 z_mean_cols = [f"{cat}_z_mean" for cat in poi_categories]
 z_std_cols = [f"{cat}_z_std" for cat in poi_categories]
-city_gdf["overall_z_mean"] = city_gdf[z_mean_cols].mean(axis=1)
-# Spatial variability: avg of within-category stds (how even is coverage across grids?)
-city_gdf["overall_z_std_spatial"] = city_gdf[z_std_cols].mean(axis=1)
+city_gdf["overall_z_mean_category"] = city_gdf[z_mean_cols].mean(axis=1)
 # Category variability: std across category means (how consistent across POI types?)
 city_gdf["overall_z_std_category"] = city_gdf[z_mean_cols].std(axis=1)
 
@@ -257,13 +254,8 @@ for cat in poi_categories:
 
 # Between-category quadrant (using global threshold)
 city_gdf["between_category_quadrant"] = city_gdf.apply(
-    lambda row: assign_quadrant(row["overall_z_mean"], row["overall_z_std_category"], global_std_threshold), axis=1
-)
-
-# Legacy overall quadrant (using global threshold)
-city_gdf["overall_z_std"] = city_gdf["overall_z_std_spatial"]
-city_gdf["quadrant"] = city_gdf.apply(
-    lambda row: assign_quadrant(row["overall_z_mean"], row["overall_z_std"], global_std_threshold), axis=1
+    lambda row: assign_quadrant(row["overall_z_mean_category"], row["overall_z_std_category"], global_std_threshold),
+    axis=1,
 )
 
 # Log quadrant summary
@@ -279,7 +271,7 @@ logger.info(f"\nSaved: {results_gpkg_path}")
 # Quadrant visualization - 4x3 grid: 11 categories + 1 between-category summary
 fig, axes = plt.subplots(4, 3, figsize=(12, 14))
 axes = axes.flatten()
-city_quadrant = city_gdf[city_gdf["overall_z_mean"].notna()].copy()
+city_quadrant = city_gdf[city_gdf["overall_z_mean_category"].notna()].copy()
 
 # Compute global std threshold: median of all per-category stds pooled together
 all_stds = []
@@ -339,7 +331,7 @@ between_cat_y_max = np.percentile(between_cat_std_data, 99) * 1.1
 
 # Plot with its own y-axis range
 for i in range(len(city_quadrant)):
-    x = city_quadrant["overall_z_mean"].iloc[i]
+    x = city_quadrant["overall_z_mean_category"].iloc[i]
     y = city_quadrant["overall_z_std_category"].iloc[i]
     if pd.isna(x) or pd.isna(y):
         continue
@@ -604,154 +596,54 @@ report_lines = [
     "",
     "---",
     "",
-    "## Z-Score Distribution by Category",
+    "## City Quadrant Classification",
     "",
-    "| Category | Mean Z | Median Z | Std Z | Min Z | Max Z | N Grids |",
-    "|----------|--------|----------|-------|-------|-------|---------|",
+    "### Consistently Undersaturated",
+    "Low POI coverage with uniform spatial distribution across categories.",
+    "",
+    "| City | Country | Mean Z | Between-Cat Std |",
+    "|------|---------|--------|-----------------|",
 ]
 
-# Add z-score distribution statistics per category
-for cat in poi_categories:
-    zscore_col = f"{cat}_zscore"
-    if zscore_col in grid_gdf.columns:
-        zscores = grid_gdf[zscore_col].dropna()
-        if len(zscores) > 0:
-            report_lines.append(
-                f"| {category_names[cat]} | {zscores.mean():.3f} | {zscores.median():.3f} | "
-                f"{zscores.std():.3f} | {zscores.min():.3f} | {zscores.max():.3f} | {len(zscores)} |"
+# Between-category quadrants
+quadrants = [
+    ("Consistently Undersaturated", "Low & Uniform"),
+    ("Variable Undersaturated", "Low & Variable"),
+    ("Consistently Saturated", "High & Uniform"),
+    ("Variable Saturated", "High & Variable"),
+]
+
+for quad, desc in quadrants:
+    quad_cities = city_gdf[city_gdf["between_category_quadrant"] == quad].sort_values("overall_z_mean_category")
+
+    if len(quad_cities) > 0:
+        if quad != quadrants[0][0]:  # Add header for non-first quadrants
+            report_lines.extend(
+                [
+                    "",
+                    f"### {quad}",
+                    desc,
+                    "",
+                    "| City | Country | Mean Z | Between-Cat Std |",
+                    "|------|---------|--------|-----------------|",
+                ]
             )
 
-report_lines.extend(
-    [
-        "",
-        "---",
-        "",
-        "## City Rankings",
-        "",
-        "### Most Undersaturated Cities (Lowest Avg Z-Score)",
-        "",
-        "| City | Country | Grids | Avg Z-Score |",
-        "|------|---------|-------|-------------|",
-    ]
-)
-
-# Add top 10 most underserved
-for _, row in city_gdf.sort_values("avg_z_mean").head(10).iterrows():
-    city_label = str(row.get("label", row.get("bounds_fid", "Unknown")))
-    country = str(row.get("country", "Unknown"))
-    total_grids_val = row.get("total_grids", 0)
-    if pd.isna(total_grids_val):
-        total_grids_val = 0
-    avg_z = row.get("avg_z_mean", 0)
-    if pd.isna(avg_z):
-        avg_z = 0
-    report_lines.append(f"| {city_label} | {country} | {int(total_grids_val)} | {avg_z:.4f} |")
+        # Add up to 10 cities per quadrant
+        for _, row in quad_cities.head(10).iterrows():
+            city_label = str(row.get("label", row.get("bounds_fid", "Unknown")))
+            country = str(row.get("country", "Unknown"))
+            mean_z = row.get("overall_z_mean_category", 0)
+            std_z = row.get("overall_z_std_category", 0)
+            if pd.isna(mean_z):
+                mean_z = 0
+            if pd.isna(std_z):
+                std_z = 0
+            report_lines.append(f"| {city_label} | {country} | {mean_z:.4f} | {std_z:.4f} |")
 
 report_lines.extend(
     [
         "",
-        "### Most Saturated Cities (Highest Avg Z-Score)",
-        "",
-        "| City | Country | Grids | Avg Z-Score |",
-        "|------|---------|-------|-------------|",
-    ]
-)
-
-# Add top 10 best served
-for _, row in city_gdf.sort_values("avg_z_mean", ascending=False).head(10).iterrows():
-    city_label = str(row.get("label", row.get("bounds_fid", "Unknown")))
-    country = str(row.get("country", "Unknown"))
-    total_grids_val = row.get("total_grids", 0)
-    if pd.isna(total_grids_val):
-        total_grids_val = 0
-    avg_z = row.get("avg_z_mean", 0)
-    if pd.isna(avg_z):
-        avg_z = 0
-    report_lines.append(f"| {city_label} | {country} | {int(total_grids_val)} | {avg_z:.4f} |")
-
-report_lines.extend(
-    [
-        "",
-        "---",
-        "",
-        "## Performance by POI Category",
-        "",
-    ]
-)
-
-# Add category statistics
-for cat in poi_categories:
-    z_col = f"{cat}_z_mean"
-    if z_col in city_gdf.columns:
-        z_values = city_gdf[z_col].dropna()
-        if len(z_values) > 0:
-            report_lines.append(f"### {category_names[cat]}")
-            report_lines.append("")
-            report_lines.append(f"- **Avg Z-Score**: {z_values.mean():.4f}")
-            report_lines.append(f"- **Min Z-Score**: {z_values.min():.4f} (Most undersaturated)")
-            report_lines.append(f"- **Max Z-Score**: {z_values.max():.4f} (Most saturated)")
-            report_lines.append(f"- **Std Dev**: {z_values.std():.4f}")
-            report_lines.append(f"- **Cities with data**: {len(z_values)}")
-            report_lines.append("")
-
-            # Most/least underserved cities for this category
-            most_underserved_idx = z_values.idxmin()
-            most_overserved_idx = z_values.idxmax()
-            most_underserved_z = z_values.min()
-            most_overserved_z = z_values.max()
-            underserved_city = str(city_gdf.loc[most_underserved_idx, "label"])
-            underserved_country = str(city_gdf.loc[most_underserved_idx, "country"])
-            overserved_city = str(city_gdf.loc[most_overserved_idx, "label"])
-            overserved_country = str(city_gdf.loc[most_overserved_idx, "country"])
-
-            report_lines.append(
-                f"**Most undersaturated**: {underserved_city}, {underserved_country} (z={most_underserved_z:.4f})"
-            )
-            report_lines.append(
-                f"**Most saturated**: {overserved_city}, {overserved_country} (z={most_overserved_z:.4f})"
-            )
-            report_lines.append("")
-
-# Add country-level summary
-report_lines.extend(
-    [
-        "---",
-        "",
-        "## Country Summary",
-        "",
-    ]
-)
-
-country_stats = (
-    city_gdf.groupby("country")
-    .agg(
-        {
-            "avg_z_mean": ["mean", "min", "max", "count"],
-            "total_grids": "sum",
-        }
-    )
-    .reset_index()
-)
-country_stats.columns = ["country", "avg_z_mean", "min_z_mean", "max_z_mean", "num_cities", "total_grids"]
-country_stats = country_stats.sort_values("avg_z_mean")
-
-report_lines.append("| Country | Cities | Total Grids | Avg Z-Score | Min | Max |")
-report_lines.append("|---------|--------|------------|-------------|-----|-----|")
-
-for _, row in country_stats.iterrows():
-    country = str(row["country"])
-    num_cities = int(row["num_cities"])
-    total_grids = int(row["total_grids"])
-    avg_z = row["avg_z_mean"]
-    min_z = row["min_z_mean"]
-    max_z = row["max_z_mean"]
-    report_lines.append(f"| {country} | {num_cities} | {total_grids} | {avg_z:.4f} | {min_z:.4f} | {max_z:.4f} |")
-
-report_lines.extend(["", ""])
-
-# Add model performance section
-report_lines.extend(
-    [
         "---",
         "",
         "## Model Performance by Category",
@@ -802,11 +694,15 @@ report_lines.extend(
         "### City Quadrant Analysis",
         "![City Quadrant Analysis](city_quadrant_analysis.png)",
         "",
-        "Cities plotted by mean z-score (x-axis) vs variability (y-axis), forming four quadrants:",
-        "- **Consistently Undersaturated** (bottom-left): Low POI coverage with uniform pattern",
-        "- **Consistently Saturated** (bottom-right): High POI coverage with uniform pattern",
-        "- **Variable Undersaturated** (top-left): Low POI coverage with inconsistent pattern",
-        "- **Variable Saturated** (top-right): High POI coverage with inconsistent pattern",
+        "12-panel visualization (4×3 grid) showing city quadrant classification by POI category:",
+        "- **First 11 panels**: Per-category analysis (mean z-score vs spatial std within category)",
+        "- **12th panel**: Between-category summary (mean across categories vs std between categories)",
+        "",
+        "Each panel uses consistent color coding for quadrants:",
+        "- **Red** (bottom-left): Consistently Undersaturated",
+        "- **Green** (bottom-right): Consistently Saturated",
+        "- **Orange** (top-left): Variable Undersaturated",
+        "- **Blue** (top-right): Variable Saturated",
         "",
         "---",
         "",
@@ -814,13 +710,13 @@ report_lines.extend(
         "",
         "### Data Files",
         "- **grid_multiscale.gpkg**: Vector grid dataset with z-scores and predictions",
-        "- **city_analysis_results.gpkg**: City-level z-score statistics and quadrant classification",
+        "- **city_analysis_results.gpkg**: City-level z-score statistics and per-category + between-category quadrant classifications",
         "",
         "### Visualization Files",
         "- **eda_analysis.png**: Exploratory data analysis",
         "- **feature_importance.png**: Random Forest feature importance comparison",
         "- **regression_diagnostics.png**: Predicted vs observed plots for all categories",
-        "- **city_quadrant_analysis.png**: City quadrant scatter and distribution plot",
+        "- **city_quadrant_analysis.png**: 12-panel per-category and between-category quadrant analysis",
         "",
     ]
 )
@@ -832,7 +728,6 @@ with open(report_path, "w") as f:
 
 logger.info(f"Saved report to {report_path}")
 
-# %%
 """
 ## Analysis Complete
 """
