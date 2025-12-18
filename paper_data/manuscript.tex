@@ -239,6 +239,8 @@ Table~\ref{tab:sources} summarises input datasets. Street networks from Overture
 
 The pipeline comprises six stages: (1) boundary vectorisation from HDENS-CLST raster; (2--4) clipping of Copernicus datasets (Urban Atlas, Street Tree Layer, Height Model) to boundaries; (5) Overture data extraction per boundary; and (6) metric computation. All scripts support idempotent execution---existing outputs are skipped unless \texttt{--overwrite} is specified---enabling incremental processing and failure recovery.
 
+To ensure accurate metric computation at boundary edges, input datasets are buffered beyond city boundaries by their respective maximum aggregation distances. Street networks are buffered by 9,600m (the maximum centrality threshold), ensuring that nodes near boundaries have complete network context for centrality calculations. Points of interest are buffered by 1,600m (the maximum pedestrian-scale accessibility threshold), capturing all reachable amenities for boundary-proximate locations. Copernicus land cover and tree canopy data are similarly buffered to ensure complete coverage for green space proximity metrics.
+
 \subsection{Metric Computation}
 
 \subsubsection{Network Centrality}
@@ -290,109 +292,33 @@ The processing module (\texttt{generate\_metrics.py}) orchestrates metric comput
 
 Results are exported as GeoPackage files (\texttt{metrics\_\{bounds\_fid\}.gpkg}) in EPSG:3035, each containing three layers: \texttt{streets} (network nodes with all computed metrics), \texttt{buildings} (footprints with morphology), and \texttt{blocks} (polygons with coverage ratios). Dependencies are pinned via \texttt{pyproject.toml}; key packages include cityseer (network analysis), momepy (morphometrics), geopandas (spatial data), and overturemaps (data access). Processing parameters are fixed for reproducibility: 80m decomposition ($\approx$1-minute walk), 8m cleaning tolerance, centrality thresholds [400, 800, 1200, 1600, 4800, 9600]m (5--120 minutes), accessibility thresholds [400, 800, 1200, 1600]m (5--20 minutes).
 
-\subsection{POI Saturation Assessment}
+\subsection{Potential Applications}
 
-A grid-based multi-scale regression approach was developed to assess POI data saturation across cities, comparing observed POI densities against population-based expectations to identify undersaturated areas that may indicate data incompleteness.
+SOAR's standardized multi-scale metrics enable diverse research applications across urban planning, geography, and data science. We present ten illustrative examples demonstrating the breadth of potential issues and questions that can be explored in derivative research based on this dataset:
 
-\subsubsection{Multi-Scale Regression Methodology}
-The saturation assessment workflow (\texttt{src/analysis/poi\_saturation\_notebook.py}) operates at the 1~km\textsuperscript{2} census grid level, enabling fine-grained spatial analysis:
+\begin{enumerate}[nosep]
+  \item \textbf{POI Data Quality Assessment}: Use Random Forest regression to predict expected POI counts from population; compute z-scores to identify cities with systematic data gaps; aid filtering of dataset to reliable cities before conducting downstream analyses.
 
-\begin{enumerate}
-  \item \textbf{Grid-level aggregation}: POI counts are computed within each census grid cell. Multi-scale population neighborhoods are calculated at local, intermediate, and large radii to capture hierarchical catchment effects.
-  \item \textbf{Random Forest regression}: For each land-use category $k$, a Random Forest model is fitted in log-space:
-    \begin{equation}
-      \log(\text{POI}_k + 1) = f(\log(\text{pop}_{\text{local}}), \log(\text{pop}_{\text{intermediate}}), \log(\text{pop}_{\text{large}})) + \epsilon
-    \end{equation}
-    Log transformation linearizes the power-law relationship between population and POI counts ($\text{POI} \propto \text{pop}^\beta$), yielding more normally distributed residuals suitable for z-score computation.
-  \item \textbf{Z-score computation}: Standardized residuals quantify deviation from expected POI counts. Negative z-scores indicate undersaturation (fewer POIs than expected); positive z-scores indicate saturation.
-  \item \textbf{City-level aggregation}: Grid z-scores are aggregated per city, computing mean (overall saturation level) and standard deviation (spatial variability within city).
-  \item \textbf{Quadrant classification}: Cities are classified by mean z-score $\times$ variability into four quadrants: consistently undersaturated, variable undersaturated, consistently saturated, and variable saturated.
+  \item \textbf{Green Space Accessibility Equity}: Measure distance-weighted access to green blocks and tree canopies; stratify by census demographics within cities to identify environmental justice gaps.
+
+  \item \textbf{Educational Infrastructure Gap Analysis}: Overlay walking catchments to educational facilities; overlay with child population from census grids to flag underserved areas.
+
+  \item \textbf{ML-Based POI Demand Modeling}: Train models using population density and network centrality to predict restaurant/cafe density; identify undersupplied neighborhoods.
+
+  \item \textbf{15-Minute City Benchmarking}: Identify streets with access to all 11 POI categories within 15-minute (1200m) and 20-minute (1600m) walks; rank cities by completeness.
+
+  \item \textbf{Comparative Urban Density Patterns}: Compare population density and building density morphology distributions across cities.
+
+  \item \textbf{Pan-European Amenity Distance Atlas}: Compute median walking distances to essential services per city; aggregate by country (where sufficient coverage) to reveal North-South and East-West gradients.
+
+  \item \textbf{Mixed-Use Development Scoring}: Combine Hill diversity indices with building morphology metrics to classify neighborhoods along single-use $\leftrightarrow$ mixed-use spectrum.
+
+  \item \textbf{Population Intensification Opportunities}: Identify high-centrality, high-diversity nodes with low current population density as optimal densification targets.
+
+  \item \textbf{Transit Station Gap Analysis}: Map density against existing station locations to identify underserved high-demand areas.
 \end{enumerate}
 
-\subsubsection{Quadrant Interpretation}
-The quadrant classification provides actionable guidance for data usage:
-\begin{itemize}
-  \item \textbf{Consistently Undersaturated} (low mean, low std): Systematic data gaps; use with caution across all analyses
-  \item \textbf{Variable Undersaturated} (low mean, high std): Partial coverage; some grid cells may be reliable
-  \item \textbf{Consistently Saturated} (high mean, low std): Complete coverage; suitable for all analyses
-  \item \textbf{Variable Saturated} (high mean, high std): Good overall coverage with spatial heterogeneity
-\end{itemize}
-
-\subsubsection{City-Level Examples}
-Analysis of 699 European urban centres reveals pronounced geographic patterns in POI data saturation. \textbf{Central and Western European cities consistently perform best}, with German cities (Düren, Iserlohn, Wolfsburg, Jena, Hilden) and Dutch cities (Enschede, Ridderkerk, Veenendaal, Roosendaal) achieving mean z-scores near zero with low spatial variability. French cities (Aix-en-Provence, Perpignan, Tours, Grenoble), Belgian cities (Antwerp), and Italian metropolitan centres (Milano) exhibit similar saturation. These cities demonstrate balanced POI distributions aligning closely with population-based expectations across all 11 land-use categories, indicating reliable data for infrastructure analysis.
-
-\textbf{Peripheral European regions show systematic undersaturation.} Spanish cities dominate the undersaturated category, particularly Madrid satellite municipalities: Parla ($-1.10$), Valdemoro ($-0.81$), Alcorcón ($-0.81$), Fuenlabrada ($-0.73$), Arganda del Rey ($-0.73$), Coslada ($-0.58$), Torrejón de Ardoz ($-0.54$). Major Spanish cities also underperform (Bilbao $-0.61$, Basque region $-0.68$), alongside Spanish exclaves (Ceuta $-0.86$, Melilla $-0.62$). Eastern European cities exhibit parallel patterns: Romanian cities (Brăila $-0.89$, Galați $-0.56$, Ploiești $-0.55$, Buzău $-0.53$), Bulgarian cities (Dobrich $-0.87$, Sliven $-0.64$, Haskovo $-0.57$, Pleven $-0.54$), Polish cities (Bydgoszcz $-0.63$), Czech cities (Ostrava $-0.58$), and Lithuanian cities (Panevėžys $-0.53$). Italian southern cities (Andria $-0.60$, Cerignola $-0.57$) and French peripheral towns (Mantes-la-Jolie $-0.58$) also show undersaturation.
-
-Nordic countries exhibit \textbf{mixed performance}: Swedish cities like Västerås perform well (0.003), while others show deficits. Notably, some saturated cities include: Lithuanian Kaunas (0.001), Slovak Košice (0.003), Croatian Zagreb (0.015), Polish Zielona Góra (0.017), and even Spanish El Bierzo (0.016), indicating heterogeneity within countries.
-
-This \textbf{core-periphery pattern} likely reflects: (1) differential OpenStreetMap contributor activity feeding Overture; (2) varying commercial formalisation and business registration practices; (3) regional differences in POI aggregator market coverage. The pattern is pronounced for business services and retail (R²=0.73, 0.70), where Central European cities show near-complete coverage while Southern/Eastern cities fall 0.5--1.5 standard deviations below expected values. Accommodation shows weakest predictability (R²=0.56), suggesting tourism infrastructure follows different spatial logic than population-based models predict.
-
-These findings mandate saturation assessment before comparative analyses. Researchers comparing walkability or mixed-use metrics between, e.g., German and Spanish cities, may conflate true urban form differences with data artefacts. We recommend: (1) restricting cross-regional analyses to consistently saturated cities; or (2) stratifying by saturation quadrant; or (3) applying z-score corrections to accessibility metrics in undersaturated regions.
-
-\subsubsection{Assessment Outputs}
-The analysis generates: \texttt{grid\_counts\_regress.gpkg} (grid-level z-scores and predictions), \texttt{city\_analysis\_results.gpkg} (city-level statistics and quadrant classifications), and diagnostic visualizations.
-
-Table~\ref{tab:model_performance} summarises Random Forest model performance by POI category. R\textsuperscript{2} values range from 0.56 (accommodation) to 0.73 (business services), with local population scale consistently the strongest predictor for everyday amenities (retail, eat\_and\_drink, health\_and\_medical) while intermediate-scale population better predicts destination categories (attractions\_and\_activities).
-
-\begin{table}[!htbp]
-  \centering
-  \caption{Random Forest regression performance by POI category. Local, intermediate, and large columns show relative feature importance for each population scale.}
-  \label{tab:model_performance}
-  \small
-  \begin{tabular}{@{}L{4cm}R{1.2cm}R{1.5cm}R{1.5cm}R{1.5cm}@{}}
-    \toprule
-    \textbf{Category} & \textbf{R\textsuperscript{2}} & \textbf{Local} & \textbf{Intermed.} & \textbf{Large} \\
-    \midrule
-    Business \& services & 0.73 & 0.76 & 0.14 & 0.10 \\
-    Education            & 0.73 & 0.72 & 0.16 & 0.12 \\
-    Eat \& drink         & 0.71 & 0.72 & 0.15 & 0.12 \\
-    Retail               & 0.70 & 0.75 & 0.14 & 0.12 \\
-    Health \& medical    & 0.69 & 0.72 & 0.14 & 0.14 \\
-    \midrule
-    Public services      & 0.68 & 0.64 & 0.21 & 0.15 \\
-    Active life          & 0.66 & 0.64 & 0.21 & 0.15 \\
-    Arts \& entertainment & 0.63 & 0.45 & 0.36 & 0.18 \\
-    Attractions \& activities & 0.60 & 0.26 & 0.53 & 0.21 \\
-    \midrule
-    Religious            & 0.59 & 0.56 & 0.23 & 0.21 \\
-    Accommodation        & 0.56 & 0.40 & 0.34 & 0.26 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-\FloatBarrier
-
-Figure~\ref{fig:saturation-quadrant} shows city quadrant classification across all POI categories. Figure~\ref{fig:saturation-eda} presents model fit and z-score distributions, while Figure~\ref{fig:saturation-diagnostics} displays predicted vs.~observed POI counts and Figure~\ref{fig:saturation-importance} shows population scale importance across categories.
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=\textwidth]{../src/analysis/outputs/city_quadrant_analysis.png}
-  \caption{City quadrant analysis showing saturation classification. Each of 12 panels represents a POI category (11 categories plus between-category summary). X-axis: mean z-score (saturation level; negative indicates undersaturation). Y-axis: standard deviation of z-scores (spatial variability within city). Quadrant colours: red = consistently undersaturated; green = consistently saturated; orange = variable undersaturated; blue = variable saturated.}
-  \label{fig:saturation-quadrant}
-\end{figure}
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=0.85\textwidth]{../src/analysis/outputs/eda_analysis.png}
-  \caption{Exploratory data analysis. Left: Random Forest model fit (R\textsuperscript{2}) by POI category, with values ranging from 0.4--0.9 depending on category predictability. Right: distribution of z-scores across grid cells per category, revealing saturation patterns.}
-  \label{fig:saturation-eda}
-\end{figure}
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=\textwidth]{../src/analysis/outputs/regression_diagnostics.png}
-  \caption{Regression diagnostics: predicted vs.\ observed POI counts (log scale) for each category. Points near the diagonal indicate accurate predictions; outliers represent grid cells with unexpected POI distributions.}
-  \label{fig:saturation-diagnostics}
-\end{figure}
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=0.85\textwidth]{../src/analysis/outputs/feature_importance.png}
-  \caption{Feature importance analysis showing which population scale (local, intermediate, large) best predicts POI distribution for each category. Taller bars indicate stronger predictive power.}
-  \label{fig:saturation-importance}
-\end{figure}
-
-\FloatBarrier
+These examples illustrate SOAR's versatility for equity analysis, infrastructure planning, benchmarking, predictive modeling, and comparative geography. Prototype methodological workflows for each application are presented in a companion research article~\todo{cite demonstrators paper}.
 
 %% ============================================================================
 %% ETHICS AND DECLARATION
@@ -432,7 +358,7 @@ The dataset is available at Zenodo: \todo{Insert DOI and URL after deposit}.
   \item Section S8: Citation information for dataset, software, and source data
 \end{itemize}
 
-The processing workflow is implemented in the \textit{ebdp-toolkit} repository (version 0.5.0), available at \url{https://github.com/UCL/ba-ebdp-toolkit}. The toolkit provides a complete, reproducible pipeline for generating urban metrics from open data sources (Overture Maps, Copernicus Urban Atlas, and census grids). The workflow comprises four stages: boundary generation from raster clusters, data ingestion from distributed sources, metric computation via network and morphological analysis, and POI saturation assessment via multi-scale regression.
+The processing workflow is implemented in the \textit{ebdptoolkit} repository (version 0.5.0), available at \url{https://github.com/UCL/ba-ebdp-toolkit}. The toolkit provides a complete, reproducible pipeline for generating urban metrics from open data sources (Overture Maps, Copernicus Urban Atlas, and census grids). The workflow comprises four stages: boundary generation from raster clusters, data ingestion from distributed sources, metric computation via network and morphological analysis, and POI saturation assessment via multi-scale regression.
 
 To use the workflow: (1) clone the repository and install dependencies using \texttt{uv sync}; (2) download input datasets (boundaries raster, Overture dumps, Urban Atlas shapefiles) as documented in the README; (3) run \texttt{python -m src.processing.generate\_metrics} with parameters specifying output directory and boundary file; (4) optionally run \texttt{src/analysis/poi\_saturation\_notebook.py} to assess data completeness and generate quadrant classifications. All processing parameters (network decomposition, cleaning thresholds, distance scales) are configurable via function arguments. Complete documentation, data loading guidelines, and usage examples are provided in the repository's README and inline code comments. The toolkit is licensed under AGPL-3.0 and depends on open-source packages (cityseer, momepy, geopandas) ensuring full transparency and reproducibility across environments.
 

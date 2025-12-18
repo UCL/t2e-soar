@@ -13,7 +13,7 @@ Assesses POI data quality using multi-scale neighborhood analysis of 1km census 
 ## Key Outputs
 - **grid_counts_regress.gpkg**: Grid cells with z-scores (deviation from expected POI counts)
 - **city_analysis_results.gpkg**: City-level statistics with quadrant classification
-- **city_assessment_report.md**: Comprehensive markdown report
+- **README.md**: Comprehensive markdown report
 
 ## Z-Score Interpretation
 - z < 0: Fewer POIs than expected (undersaturated)
@@ -30,18 +30,263 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.colors import LogNorm
 from scipy import stats
+from scipy.spatial import cKDTree
 from sklearn.ensemble import RandomForestRegressor
 
-from src import tools
-from src.analysis.aggregate_grid_stats import aggregate_grid_stats
+from src.landuse_categories import COMMON_LANDUSE_CATEGORIES, merge_landuse_categories
 
-logger = tools.get_logger(__name__)
+# %%
+"""
+## Helper Functions for Grid Aggregation
+"""
+
+
+def compute_neighborhood_populations(
+    grid_gdf: gpd.GeoDataFrame,
+    grid_spacing_m: float = 1000.0,
+    full_census_gdf: gpd.GeoDataFrame | None = None,
+) -> gpd.GeoDataFrame:
+    """Compute multi-scale population neighborhoods for each grid cell.
+
+    Computes population aggregates at three scales:
+    - local: single cell (1x1)
+    - intermediate: 4x4 neighborhood (includes self + ~15 neighbors)
+    - large: 9x9 neighborhood (includes self + ~80 neighbors)
+
+    For grid cells organized in a regular grid, neighbors are identified by
+    proximity. Assumes grid cells are approximately square with edge length
+    ~grid_spacing_m.
+
+    Parameters
+    ----------
+    grid_gdf
+        GeoDataFrame with grid cells, must have 'population' column
+    grid_spacing_m
+        Approximate edge length of grid cells in meters
+    full_census_gdf
+        Optional full census grid for neighbor lookups. If provided, neighbors
+        are found from this GeoDataFrame (useful when grid_gdf is a subset,
+        e.g., grids within city boundaries that need neighbors outside).
+        If None, neighbors are found within grid_gdf itself.
+
+    Returns
+    -------
+    GeoDataFrame with added columns:
+        - pop_local: population in cell
+        - pop_intermediate: sum of 3x3 neighborhood
+        - pop_large: sum of 5x5 neighborhood
+
+    """
+    grid_gdf = grid_gdf.copy()
+
+    # Use full census grid for lookups if provided, otherwise use input grid
+    lookup_gdf = full_census_gdf if full_census_gdf is not None else grid_gdf
+
+    # Build spatial index on lookup grid for efficient neighbor finding
+    lookup_centroids = lookup_gdf.geometry.centroid
+    lookup_coords = np.array([[pt.x, pt.y] for pt in lookup_centroids])
+    tree = cKDTree(lookup_coords)
+
+    # Get target grid centroids for querying
+    target_centroids = grid_gdf.geometry.centroid
+    target_coords = np.array([[pt.x, pt.y] for pt in target_centroids])
+
+    # Define neighborhood radii
+    # 4x4 neighborhood: diagonal distance ~2.0 * grid_spacing
+    radius_intermediate = 2.0 * grid_spacing_m
+    # 9x9 neighborhood: diagonal distance ~4.5 * grid_spacing
+    radius_large = 4.5 * grid_spacing_m
+
+    print("Computing multi-scale population neighborhoods...")
+
+    # Get population data from lookup grid
+    pop_data = lookup_gdf["population"].astype(float).values
+
+    # Local population (just the cell itself)
+    grid_gdf["pop_local"] = grid_gdf["population"].astype(float)
+
+    # Intermediate neighborhood (3x3)
+    pop_intermediate = []
+    for centroid in target_coords:
+        neighbors = tree.query_ball_point(centroid, radius_intermediate)
+        pop_sum = pop_data[neighbors].sum()
+        pop_intermediate.append(pop_sum)
+    grid_gdf["pop_intermediate"] = pop_intermediate
+
+    # Large neighborhood (5x5)
+    pop_large = []
+    for centroid in target_coords:
+        neighbors = tree.query_ball_point(centroid, radius_large)
+        pop_sum = pop_data[neighbors].sum()
+        pop_large.append(pop_sum)
+    grid_gdf["pop_large"] = pop_large
+
+    print(f"  Local pop: mean={grid_gdf['pop_local'].mean():.0f}, median={grid_gdf['pop_local'].median():.0f}")
+    print(
+        f"  Intermediate pop: mean={grid_gdf['pop_intermediate'].mean():.0f}, "
+        f"median={grid_gdf['pop_intermediate'].median():.0f}"
+    )
+    print(f"  Large pop: mean={grid_gdf['pop_large'].mean():.0f}, median={grid_gdf['pop_large'].median():.0f}")
+
+    return grid_gdf
+
+
+def aggregate_grid_stats(
+    bounds_gdf: gpd.GeoDataFrame,
+    census_gdf: gpd.GeoDataFrame,
+    overture_data_dir: str,
+) -> gpd.GeoDataFrame:
+    """Aggregate POI counts at census grid level.
+
+    Parameters
+    ----------
+    bounds_gdf
+        GeoDataFrame with city boundaries (must have 'bounds_fid' column)
+    census_gdf
+        GeoDataFrame with census grid cells
+    overture_data_dir
+        Path to directory containing individual city POI files (e.g., overture_0.gpkg)
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        Grid cells with aggregated POI counts and population statistics
+
+    Notes
+    -----
+    - Neighborhoods are computed on the FULL census grid to ensure complete spatial context
+    - Filtering by city boundaries happens AFTER neighborhood computation
+    - POI data is loaded per-city from individual files (overture_0.gpkg, overture_1.gpkg, etc.)
+    - No minimum population threshold is applied (all grid cells are included)
+    """
+
+    print("=" * 80)
+    print("GRID-LEVEL POI STATISTICS AGGREGATION")
+    print("=" * 80)
+
+    print(f"Processing {len(bounds_gdf)} city boundaries")
+    print(f"Total grid cells: {len(census_gdf)}")
+    print(f"POI data directory: {overture_data_dir}")
+
+    # Ensure same CRS
+    if bounds_gdf.crs != census_gdf.crs:
+        print(f"Reprojecting census grid from {census_gdf.crs} to {bounds_gdf.crs}")
+        census_gdf = census_gdf.to_crs(bounds_gdf.crs)
+
+    # Rename population column if needed (census grid may use different column names)
+    if "T" in census_gdf.columns and "population" not in census_gdf.columns:
+        print("Renaming census population column 'T' to 'population'")
+        census_gdf = census_gdf.rename(columns={"T": "population"})
+    elif "population" not in census_gdf.columns:
+        print(f"ERROR: Could not find population column. Available columns: {list(census_gdf.columns)}")
+        raise ValueError("Census grid must have 'T' or 'population' column")
+
+    # Filter grids: keep only cells completely contained within city boundaries
+    print("Filtering grid cells to those completely within city boundaries...")
+    census_gdf["GRD_ID"] = census_gdf.index.astype(str)
+
+    # Spatial join to find which grids are within which cities
+    grids_in_cities = gpd.sjoin(
+        census_gdf[["GRD_ID", "population", "geometry"]],
+        bounds_gdf[["bounds_fid", "geometry"]],
+        how="inner",
+        predicate="within",  # Grid completely within city boundary
+    )
+
+    print(f"  Found {len(grids_in_cities)} grid cells completely within city boundaries")
+
+    # Remove duplicate grids (shouldn't happen with 'within', but just in case)
+    grids_in_cities = grids_in_cities.drop_duplicates(subset=["GRD_ID"])
+
+    # Compute multi-scale population neighborhoods using shared module
+    # Uses full census grid for accurate neighbor lookups across boundaries
+    print("Computing multi-scale population neighborhoods...")
+    grids_in_cities = compute_neighborhood_populations(
+        grid_gdf=grids_in_cities,
+        full_census_gdf=census_gdf,
+        grid_spacing_m=1000.0,
+    )
+    print(f"  Computed neighborhoods for {len(grids_in_cities)} boundary cells")
+
+    # Initialize POI count columns for all categories
+    for cat in COMMON_LANDUSE_CATEGORIES:
+        grids_in_cities[f"{cat}_count"] = 0
+
+    # Iterate through boundaries and load POI data per-city
+    print("Counting POIs within grid cells (iterating by city)...")
+    overture_path = Path(overture_data_dir)
+    city_count = 0
+
+    for bounds_fid in grids_in_cities["bounds_fid"].unique():
+        city_count += 1
+        city_grids = grids_in_cities[grids_in_cities["bounds_fid"] == bounds_fid].copy()
+
+        # Load POI data for this city
+        places_file = overture_path / f"overture_{bounds_fid}.gpkg"
+
+        if not places_file.exists():
+            print(
+                f"WARNING: [{city_count}/{len(grids_in_cities['bounds_fid'].unique())}] "
+                f"City {bounds_fid}: No places file found, skipping"
+            )
+            continue
+
+        try:
+            places_gdf = gpd.read_file(places_file, layer="places")
+
+            if places_gdf.crs != grids_in_cities.crs:
+                places_gdf = places_gdf.to_crs(grids_in_cities.crs)
+
+            # Merge granular categories into common land-use categories
+            if len(places_gdf) > 0:
+                places_gdf = merge_landuse_categories(places_gdf)
+
+                # For each grid in this city, count POIs within grid cell
+                for idx, grid_row in city_grids.iterrows():
+                    grid_geom = grid_row["geometry"]
+
+                    # Find POIs intersecting this grid cell
+                    pois_in_grid = places_gdf[places_gdf.intersects(grid_geom)]
+
+                    # Count by category
+                    for cat in COMMON_LANDUSE_CATEGORIES:
+                        cat_pois = pois_in_grid[pois_in_grid["merged_cats"] == cat]
+                        grids_in_cities.loc[idx, f"{cat}_count"] = len(cat_pois)
+
+            print(
+                f"  [{city_count}/{len(grids_in_cities['bounds_fid'].unique())}] "
+                f"City {bounds_fid}: Processed {len(city_grids)} grids, "
+                f"{len(places_gdf)} total POIs"
+            )
+
+        except Exception as e:
+            printerror(
+                f"  [{city_count}/{len(grids_in_cities['bounds_fid'].unique())}] "
+                f"City {bounds_fid}: Error processing - {e}"
+            )
+            continue
+
+    # Drop unnecessary columns and keep only what we need
+    cols_to_drop = ["index_right"]
+    grids_in_cities = grids_in_cities.drop(columns=cols_to_drop, errors="ignore")
+
+    # Summary statistics
+    print("\nGrid Statistics Summary:")
+    print(f"  Total grids: {len(grids_in_cities)}")
+    print(f"  Cities with grids: {grids_in_cities['bounds_fid'].nunique()}")
+    print(f"  Mean population per grid: {grids_in_cities['population'].mean():.0f}")
+    print(f"  Median population per grid: {grids_in_cities['population'].median():.0f}")
+
+    print("\nGrid aggregation complete!")
+
+    return grids_in_cities
+
 
 # Configuration - modify these paths as needed
 BOUNDS_PATH = "temp/datasets/boundaries.gpkg"
 OVERTURE_DATA_DIR = "temp/cities_data/overture"
 CENSUS_PATH = "temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg"
-OUTPUT_DIR = "src/analysis/outputs"
+OUTPUT_DIR = "paper_research/code/eg1_poi_compare/outputs"
 
 # %%
 """
@@ -55,9 +300,9 @@ output_path.mkdir(parents=True, exist_ok=True)
 grid_stats_file = output_path / "grid_stats.gpkg"
 
 if grid_stats_file.exists():
-    logger.info("Skipping grid aggregation (grid_stats.gpkg exists)")
+    print("Skipping grid aggregation (grid_stats.gpkg exists)")
 else:
-    logger.info("STEP 1: Aggregating grid-level statistics")
+    print("STEP 1: Aggregating grid-level statistics")
     bounds_gdf = gpd.read_file(BOUNDS_PATH)
     census_gdf = gpd.read_file(CENSUS_PATH)
 
@@ -68,7 +313,7 @@ else:
     )
 
     grid_stats.to_file(grid_stats_file, driver="GPKG")
-    logger.info(f"Grid aggregation complete: {grid_stats_file}")
+    print(f"Grid aggregation complete: {grid_stats_file}")
 
 # %%
 """
@@ -83,7 +328,7 @@ Z-scores on residuals identify grids with more/fewer POIs than expected.
 3. Interpretation becomes multiplicative (% deviation) rather than additive (count deviation), which is more meaningful across density ranges
 """
 
-logger.info("STEP 2: Multiple regression analysis")
+print("STEP 2: Multiple regression analysis")
 
 grid_gdf = gpd.read_file(grid_stats_file)
 poi_categories = sorted([col.replace("_count", "") for col in grid_gdf.columns if col.endswith("_count")])
@@ -96,7 +341,7 @@ def format_category_name(cat):
 
 category_names = {cat: format_category_name(cat) for cat in poi_categories}
 
-logger.info(f"Found {len(poi_categories)} POI categories, {len(grid_gdf)} grid cells")
+print(f"Found {len(poi_categories)} POI categories, {len(grid_gdf)} grid cells")
 
 # Initialize all output columns for all categories (even if some will be skipped)
 for cat in poi_categories:
@@ -184,12 +429,12 @@ for cat in poi_categories:
         "valid_indices": grid_indices.tolist(),
     }
 
-    logger.info(f"{cat}: R²={r2:.4f}, n={valid_mask.sum()}")
+    print(f"{cat}: R²={r2:.4f}, n={valid_mask.sum()}")
 
 # Save grid dataset with z-scores
 output_path.mkdir(parents=True, exist_ok=True)
 grid_gdf.to_file(output_path / "grid_counts_regress.gpkg", driver="GPKG")
-logger.info(f"Saved grid dataset to {output_path / 'grid_counts_regress.gpkg'}")
+print(f"Saved grid dataset to {output_path / 'grid_counts_regress.gpkg'}")
 
 # %%
 """
@@ -198,7 +443,7 @@ logger.info(f"Saved grid dataset to {output_path / 'grid_counts_regress.gpkg'}")
 Aggregate z-score statistics per city and classify into quadrants.
 """
 
-logger.info("\nSTEP 3: City-level aggregation and quadrant analysis")
+print("\nSTEP 3: City-level aggregation and quadrant analysis")
 
 bounds_gdf = gpd.read_file(BOUNDS_PATH)
 city_gdf = bounds_gdf.copy()
@@ -253,7 +498,7 @@ for cat in poi_categories:
     if std_col in city_gdf.columns:
         all_category_stds.extend(city_gdf[std_col].dropna().tolist())
 global_std_threshold = np.median(all_category_stds)
-logger.info(f"\nGlobal std threshold for quadrant classification: {global_std_threshold:.4f}")
+print(f"\nGlobal std threshold for quadrant classification: {global_std_threshold:.4f}")
 
 # Per-category quadrants (using global threshold for consistency)
 for cat in poi_categories:
@@ -269,14 +514,18 @@ city_gdf["between_category_quadrant"] = city_gdf.apply(
 )
 
 # Log quadrant summary
-logger.info("\nQuadrant Summary (between-category variability):")
+print("\nQuadrant Summary (between-category variability):")
 for quadrant, count in city_gdf["between_category_quadrant"].value_counts().items():
-    logger.info(f"  {quadrant}: {count} cities")
+    print(f"  {quadrant}: {count} cities")
 
 # Save results
 results_gpkg_path = output_path / "city_analysis_results.gpkg"
 city_gdf.to_file(results_gpkg_path, driver="GPKG")
-logger.info(f"\nSaved: {results_gpkg_path}")
+print(f"\nSaved: {results_gpkg_path}")
+
+# Apply subtle seaborn styling
+sns.set_style("whitegrid", {"grid.color": ".9", "axes.edgecolor": ".6"})
+sns.set_context("paper")
 
 # Quadrant visualization - 4x3 grid: 11 categories + 1 between-category summary
 fig, axes = plt.subplots(4, 3, figsize=(12, 14))
@@ -311,15 +560,18 @@ def plot_quadrant_scatter(ax, x_data, y_data, std_med, title):
             color = "#d62728" if y < std_med else "#ff7f0e"
         else:
             color = "#2ca02c" if y < std_med else "#1f77b4"
-        ax.scatter(x, y, c=color, alpha=0.6, edgecolors="black", linewidths=0.3, s=25)
+        ax.scatter(x, y, c=color, alpha=0.6, edgecolors="dimgrey", linewidths=0.3, s=25)
 
-    ax.axhline(y=std_med, color="gray", linestyle="--", linewidth=1, alpha=0.7)
-    ax.axvline(x=0, color="gray", linestyle="--", linewidth=1, alpha=0.7)
+    ax.axhline(y=std_med, color="dimgrey", linestyle="--", linewidth=0.8, alpha=0.7)
+    ax.axvline(x=0, color="dimgrey", linestyle="--", linewidth=0.8, alpha=0.7)
     ax.set_xlim(-x_abs_max, x_abs_max)  # Center zero
     ax.set_ylim(0, y_max)
     ax.set_title(title, fontsize=9, fontweight="bold")
-    ax.tick_params(labelsize=7)
-    ax.grid(True, alpha=0.3)
+    ax.tick_params(labelsize=7, colors="dimgrey")
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    for spine in ["left", "bottom"]:
+        ax.spines[spine].set_color("lightgrey")
 
 
 # Plot each category individually (mean vs std for that category)
@@ -349,17 +601,20 @@ for i in range(len(city_quadrant)):
         color = "#d62728" if y < between_cat_std_median else "#ff7f0e"
     else:
         color = "#2ca02c" if y < between_cat_std_median else "#1f77b4"
-    ax_summary.scatter(x, y, c=color, alpha=0.6, edgecolors="black", linewidths=0.3, s=25)
+    ax_summary.scatter(x, y, c=color, alpha=0.6, edgecolors="dimgrey", linewidths=0.3, s=25)
 
-ax_summary.axhline(y=between_cat_std_median, color="gray", linestyle="--", linewidth=1, alpha=0.7)
-ax_summary.axvline(x=0, color="gray", linestyle="--", linewidth=1, alpha=0.7)
+ax_summary.axhline(y=between_cat_std_median, color="dimgrey", linestyle="--", linewidth=0.8, alpha=0.7)
+ax_summary.axvline(x=0, color="dimgrey", linestyle="--", linewidth=0.8, alpha=0.7)
 ax_summary.set_xlim(-x_abs_max, x_abs_max)
 ax_summary.set_ylim(0, between_cat_y_max)
 ax_summary.set_title(
     f"Between Categories\n(std threshold = {between_cat_std_median:.2f})", fontsize=9, fontweight="bold"
 )
-ax_summary.tick_params(labelsize=7)
-ax_summary.grid(True, alpha=0.3)
+ax_summary.tick_params(labelsize=7, colors="dimgrey")
+for spine in ["top", "right"]:
+    ax_summary.spines[spine].set_visible(False)
+for spine in ["left", "bottom"]:
+    ax_summary.spines[spine].set_color("lightgrey")
 ax_summary.set_xlabel("Mean Z (across cats)", fontsize=8)
 ax_summary.set_ylabel("Std Z (between cats)", fontsize=8)
 
@@ -372,13 +627,13 @@ plt.suptitle(
     fontsize=12,
     fontweight="bold",
 )
-plt.tight_layout()
+plt.tight_layout(w_pad=1.5, h_pad=2.0)
 
 viz_path = output_path / "city_quadrant_analysis.png"
-plt.savefig(viz_path, dpi=150, bbox_inches="tight")
+plt.savefig(viz_path, dpi=150, bbox_inches="tight", facecolor="white")
 plt.show()
 
-logger.info(f"\nSaved quadrant analysis to {viz_path}")
+print(f"\nSaved quadrant analysis to {viz_path}")
 
 # %%
 """
@@ -387,24 +642,30 @@ logger.info(f"\nSaved quadrant analysis to {viz_path}")
 Model fit and z-score distribution visualization.
 """
 
-logger.info("\nSTEP 4: Exploratory data analysis")
+print("\nSTEP 4: Exploratory data analysis")
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
 # Panel 1: R² values by category
 ax = axes[0]
 r2_values = [regression_results[cat]["r2"] for cat in poi_categories if not np.isnan(regression_results[cat]["r2"])]
-ax.bar(range(len(r2_values)), r2_values, color="green", alpha=0.7, edgecolor="black")
+ax.bar(range(len(r2_values)), r2_values, color="green", alpha=0.7, edgecolor="none")
 ax.set_xticks(range(len(r2_values)))
 ax.set_xticklabels(
     [category_names[cat] for cat in poi_categories if not np.isnan(regression_results[cat]["r2"])],
     rotation=45,
     ha="right",
+    fontsize=9,
+    color="dimgrey",
 )
-ax.set_ylabel("R² Value", fontsize=11)
-ax.set_title("Model Fit by Category", fontsize=12, fontweight="bold")
+ax.set_ylabel("R² Value", fontsize=10, color="dimgrey")
+ax.set_title("Model Fit by Category", fontsize=11, fontweight="bold")
 ax.set_ylim(0, 1)
-ax.grid(True, alpha=0.3, axis="y")
+ax.tick_params(axis="both", colors="dimgrey", labelsize=9)
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+for spine in ["left", "bottom"]:
+    ax.spines[spine].set_color("lightgrey")
 
 # 2. Z-Score distribution by category (box plot)
 ax = axes[1]
@@ -433,18 +694,22 @@ if len(zscore_data) > 0:
     iqr = q3 - q1
     ax.set_ylim(q1 - 0.5 * iqr, q3 + 0.5 * iqr)
 
-    ax.set_ylabel("Z-Score", fontsize=11)
-    ax.set_title("Z-Score Distribution by Category", fontsize=12, fontweight="bold")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
-    ax.grid(True, alpha=0.3, axis="y")
+    ax.set_ylabel("Z-Score", fontsize=10, color="dimgrey")
+    ax.set_title("Z-Score Distribution by Category", fontsize=11, fontweight="bold")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", fontsize=9, color="dimgrey")
+    ax.tick_params(axis="both", colors="dimgrey", labelsize=9)
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    for spine in ["left", "bottom"]:
+        ax.spines[spine].set_color("lightgrey")
 else:
     ax.text(0.5, 0.5, "No z-score data available", ha="center", va="center", transform=ax.transAxes)
 
-plt.tight_layout()
-plt.savefig(output_path / "eda_analysis.png", dpi=150, bbox_inches="tight")
+plt.tight_layout(w_pad=1.5)
+plt.savefig(output_path / "eda_analysis.png", dpi=150, bbox_inches="tight", facecolor="white")
 plt.show()
 
-logger.info(f"\nSaved EDA plots to {output_path / 'eda_analysis.png'}")
+print(f"\nSaved EDA plots to {output_path / 'eda_analysis.png'}")
 
 # %%
 """
@@ -453,7 +718,7 @@ logger.info(f"\nSaved EDA plots to {output_path / 'eda_analysis.png'}")
 Predicted vs observed POI counts for each category.
 """
 
-logger.info("\nSTEP 5: Creating regression diagnostic plots")
+print("\nSTEP 5: Creating regression diagnostic plots")
 
 n_cols = 3
 n_rows = int(np.ceil(len(poi_categories) / n_cols))
@@ -511,7 +776,7 @@ for i, cat in enumerate(poi_categories):
     )
     # Add colorbar
     cb = plt.colorbar(hb, ax=ax)
-    cb.set_label("Point count")
+    cb.set_label("Point count", fontsize=9)
     cb.ax.tick_params(labelsize=8)
 
     # Perfect prediction line (diagonal in log space)
@@ -520,10 +785,14 @@ for i, cat in enumerate(poi_categories):
     # Get R² (use stored value from log-space training)
     r2 = regression_results[cat]["r2"]
 
-    ax.set_xlabel("Predicted log(POI+1)", fontsize=10)
-    ax.set_ylabel("Observed log(POI+1)", fontsize=10)
-    ax.set_title(f"{category_names[cat]}\nR²={r2:.3f}", fontsize=11)
-    ax.grid(True, alpha=0.3)
+    ax.set_xlabel("Predicted log(POI+1)", fontsize=9, color="dimgrey")
+    ax.set_ylabel("Observed log(POI+1)", fontsize=9, color="dimgrey")
+    ax.set_title(f"{category_names[cat]}\nR²={r2:.3f}", fontsize=10)
+    ax.tick_params(axis="both", colors="dimgrey", labelsize=8)
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    for spine in ["left", "bottom"]:
+        ax.spines[spine].set_color("lightgrey")
 
     # Set equal limits based on log-space range
     ax.set_xlim(left=0, right=log_lim)
@@ -537,11 +806,11 @@ for i in range(len(poi_categories), len(axes)):
     axes[i].set_visible(False)
 
 plt.suptitle("Multiple Regression Diagnostics: Predicted vs Observed", fontsize=14, fontweight="bold", y=1.00)
-plt.tight_layout()
-plt.savefig(output_path / "regression_diagnostics.png", dpi=150, bbox_inches="tight")
+plt.tight_layout(w_pad=1.5, h_pad=2.0)
+plt.savefig(output_path / "regression_diagnostics.png", dpi=150, bbox_inches="tight", facecolor="white")
 plt.show()
 
-logger.info(f"Saved regression diagnostics to {output_path / 'regression_diagnostics.png'}")
+print(f"Saved regression diagnostics to {output_path / 'regression_diagnostics.png'}")
 
 # %%
 """
@@ -550,7 +819,7 @@ logger.info(f"Saved regression diagnostics to {output_path / 'regression_diagnos
 Compare population scale contributions to POI prediction.
 """
 
-logger.info("\nSTEP 6: Feature Importance Analysis")
+print("\nSTEP 6: Feature Importance Analysis")
 
 fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -561,23 +830,29 @@ imp_local = [regression_results[cat]["importance_local"] for cat in poi_categori
 imp_int = [regression_results[cat]["importance_intermediate"] for cat in poi_categories]
 imp_large = [regression_results[cat]["importance_large"] for cat in poi_categories]
 
-ax.bar(x - width, imp_local, width, label="Local", alpha=0.7, edgecolor="black")
-ax.bar(x, imp_int, width, label="Intermediate", alpha=0.7, edgecolor="black")
-ax.bar(x + width, imp_large, width, label="Large", alpha=0.7, edgecolor="black")
+ax.bar(x - width, imp_local, width, label="Local", alpha=0.7, edgecolor="none")
+ax.bar(x, imp_int, width, label="Intermediate", alpha=0.7, edgecolor="none")
+ax.bar(x + width, imp_large, width, label="Large", alpha=0.7, edgecolor="none")
 
-ax.set_xlabel("POI Category", fontsize=11)
-ax.set_ylabel("Feature Importance", fontsize=11)
-ax.set_title("Scale Importance for POI Prediction (Random Forest)", fontsize=12, fontweight="bold")
+ax.set_xlabel("POI Category", fontsize=10, color="dimgrey")
+ax.set_ylabel("Feature Importance", fontsize=10, color="dimgrey")
+ax.set_title("Scale Importance for POI Prediction (Random Forest)", fontsize=11, fontweight="bold")
 ax.set_xticks(x)
-ax.set_xticklabels([category_names[cat] for cat in poi_categories], rotation=45, ha="right")
-ax.legend()
-ax.grid(True, alpha=0.3, axis="y")
+ax.set_xticklabels(
+    [category_names[cat] for cat in poi_categories], rotation=45, ha="right", fontsize=9, color="dimgrey"
+)
+ax.legend(fontsize=9)
+ax.tick_params(axis="both", colors="dimgrey", labelsize=9)
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+for spine in ["left", "bottom"]:
+    ax.spines[spine].set_color("lightgrey")
 
 plt.tight_layout()
-plt.savefig(output_path / "feature_importance.png", dpi=150, bbox_inches="tight")
+plt.savefig(output_path / "feature_importance.png", dpi=150, bbox_inches="tight", facecolor="white")
 plt.show()
 
-logger.info(f"Saved feature importance analysis to {output_path / 'feature_importance.png'}")
+print(f"Saved feature importance analysis to {output_path / 'feature_importance.png'}")
 
 # %%
 """
@@ -586,7 +861,7 @@ logger.info(f"Saved feature importance analysis to {output_path / 'feature_impor
 Generate final assessment report with statistics, visualizations, and analysis.
 """
 
-logger.info("\nSTEP 7: Markdown Report Generation")
+print("\nSTEP 7: Markdown Report Generation")
 
 # Generate comprehensive markdown report
 report_lines = [
@@ -729,23 +1004,23 @@ report_lines.extend(
     ]
 )
 
-# Write report to file
-report_path = output_path / "city_assessment_report.md"
+# Write report to file in the example folder root (parent of outputs)
+report_path = output_path.parent / "README.md"
 with open(report_path, "w") as f:
     f.write("\n".join(report_lines))
 
-logger.info(f"Saved report to {report_path}")
+print(f"Saved report to {report_path}")
 
 """
 ## Analysis Complete
 """
 
-logger.info("\nANALYSIS COMPLETE")
-logger.info(f"Output directory: {output_path}")
-logger.info("  - grid_counts_regress.gpkg: Grid z-scores")
-logger.info("  - city_analysis_results.gpkg: City statistics and quadrant classification")
-logger.info("  - city_assessment_report.md: Full markdown report")
-logger.info("  - Visualizations: eda_analysis.png, regression_diagnostics.png,")
-logger.info("    feature_importance.png, city_quadrant_analysis.png")
+print("\nANALYSIS COMPLETE")
+print(f"Output directory: {output_path}")
+print("  - grid_counts_regress.gpkg: Grid z-scores")
+print("  - city_analysis_results.gpkg: City statistics and quadrant classification")
+print("  - Visualizations: eda_analysis.png, regression_diagnostics.png,")
+print("    feature_importance.png, city_quadrant_analysis.png")
+print(f"README.md saved to: {report_path}")
 
 # %%

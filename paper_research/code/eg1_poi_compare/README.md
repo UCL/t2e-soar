@@ -19,72 +19,72 @@ Low POI coverage with uniform spatial distribution across categories.
 
 | City | Country | Mean Z | Between-Cat Std |
 |------|---------|--------|-----------------|
-| Parla | ES | -1.1013 | 0.3346 |
-| Brăila | RO | -0.8890 | 0.2680 |
-| Добрич | BG | -0.8739 | 0.2879 |
-| Ceuta | ES | -0.8649 | 0.4262 |
-| Valdemoro | ES | -0.8131 | 0.2979 |
-| Alcorcón | ES | -0.8128 | 0.3989 |
-| Fuenlabrada | ES | -0.7278 | 0.2478 |
-| Vallès Occidental | ES | -0.7264 | 0.2573 |
-| Arganda del Rey | ES | -0.7262 | 0.4988 |
-| Gasteizko kuadrilla / Cuadrilla de Vitoria | ES | -0.6792 | 0.1772 |
-| Сливен | BG | -0.6412 | 0.3742 |
-| Bydgoszcz | PL | -0.6337 | 0.4032 |
-| Melilla | ES | -0.6218 | 0.2717 |
-| Bilbao | ES | -0.6101 | 0.1781 |
-| Andria | IT | -0.6012 | 0.3279 |
-| Ostrava | CZ | -0.5817 | 0.2540 |
-| Coslada | ES | -0.5798 | 0.2925 |
-| Magheru | RO | -0.5782 | 0.2496 |
-| Mantes-la-Jolie | FR | -0.5769 | 0.2095 |
-| Cerignola | IT | -0.5700 | 0.2408 |
-| Хасково | BG | -0.5695 | 0.2984 |
-| Galați | RO | -0.5569 | 0.1625 |
-| None | None | -0.5550 | 0.0387 |
-| Ploiești | RO | -0.5455 | 0.2506 |
-| Torrejón de Ardoz | ES | -0.5435 | 0.3567 |
-| Плевен | BG | -0.5412 | 0.2344 |
-| Vallès Occidental | ES | -0.5389 | 0.1888 |
-| Buzău | RO | -0.5299 | 0.2169 |
-| Ortsbeirat 6 : Evershagen | DE | -0.5297 | 0.1855 |
-| Panevėžys | LT | -0.5282 | 0.3294 |
+| Parla | ES | -1.1088 | 0.3453 |
+| Brăila | RO | -0.8894 | 0.2762 |
+| Добрич | BG | -0.8719 | 0.2882 |
+| Ceuta | ES | -0.8598 | 0.4272 |
+| Alcorcón | ES | -0.8347 | 0.4005 |
+| Valdemoro | ES | -0.8154 | 0.2876 |
+| Fuenlabrada | ES | -0.7287 | 0.2514 |
+| Vallès Occidental | ES | -0.7254 | 0.2563 |
+| Arganda del Rey | ES | -0.7190 | 0.5006 |
+| Gasteizko kuadrilla / Cuadrilla de Vitoria | ES | -0.6784 | 0.1777 |
+| Сливен | BG | -0.6461 | 0.3775 |
+| Bydgoszcz | PL | -0.6337 | 0.4007 |
+| Melilla | ES | -0.6179 | 0.2706 |
+| Bilbao | ES | -0.6099 | 0.1792 |
+| Andria | IT | -0.5991 | 0.3289 |
+| Magheru | RO | -0.5830 | 0.2546 |
+| Coslada | ES | -0.5811 | 0.2962 |
+| Mantes-la-Jolie | FR | -0.5767 | 0.2091 |
+| Ostrava | CZ | -0.5758 | 0.2527 |
+| Хасково | BG | -0.5691 | 0.2959 |
+| Cerignola | IT | -0.5671 | 0.2463 |
+| None | None | -0.5633 | 0.0322 |
+| Galați | RO | -0.5592 | 0.1693 |
+| Ploiești | RO | -0.5467 | 0.2517 |
+| Плевен | BG | -0.5386 | 0.2381 |
+| Vallès Occidental | ES | -0.5368 | 0.1852 |
+| Buzău | RO | -0.5351 | 0.2193 |
+| Torrejón de Ardoz | ES | -0.5346 | 0.3601 |
+| Panevėžys | LT | -0.5322 | 0.3304 |
+| Ortsbeirat 6 : Evershagen | DE | -0.5293 | 0.1875 |
 
 ### Consistently Saturated
 High & Uniform
 
 | City | Country | Mean Z | Between-Cat Std |
 |------|---------|--------|-----------------|
-| Enschede | NL | 0.0004 | 0.1896 |
-| Ridderkerk | NL | 0.0007 | 0.2651 |
-| Düren | DE | 0.0008 | 0.2378 |
-| Kaunas | LT | 0.0010 | 0.1732 |
-| Jürgensby | DE | 0.0024 | 0.1516 |
-| Västerås | SE | 0.0026 | 0.1511 |
-| Iserlohn | DE | 0.0027 | 0.2084 |
-| Košice | SK | 0.0028 | 0.2126 |
-| Porz | DE | 0.0031 | 0.2807 |
-| Wolfsburg | DE | 0.0042 | 0.1228 |
-| Anzio | IT | 0.0057 | 0.2693 |
-| Zamora | ES | 0.0065 | 0.2709 |
-| Jena-Zentrum | DE | 0.0077 | 0.2730 |
-| Aix-en-Provence | FR | 0.0087 | 0.2278 |
-| Hilden | DE | 0.0090 | 0.2166 |
-| Veenendaal | NL | 0.0096 | 0.2608 |
-| Antwerpen | BE | 0.0105 | 0.1257 |
-| Roosendaal | NL | 0.0106 | 0.3488 |
-| Durach | DE | 0.0116 | 0.1730 |
-| Perpignan | FR | 0.0123 | 0.1175 |
+| Enschede | NL | 0.0001 | 0.1873 |
+| Comarca de la Vega de Granada | ES | 0.0003 | 0.2311 |
+| Gütersloh | DE | 0.0006 | 0.1955 |
+| Debrecen | HU | 0.0008 | 0.2163 |
+| Västerås | SE | 0.0010 | 0.1489 |
+| Kaunas | LT | 0.0013 | 0.1749 |
+| Košice | SK | 0.0018 | 0.2072 |
+| Iserlohn | DE | 0.0026 | 0.2062 |
+| Tatabánya | HU | 0.0028 | 0.2565 |
+| Düren | DE | 0.0028 | 0.2359 |
+| České Budějovice | CZ | 0.0032 | 0.2172 |
+| Jürgensby | DE | 0.0040 | 0.1532 |
+| Wolfsburg | DE | 0.0046 | 0.1254 |
+| Zamora | ES | 0.0050 | 0.2695 |
+| Ridderkerk | NL | 0.0060 | 0.2735 |
+| El Bierzo | ES | 0.0075 | 0.2697 |
+| Aix-en-Provence | FR | 0.0081 | 0.2268 |
+| Anzio | IT | 0.0087 | 0.2665 |
+| Hilden | DE | 0.0096 | 0.2160 |
+| Jena-Zentrum | DE | 0.0097 | 0.2742 |
+| Κατσικάς | GR | 0.0104 | 0.3140 |
 | Milano | IT | 0.0125 | 0.1557 |
-| Neusäß | DE | 0.0142 | 0.1882 |
-| Tours | FR | 0.0144 | 0.1541 |
-| Saint-Julien-en-Genevois | CH | 0.0146 | 0.1208 |
-| Zagreb | HR | 0.0153 | 0.1456 |
-| Brackel | DE | 0.0158 | 0.2920 |
-| Κατσικάς | GR | 0.0158 | 0.3111 |
-| El Bierzo | ES | 0.0163 | 0.2655 |
-| Grenoble | FR | 0.0170 | 0.1993 |
-| Zielona Góra | PL | 0.0171 | 0.3045 |
+| Saint-Julien-en-Genevois | CH | 0.0126 | 0.1235 |
+| Veenendaal | NL | 0.0128 | 0.2645 |
+| Roosendaal | NL | 0.0129 | 0.3499 |
+| Durach | DE | 0.0142 | 0.1764 |
+| Antwerpen | BE | 0.0152 | 0.1317 |
+| Tours | FR | 0.0154 | 0.1542 |
+| Zagreb | HR | 0.0156 | 0.1462 |
+| Brackel | DE | 0.0156 | 0.2964 |
 
 ---
 
@@ -93,14 +93,14 @@ High & Uniform
 | Category | R² Score | Local Importance | Intermediate Importance | Large Importance |
 |----------|----------|------------------|-------------------------|------------------|
 | Accommodation | 0.5572 | 0.4040 | 0.3371 | 0.2589 |
-| Active Life | 0.6558 | 0.6385 | 0.2083 | 0.1532 |
-| Arts And Entertainment | 0.6320 | 0.4509 | 0.3644 | 0.1848 |
-| Attractions And Activities | 0.6029 | 0.2641 | 0.5289 | 0.2070 |
+| Active Life | 0.6551 | 0.6411 | 0.2068 | 0.1521 |
+| Arts And Entertainment | 0.6315 | 0.4450 | 0.3711 | 0.1839 |
+| Attractions And Activities | 0.6031 | 0.2641 | 0.5289 | 0.2071 |
 | Business And Services | 0.7283 | 0.7559 | 0.1398 | 0.1043 |
 | Eat And Drink | 0.7148 | 0.7230 | 0.1549 | 0.1221 |
-| Education | 0.7256 | 0.7232 | 0.1572 | 0.1197 |
-| Health And Medical | 0.6933 | 0.7212 | 0.1435 | 0.1354 |
-| Public Services | 0.6848 | 0.6385 | 0.2109 | 0.1506 |
+| Education | 0.7255 | 0.7232 | 0.1572 | 0.1196 |
+| Health And Medical | 0.6933 | 0.7211 | 0.1436 | 0.1353 |
+| Public Services | 0.6837 | 0.6408 | 0.2079 | 0.1513 |
 | Religious | 0.5860 | 0.5569 | 0.2323 | 0.2108 |
 | Retail | 0.7016 | 0.7472 | 0.1367 | 0.1161 |
 

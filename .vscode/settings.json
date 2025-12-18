@@ -1,7 +1,5 @@
 {
-  "[astro]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
+  "python.languageServer": "None",
   "[markdown]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },

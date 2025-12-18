@@ -1,5 +1,5 @@
 [project]
-name = "ebdp-toolkit"
+name = "ebdptoolkit"
 version = "0.5.0"
 description = "describe"
 readme = "README.md"
@@ -61,6 +61,7 @@ dev = [
   "ruff>=0.5.1",
   "pyright>=1.1.380",
   "poethepoet>=0.37.0",
+  "ty>=0.0.3",
 ]
 
 [tool.ruff]
@@ -92,31 +93,3 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
-
-[tool.pyright]
-pythonVersion = "3.10"
-include = ["src"]
-exclude = [
-  "**/__pycache__",
-  "**/__pypackages__",
-  "build",
-  "docs",
-  "**/temp/",
-  "tests/",
-  "dist",
-  ".venv",
-]
-typeCheckingMode = "basic"
-
-[tool.pytest.ini_options]
-console_output_style = "count"
-log_cli = true
-log_cli_level = "INFO"
-testpaths = ["tests"]
-addopts = ""
-
-[tool.pdm.resolution]
-allow-prereleases = false
-
-[tool.poe.tasks]
-verify_project = { shell = "ruff format && ruff check && pyright . && pytest ./tests" }
