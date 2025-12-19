@@ -34,57 +34,19 @@ patterns rather than POI completeness artefacts.
 from pathlib import Path
 
 import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-
-# Education access columns from SOAR metrics
-EDUCATION_DIST_COL = "cc_education_nearest_max_1600"  # Distance to nearest education POI
-EDUCATION_COUNT_COL = "cc_education_1600_wt"  # Weighted count within 1600m
-
-# %%
-"""
-## Helper Functions
-"""
-
-
-def load_city_metrics(
-    metrics_dir: Path,
-    bounds_fid: int,
-    columns: list[str] | None = None,
-) -> gpd.GeoDataFrame | None:
-    """Load metrics file for a specific city.
-
-    Parameters
-    ----------
-    metrics_dir
-        Path to directory containing metrics_*.gpkg files
-    bounds_fid
-        City boundary ID (matches file naming: metrics_{bounds_fid}.gpkg)
-    columns
-        Optional list of columns to load (plus geometry). If None, loads all.
-
-    Returns
-    -------
-    GeoDataFrame with city metrics, or None if file doesn't exist
-    """
-    metrics_file = metrics_dir / f"metrics_{bounds_fid}.gpkg"
-    if not metrics_file.exists():
-        return None
-
-    try:
-        if columns:
-            gdf = gpd.read_file(metrics_file, columns=columns, layer="streets")
-        else:
-            gdf = gpd.read_file(metrics_file, layer="streets")
-        return gdf
-    except Exception as e:
-        print(f"WARNING: Error loading metrics for city {bounds_fid}: {e}")
-        return None
-
+from tqdm import tqdm
 
 # %%
 """
 ## Configuration
 """
+
+# Education access columns from SOAR metrics
+EDUCATION_DIST_COL = "cc_education_nearest_max_1600"  # Distance to nearest education POI
+EDUCATION_COUNT_COL = "cc_education_1600_wt"  # Weighted count within 1600m
 
 # Configuration - modify these paths as needed
 BOUNDS_PATH = "temp/datasets/boundaries.gpkg"
@@ -135,9 +97,6 @@ saturated_fids = set(saturated_cities["bounds_fid"].tolist())
 
 print("\nSTEP 2: Loading education accessibility metrics")
 
-# Columns to load
-METRICS_COLS = [EDUCATION_DIST_COL, EDUCATION_COUNT_COL]
-
 # Check for cached data
 education_cache_file = temp_path / "education_city_data.parquet"
 
@@ -149,15 +108,16 @@ if education_cache_file.exists():
     print(f"  Loaded cached data for {len(city_data)} cities")
 else:
     city_data = []
-    for idx, row in saturated_cities.iterrows():
+    for idx, row in tqdm(saturated_cities.iterrows(), total=len(saturated_cities), desc="Loading cities"):
         bounds_fid = row["bounds_fid"]
         city_label = row.get("label", str(bounds_fid))
         country = row.get("country", "Unknown")
-
-        gdf = load_city_metrics(metrics_dir, bounds_fid, columns=METRICS_COLS)
-        if gdf is None:
+        # Load metrics file for this city
+        metrics_file = metrics_dir / f"metrics_{bounds_fid}.gpkg"
+        if not metrics_file.exists():
+            print(f"  WARNING: Metrics file not found for bounds_fid {bounds_fid} at {metrics_file}")
             continue
-
+        gdf = gpd.read_file(metrics_file, columns=[EDUCATION_DIST_COL, EDUCATION_COUNT_COL], layer="streets")
         # Filter out invalid values
         valid_mask = (
             gdf[EDUCATION_DIST_COL].notna() & (gdf[EDUCATION_DIST_COL] < float("inf")) & (gdf[EDUCATION_DIST_COL] >= 0)
@@ -192,9 +152,6 @@ else:
                 "equity_ratio": p75_dist / p25_dist if p25_dist > 0 else float("nan"),
             }
         )
-
-        if len(city_data) % 50 == 0:
-            print(f"  Processed {len(city_data)} cities...")
 
     print(f"  Loaded data for {len(city_data)} cities with valid education metrics")
 

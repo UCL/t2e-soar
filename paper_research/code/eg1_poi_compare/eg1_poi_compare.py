@@ -32,6 +32,7 @@ from matplotlib.colors import LogNorm
 from scipy import stats
 from scipy.spatial import cKDTree
 from sklearn.ensemble import RandomForestRegressor
+from tqdm import tqdm
 
 from src.landuse_categories import COMMON_LANDUSE_CATEGORIES, merge_landuse_categories
 
@@ -215,20 +216,14 @@ def aggregate_grid_stats(
     # Iterate through boundaries and load POI data per-city
     print("Counting POIs within grid cells (iterating by city)...")
     overture_path = Path(overture_data_dir)
-    city_count = 0
 
-    for bounds_fid in grids_in_cities["bounds_fid"].unique():
-        city_count += 1
+    for bounds_fid in tqdm(grids_in_cities["bounds_fid"].unique(), desc="Processing cities"):
         city_grids = grids_in_cities[grids_in_cities["bounds_fid"] == bounds_fid].copy()
 
         # Load POI data for this city
         places_file = overture_path / f"overture_{bounds_fid}.gpkg"
 
         if not places_file.exists():
-            print(
-                f"WARNING: [{city_count}/{len(grids_in_cities['bounds_fid'].unique())}] "
-                f"City {bounds_fid}: No places file found, skipping"
-            )
             continue
 
         try:
@@ -254,15 +249,13 @@ def aggregate_grid_stats(
                         grids_in_cities.loc[idx, f"{cat}_count"] = len(cat_pois)
 
             print(
-                f"  [{city_count}/{len(grids_in_cities['bounds_fid'].unique())}] "
-                f"City {bounds_fid}: Processed {len(city_grids)} grids, "
+                f"  City {bounds_fid}: Processed {len(city_grids)} grids, "
                 f"{len(places_gdf)} total POIs"
             )
 
         except Exception as e:
-            printerror(
-                f"  [{city_count}/{len(grids_in_cities['bounds_fid'].unique())}] "
-                f"City {bounds_fid}: Error processing - {e}"
+            print(
+                f"  City {bounds_fid}: Error processing - {e}"
             )
             continue
 
