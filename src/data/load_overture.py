@@ -131,8 +131,8 @@ if __name__ == "__main__":
         parser.add_argument(
             "--parallel_workers",
             type=int,
-            default=2,  # Set your desired default value here
-            help="The number of CPU cores to use for processing bounds in parallel. Defaults to 2.",
+            default=1,  # Set your desired default value here
+            help="The number of CPU cores to use for processing bounds in parallel. Defaults to 1.",
         )
         parser.add_argument(
             "--overwrite",

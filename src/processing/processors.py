@@ -212,6 +212,10 @@ def process_blocks_buildings(
             ):
                 trim_columns.append(column_name)
         nodes_gdf.drop(columns=trim_columns, inplace=True)
+    finite_idx = np.isfinite(bldgs_gdf["perimeter"])
+    bldgs_gdf.loc[finite_idx, "shared_wall_ratio"] = (
+        bldgs_gdf.loc[finite_idx, "shared_walls"] / bldgs_gdf.loc[finite_idx, "perimeter"]
+    )
     bldgs_gdf["type"] = "building"  # for downstream use
     nodes_gdf, bldgs_gdf = layers.compute_accessibilities(
         bldgs_gdf,  # type: ignore

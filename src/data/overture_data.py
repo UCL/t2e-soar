@@ -54,7 +54,7 @@ def load_network(
             to_crs_code=to_crs,
             final_clean_distances=(8,),
             remove_disconnected=100,
-            green_footways=True,
+            green_footways=False,
             green_service_roads=False,
         )
     except Exception as e:
