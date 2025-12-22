@@ -73,13 +73,13 @@ def load_urban_blocks(bounds_in_path: str, data_dir_path: str, blocks_out_path: 
                 if gdf.empty:
                     continue
                 # discard rows if in filtered classes and avoid chained assignment
-                gdf = gdf.loc[~gdf["class_2018"].isin(filter_classes)].copy()
+                gdf = gdf.loc[~gdf["class_2018"].isin(filter_classes)]
                 if gdf.empty:
                     continue
                 # filter spatially using envelope bbox for speed, then refine
                 gdf["bbox"] = gdf["geometry"].envelope
                 gdf_itx = gdf.set_geometry("bbox")
-                gdf_itx = gdf_itx.loc[gdf_itx.intersects(bounds_geom)].copy()
+                gdf_itx = gdf_itx.loc[gdf_itx.intersects(bounds_geom)]
                 if gdf_itx.empty:
                     continue
                 # rename geometry column and set it as active geometry
@@ -87,6 +87,8 @@ def load_urban_blocks(bounds_in_path: str, data_dir_path: str, blocks_out_path: 
                 gdf_itx = gdf_itx.set_geometry("geom")
                 # explode multipolygons
                 gdf_exp = gdf_itx.explode(index_parts=False)
+                # drop excessively large geometries - more than 10 sq km
+                gdf_exp = gdf_exp.loc[gdf_exp.geometry.area < 10000000]
                 # write to postgis
                 cols = [
                     "country",

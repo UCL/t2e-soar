@@ -182,7 +182,7 @@ if __name__ == "__main__":
                             temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg \
                                temp/cities_data/processed
     """
-    if False:
+    if True:
         parser = argparse.ArgumentParser(description="Load overture networks.")
         parser.add_argument("bounds_in_path", type=str, help="Input data directory with boundary GPKG.")
         parser.add_argument("overture_data_dir", type=str, help="Input data directory for overture GPKG files.")
