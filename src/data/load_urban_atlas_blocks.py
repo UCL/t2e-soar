@@ -87,8 +87,7 @@ def load_urban_blocks(bounds_in_path: str, data_dir_path: str, blocks_out_path: 
                 gdf_itx = gdf_itx.set_geometry("geom")
                 # explode multipolygons
                 gdf_exp = gdf_itx.explode(index_parts=False)
-                # drop excessively large geometries - more than 10 sq km
-                gdf_exp = gdf_exp.loc[gdf_exp.geometry.area < 10000000]
+                # keep all even large geoms as these are sometimes shorelines
                 # write to postgis
                 cols = [
                     "country",
