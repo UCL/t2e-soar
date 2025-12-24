@@ -15,6 +15,7 @@ import pandas as pd
 from pyproj import Transformer
 from shapely import geometry, ops
 from shapely.ops import transform
+from shapely.strtree import STRtree
 
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 
@@ -120,6 +121,54 @@ def split_street_segment(
             node_segment_lots.append((cast(geometry.LineString, line_string_b), new_connectors))
             break
     return node_segment_pairs
+
+
+def remove_overlapping_edges(
+    edges_gdf: gpd.GeoDataFrame,
+    buffer_tolerance: float = 0.5,
+) -> gpd.GeoDataFrame:
+    """Remove edges that are contained by or significantly overlap other edges.
+
+    Keeps longer edges when duplicates/overlaps are found.
+    """
+    # Build spatial index for fast lookups
+    sindex = STRtree(edges_gdf["geom"])
+    # Map positional indices from STRtree to actual DataFrame indices
+    pos_to_idx = {i: idx for i, idx in enumerate(edges_gdf.index)}
+    # Track indices to keep
+    indices_to_drop = set()
+
+    for idx, row in edges_gdf.iterrows():
+        if idx in indices_to_drop:
+            continue
+        geom = row.geom
+        geom_buffered = geom.buffer(buffer_tolerance)
+        # Query nearby candidates (returns positional indices)
+        nearby_positions = sindex.query(geom_buffered, predicate="intersects")
+        for nearby_pos in nearby_positions:
+            nearby_idx = pos_to_idx[nearby_pos]
+            if nearby_idx == idx or nearby_idx in indices_to_drop:
+                continue
+            other_geom = edges_gdf.loc[nearby_idx, "geom"]
+            # Check if current geom is contained/overlaps significantly
+            if geom.within(other_geom.buffer(buffer_tolerance)):
+                # Current is contained by other
+                indices_to_drop.add(idx)
+                break
+            elif other_geom.within(geom_buffered):
+                # Other is contained by current
+                indices_to_drop.add(nearby_idx)
+            elif geom_buffered.contains(other_geom):
+                # Significant overlap - keep longer one
+                if geom.length < other_geom.length:
+                    indices_to_drop.add(idx)
+                    break
+                else:
+                    indices_to_drop.add(nearby_idx)
+
+    # Filter out dropped indices
+    logger.info(f"Dropping {len(indices_to_drop)} overlapping edges out of {len(edges_gdf)} total edges.")
+    return edges_gdf.drop(index=list(indices_to_drop))
 
 
 def generate_graph(

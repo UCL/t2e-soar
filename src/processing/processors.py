@@ -225,7 +225,7 @@ def process_blocks_buildings(
         network_structure=network_structure,
         distances=DISTANCES_MORPH,
     )
-    nodes_gdf = nodes_gdf.drop(columns=["cc_building_nearest_max_400"])
+    nodes_gdf = nodes_gdf.drop(columns=[f"cc_building_nearest_max_{max(DISTANCES_MORPH)}"])
     # placeholders
     for col_key in [
         "block_area",
@@ -295,7 +295,7 @@ def process_blocks_buildings(
         network_structure=network_structure,
         distances=DISTANCES_MORPH,
     )
-    nodes_gdf = nodes_gdf.drop(columns=["cc_block_nearest_max_400"])
+    nodes_gdf = nodes_gdf.drop(columns=[f"cc_block_nearest_max_{max(DISTANCES_MORPH)}"])
     # reset geometry
     bldgs_gdf.set_geometry("geometry", inplace=True)
     bldgs_gdf.drop(columns=["centroid"], inplace=True)
@@ -380,12 +380,15 @@ def process_green(
     contained_trees_idx = gpd.sjoin(nodes_gdf, trees_gdf, predicate="intersects", how="inner")
     nodes_gdf.loc[contained_trees_idx.index, "cc_trees_nearest_max_1600"] = 0
     # sum areas within buffer distances
+    points_gdf["green_area"] = points_gdf["green_area"] / (1000**2)  # m2 to km2
+    points_gdf["trees_area"] = points_gdf["trees_area"] / (1000**2)  # m2 to km2
     nodes_gdf, points_gdf = layers.compute_stats(
         data_gdf=points_gdf,
         stats_column_labels=["green_area", "trees_area"],
         nodes_gdf=nodes_gdf,
         network_structure=network_structure,
         distances=DISTANCES_GREEN_AGG,
+        data_id_col="fid",  # deduplicate
     )
     # drop unnecessary columns
     for area_col in ["green_area", "trees_area"]:
