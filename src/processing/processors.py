@@ -349,10 +349,8 @@ def process_green(
     # relabel area to green_area and trees_area
     green_idx = points_gdf["cat"] == "green"
     trees_idx = points_gdf["cat"] == "trees"
-    points_gdf.loc[green_idx, "green_area"] = points_gdf.loc[green_idx, "area"]
-    points_gdf.loc[green_idx, "trees_area"] = 0.0
-    points_gdf.loc[trees_idx, "trees_area"] = points_gdf.loc[trees_idx, "area"]
-    points_gdf.loc[trees_idx, "green_area"] = 0.0
+    points_gdf["green_area"] = np.where(green_idx, points_gdf["area"], 0.0)
+    points_gdf["trees_area"] = np.where(trees_idx, points_gdf["area"], 0.0)
     points_gdf = points_gdf.drop(columns=["area"])
     # compute accessibilities
     nodes_gdf, points_gdf = layers.compute_accessibilities(
