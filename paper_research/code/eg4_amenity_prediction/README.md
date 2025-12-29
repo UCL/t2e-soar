@@ -1,6 +1,6 @@
 # Amenity Supply Prediction Using Network Centrality
 
-**Analysis Date:** 2025-12-19
+**Analysis Date:** 2025-12-29
 
 ## Overview
 
@@ -11,18 +11,18 @@ showing how well this relationship generalizes across different urban contexts.
 
 ## Summary Statistics
 
-- **Total Street Network Nodes Analyzed:** 999,180
-- **Cities Analyzed:** 21
+- **Total Street Network Nodes Analyzed:** 694,527
+- **Cities Analyzed:** 27
 - **POI Categories:** 2
-- **Network Centrality Scales:** 6 (400–9600m)
+- **Network Centrality Scales:** 5 (400–4800m)
 - **Census Features:** Population Density, Population under 15, Population 15-64, Population 65 and over, Employment Ratio
 
 ## Overall Model Performance
 
 | Category | R² (train) | R² (test) | MAE (test) | RMSE (test) |
 |----------|-----------|----------|-----------|------------|
-| Eat & Drink 400M | 0.740 | 0.723 | 0.447 | 0.603 |
-| Business & Services 400M | 0.738 | 0.724 | 0.590 | 0.778 |
+| Eat & Drink 400M | 0.746 | 0.731 | 0.496 | 0.642 |
+| Business & Services 400M | 0.747 | 0.731 | 0.585 | 0.755 |
 
 ## Per-City Prediction Accuracy
 
@@ -31,40 +31,40 @@ generalizes across different urban contexts.
 
 ### Eat & Drink 400M
 
-- **Median City R²:** 0.724
-- **Mean City R²:** 0.685
-- **R² Range:** 0.346 to 0.821
-- **Cities with R² > 0.5:** 19 (90.5%)
+- **Median City R²:** 0.709
+- **Mean City R²:** 0.704
+- **R² Range:** 0.439 to 0.857
+- **Cities with R² > 0.5:** 26 (96.3%)
 
 #### Top 10 Best Predicted Cities
 
 | City | R² | MAE | RMSE | N Nodes |
 |------|-----|-----|------|---------|
-| Alessandria | 0.821 | 0.408 | 0.576 | 7,280 |
-| Maresme | 0.815 | 0.407 | 0.598 | 8,539 |
-| Torino | 0.807 | 0.423 | 0.588 | 110,122 |
-| Pavia | 0.778 | 0.425 | 0.617 | 9,291 |
-| Cremona | 0.776 | 0.408 | 0.556 | 7,784 |
-| Milano | 0.766 | 0.445 | 0.593 | 387,236 |
-| Brescia | 0.765 | 0.357 | 0.512 | 55,308 |
-| Seiersberg-Pirka | 0.764 | 0.391 | 0.504 | 53,854 |
-| Liberec | 0.738 | 0.375 | 0.521 | 20,425 |
-| Modena | 0.725 | 0.464 | 0.619 | 18,207 |
+| Bari | 0.857 | 0.430 | 0.584 | 14,855 |
+| la Safor | 0.822 | 0.423 | 0.601 | 5,435 |
+| Ragusa | 0.819 | 0.374 | 0.511 | 6,693 |
+| la Plana Alta | 0.817 | 0.446 | 0.627 | 10,265 |
+| Alessandria | 0.809 | 0.457 | 0.590 | 5,417 |
+| Torino | 0.790 | 0.485 | 0.638 | 70,391 |
+| Cremona | 0.780 | 0.431 | 0.565 | 6,138 |
+| Gent | 0.772 | 0.482 | 0.605 | 30,182 |
+| Brescia | 0.764 | 0.434 | 0.564 | 30,497 |
+| Pavia | 0.760 | 0.492 | 0.660 | 7,255 |
 
 #### Top 10 Worst Predicted Cities
 
 | City | R² | MAE | RMSE | N Nodes |
 |------|-----|-----|------|---------|
-| Gallarate | 0.346 | 0.493 | 0.681 | 31,654 |
-| Heerlen | 0.448 | 0.461 | 0.595 | 43,911 |
-| Busto Arsizio | 0.551 | 0.472 | 0.619 | 66,754 |
-| Bergamo | 0.588 | 0.451 | 0.618 | 65,130 |
-| Prato | 0.645 | 0.421 | 0.585 | 30,848 |
-| Thalheim bei Wels | 0.652 | 0.411 | 0.543 | 12,880 |
-| Pordenone / Pordenon | 0.653 | 0.390 | 0.545 | 16,929 |
-| Ravenna | 0.674 | 0.465 | 0.621 | 11,673 |
-| Halle-Vilvoorde | 0.675 | 0.447 | 0.573 | 19,640 |
-| Treviso | 0.678 | 0.495 | 0.641 | 13,430 |
+| Heerlen | 0.439 | 0.488 | 0.612 | 33,426 |
+| Pordenone / Pordenon | 0.582 | 0.499 | 0.657 | 10,823 |
+| Gallarate | 0.585 | 0.479 | 0.606 | 17,720 |
+| Bergamo | 0.590 | 0.496 | 0.638 | 41,833 |
+| Busto Arsizio | 0.617 | 0.482 | 0.616 | 36,203 |
+| Ravenna | 0.626 | 0.524 | 0.664 | 8,922 |
+| Lecco | 0.648 | 0.444 | 0.636 | 7,149 |
+| Modena | 0.651 | 0.534 | 0.701 | 14,782 |
+| Prato | 0.657 | 0.468 | 0.613 | 20,100 |
+| Vigevano | 0.668 | 0.478 | 0.629 | 6,019 |
 
 #### R² Distribution
 
@@ -72,40 +72,40 @@ generalizes across different urban contexts.
 
 ### Business & Services 400M
 
-- **Median City R²:** 0.693
-- **Mean City R²:** 0.695
-- **R² Range:** 0.398 to 0.835
-- **Cities with R² > 0.5:** 20 (95.2%)
+- **Median City R²:** 0.721
+- **Mean City R²:** 0.721
+- **R² Range:** 0.565 to 0.865
+- **Cities with R² > 0.5:** 27 (100.0%)
 
 #### Top 10 Best Predicted Cities
 
 | City | R² | MAE | RMSE | N Nodes |
 |------|-----|-----|------|---------|
-| Maresme | 0.835 | 0.519 | 0.711 | 8,539 |
-| Cremona | 0.810 | 0.487 | 0.660 | 7,784 |
-| Alessandria | 0.802 | 0.519 | 0.744 | 7,280 |
-| Torino | 0.801 | 0.559 | 0.759 | 110,122 |
-| Pavia | 0.783 | 0.524 | 0.732 | 9,291 |
-| Liberec | 0.768 | 0.475 | 0.621 | 20,425 |
-| Brescia | 0.767 | 0.514 | 0.699 | 55,308 |
-| Milano | 0.760 | 0.586 | 0.771 | 387,236 |
-| Seiersberg-Pirka | 0.747 | 0.537 | 0.682 | 53,854 |
-| Ravenna | 0.723 | 0.554 | 0.724 | 11,673 |
+| Ragusa | 0.865 | 0.406 | 0.570 | 6,693 |
+| Cremona | 0.816 | 0.499 | 0.643 | 6,138 |
+| Bari | 0.810 | 0.548 | 0.724 | 14,855 |
+| la Safor | 0.804 | 0.550 | 0.759 | 5,435 |
+| Alessandria | 0.799 | 0.535 | 0.710 | 5,417 |
+| Torino | 0.792 | 0.558 | 0.739 | 70,391 |
+| Pavia | 0.789 | 0.566 | 0.722 | 7,255 |
+| la Plana Alta | 0.777 | 0.585 | 0.801 | 10,265 |
+| Bellizzi | 0.768 | 0.600 | 0.768 | 5,715 |
+| Milano | 0.752 | 0.563 | 0.731 | 227,228 |
 
 #### Top 10 Worst Predicted Cities
 
 | City | R² | MAE | RMSE | N Nodes |
 |------|-----|-----|------|---------|
-| Gallarate | 0.398 | 0.656 | 0.906 | 31,654 |
-| Busto Arsizio | 0.590 | 0.624 | 0.809 | 66,754 |
-| Treviso | 0.595 | 0.696 | 0.881 | 13,430 |
-| Modena | 0.611 | 0.648 | 0.879 | 18,207 |
-| Heerlen | 0.629 | 0.543 | 0.702 | 43,911 |
-| Halle-Vilvoorde | 0.631 | 0.568 | 0.717 | 19,640 |
-| Prato | 0.642 | 0.623 | 0.810 | 30,848 |
-| Pordenone / Pordenon | 0.647 | 0.566 | 0.753 | 16,929 |
-| Bergamo | 0.671 | 0.582 | 0.737 | 65,130 |
-| Carpi | 0.685 | 0.567 | 0.762 | 8,285 |
+| Modena | 0.565 | 0.679 | 0.892 | 14,782 |
+| Heerlen | 0.595 | 0.566 | 0.726 | 33,426 |
+| Pordenone / Pordenon | 0.623 | 0.600 | 0.771 | 10,823 |
+| Prato | 0.636 | 0.639 | 0.797 | 20,100 |
+| Gallarate | 0.661 | 0.565 | 0.704 | 17,720 |
+| Bergamo | 0.667 | 0.601 | 0.742 | 41,833 |
+| Treviso | 0.673 | 0.626 | 0.783 | 9,625 |
+| Carpi | 0.676 | 0.580 | 0.741 | 6,372 |
+| Seiersberg-Pirka | 0.677 | 0.600 | 0.756 | 37,891 |
+| Liberec | 0.682 | 0.542 | 0.701 | 16,157 |
 
 #### R² Distribution
 
@@ -117,16 +117,16 @@ generalizes across different urban contexts.
 
 | Rank | Feature | Importance |
 |------|---------|------------|
-| 1 | cc_beta_1600 | 0.1222 |
-| 2 | cc_beta_1200 | 0.1190 |
-| 3 | emp | 0.1104 |
-| 4 | density | 0.1093 |
-| 5 | y_ge65 | 0.1055 |
-| 6 | y_1564 | 0.0983 |
-| 7 | cc_beta_800 | 0.0948 |
-| 8 | cc_beta_4800 | 0.0667 |
-| 9 | y_lt15 | 0.0661 |
-| 10 | cc_beta_9600 | 0.0570 |
+| 1 | cc_beta_1200 | 0.1707 |
+| 2 | cc_beta_1600 | 0.1572 |
+| 3 | y_1564 | 0.1170 |
+| 4 | cc_beta_800 | 0.1150 |
+| 5 | y_ge65 | 0.0918 |
+| 6 | density | 0.0853 |
+| 7 | emp | 0.0833 |
+| 8 | y_lt15 | 0.0694 |
+| 9 | cc_beta_4800 | 0.0531 |
+| 10 | cc_beta_400 | 0.0307 |
 
 ![Feature Importance](outputs/Eat%20&%20Drink%20400m_feature_importance.png)
 
@@ -134,24 +134,24 @@ generalizes across different urban contexts.
 
 | Rank | Feature | Importance |
 |------|---------|------------|
-| 1 | cc_beta_1600 | 0.1486 |
-| 2 | cc_beta_1200 | 0.1456 |
-| 3 | y_1564 | 0.0993 |
-| 4 | cc_beta_800 | 0.0984 |
-| 5 | emp | 0.0950 |
-| 6 | density | 0.0897 |
-| 7 | y_ge65 | 0.0847 |
-| 8 | cc_beta_4800 | 0.0788 |
-| 9 | y_lt15 | 0.0531 |
-| 10 | cc_beta_9600 | 0.0450 |
+| 1 | cc_beta_1200 | 0.2140 |
+| 2 | cc_beta_1600 | 0.1695 |
+| 3 | cc_beta_800 | 0.1466 |
+| 4 | y_1564 | 0.0996 |
+| 5 | emp | 0.0745 |
+| 6 | y_lt15 | 0.0677 |
+| 7 | y_ge65 | 0.0593 |
+| 8 | density | 0.0529 |
+| 9 | cc_beta_4800 | 0.0451 |
+| 10 | cc_beta_400 | 0.0402 |
 
 ![Feature Importance](outputs/Business%20&%20Services%20400m_feature_importance.png)
 
 ## Methods
 
 ### Feature Engineering
-- Closeness centrality at 6 scales (400–9600m)
-- Betweenness centrality at 6 scales (400–9600m)
+- Closeness centrality at 5 scales (400–4800m)
+- Betweenness centrality at 5 scales (400–4800m)
 - Census features:
   - Population Density
   - Population under 15

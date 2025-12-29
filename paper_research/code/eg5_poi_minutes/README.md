@@ -1,6 +1,6 @@
 # 15-Minute City Benchmarking Report
 
-**Analysis Date:** 2025-12-19
+**Analysis Date:** 2025-12-29
 
 ## Overview
 
@@ -9,46 +9,46 @@ where residents can access all essential services within a 15-minute walk (1200m
 
 ## Summary Statistics
 
-- **Cities Analyzed:** 301
-- **Total Street Network Nodes:** 8,069,356
+- **Cities Analyzed:** 339
+- **Total Street Network Nodes:** 7,269,230
 - **POI Categories Assessed:** 10
 
 ### 15-Minute City (1200m threshold)
 
-- **Mean Full Access:** 71.6% of nodes
-- **Median Full Access:** 71.7% of nodes
-- **Range:** 48.7% to 94.7%
-- **Cities with >50% Full Access:** 300 (99.7%)
+- **Mean Full Access:** 77.3% of nodes
+- **Median Full Access:** 78.3% of nodes
+- **Range:** 48.5% to 94.5%
+- **Cities with >50% Full Access:** 338 (99.7%)
 
 ## Top 10 Cities (15-Minute Access)
 
 | Rank | City | Country | % Full Access | Mean Completeness |
 |------|------|---------|---------------|-------------------|
-| 1 | Venezia | IT | 94.7% | 0.99 |
-| 2 | Baciu | RO | 85.4% | 0.97 |
-| 3 | Modena | IT | 85.3% | 0.98 |
-| 4 | Brașov | RO | 85.2% | 0.98 |
-| 5 | Велико Търново | BG | 84.6% | 0.97 |
-| 6 | Zamora | ES | 84.4% | 0.97 |
-| 7 | Zagreb | HR | 84.0% | 0.97 |
-| 8 | Roma | IT | 83.6% | 0.97 |
-| 9 | Bolzano - Bozen | IT | 83.4% | 0.97 |
-| 10 | Verona | IT | 83.4% | 0.97 |
+| 1 | Venezia | IT | 94.5% | 0.99 |
+| 2 | Bahía de Cádiz | ES | 93.5% | 0.99 |
+| 3 | Siracusa | IT | 92.9% | 0.98 |
+| 4 | Trapani | IT | 90.7% | 0.98 |
+| 5 | Amersfoort | NL | 90.1% | 0.98 |
+| 6 | Pesaro | IT | 89.2% | 0.98 |
+| 7 | Verona | IT | 88.6% | 0.98 |
+| 8 | Gouda | NL | 88.5% | 0.98 |
+| 9 | Firenze | IT | 88.5% | 0.98 |
+| 10 | Ancona | IT | 88.1% | 0.98 |
 
 ## Bottom 10 Cities (15-Minute Access)
 
 | Rank | City | Country | % Full Access | Mean Completeness |
 |------|------|---------|---------------|-------------------|
-| 1 | Gulpilhares e Valadares | PT | 48.7% | 0.92 |
-| 2 | Uentrop | DE | 53.9% | 0.94 |
-| 3 | Aarau | CH | 53.9% | 0.93 |
-| 4 | Iserlohn | DE | 55.5% | 0.93 |
-| 5 | Brackel | DE | 55.7% | 0.94 |
-| 6 | Roosendaal | NL | 57.4% | 0.95 |
-| 7 | Lahti | FI | 57.5% | 0.94 |
-| 8 | Wardenburg | DE | 57.6% | 0.94 |
-| 9 | Como | IT | 58.0% | 0.93 |
-| 10 | Schweinfurt | DE | 58.9% | 0.94 |
+| 1 | Gulpilhares e Valadares | PT | 48.5% | 0.92 |
+| 2 | Gulpilhares e Valadares | PT | 57.3% | 0.93 |
+| 3 | Gulpilhares e Valadares | PT | 58.6% | 0.94 |
+| 4 | Como | IT | 59.1% | 0.93 |
+| 5 | Hradec Králové | CZ | 61.4% | 0.95 |
+| 6 | None | None | 61.9% | 0.94 |
+| 7 | Roosendaal | NL | 62.0% | 0.95 |
+| 8 | Roanne | FR | 62.1% | 0.95 |
+| 9 | Thalheim bei Wels | AT | 62.2% | 0.94 |
+| 10 | Toulon | FR | 62.6% | 0.94 |
 
 ## Bottleneck Categories
 
@@ -56,10 +56,10 @@ Categories with lowest average access rates (limiting factors for 15-minute comp
 
 | Rank | Category | Mean Access Rate |
 |------|----------|------------------|
-| 1 | Religious | 87.2% |
-| 2 | Arts And Entertainment | 92.4% |
+| 1 | Religious | 87.4% |
+| 2 | Arts And Entertainment | 92.5% |
 | 3 | Attractions And Activities | 94.2% |
-| 4 | Education | 97.2% |
+| 4 | Education | 97.3% |
 | 5 | Health And Medical | 97.7% |
 
 ## Best-Covered Categories
@@ -68,8 +68,8 @@ Categories with lowest average access rates (limiting factors for 15-minute comp
 |------|----------|------------------|
 | 1 | Business And Services | 99.9% |
 | 2 | Retail | 99.5% |
-| 3 | Eat And Drink | 98.7% |
-| 4 | Active Life | 98.1% |
+| 3 | Eat And Drink | 98.8% |
+| 4 | Active Life | 98.2% |
 | 5 | Public Services | 97.9% |
 
 ## Visualizations
@@ -89,7 +89,7 @@ Categories with lowest average access rates (limiting factors for 15-minute comp
 ## Key Findings
 
 1. **Few cities achieve true 15-minute completeness**: The median city has only
-   71.7% of nodes with access to all 10 POI categories within 1200m.
+   78.3% of nodes with access to all 10 POI categories within 1200m.
 
 2. **Bottleneck categories**: Religious and
    Arts And Entertainment are the most limiting categories,

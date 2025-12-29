@@ -169,7 +169,8 @@ else:
         try:
             # Load only the distance columns we need
             gdf = gpd.read_file(metrics_file, columns=POI_DISTANCE_COLS, layer="streets")
-
+            # Doublecheck geoms are dropped if outside boundary
+            gdf = gdf[gdf.geometry.within(row.geometry)]
             # Filter out rows with any NaN/inf values in distance columns
             valid_mask = pd.Series(True, index=gdf.index)
             for col in POI_DISTANCE_COLS:

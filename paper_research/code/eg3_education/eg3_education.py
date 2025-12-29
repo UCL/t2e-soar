@@ -22,7 +22,7 @@ patterns rather than POI completeness artefacts.
 
 ## Metrics Used (from SOAR pre-computed)
 - `cc_education_nearest_max_1600`: Network distance to nearest education POI (m)
-- `cc_education_1600_wt`: Weighted count of education POIs within 1600m
+- `cc_education_1600_nw`: Count of education POIs within 1600m
 
 ## Notes
 - Within-city metrics (pct below mean, equity ratio) are pre-computed during
@@ -34,8 +34,6 @@ patterns rather than POI completeness artefacts.
 from pathlib import Path
 
 import geopandas as gpd
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -46,7 +44,7 @@ from tqdm import tqdm
 
 # Education access columns from SOAR metrics
 EDUCATION_DIST_COL = "cc_education_nearest_max_1600"  # Distance to nearest education POI
-EDUCATION_COUNT_COL = "cc_education_1600_wt"  # Weighted count within 1600m
+EDUCATION_COUNT_COL = "cc_education_1600_nw"  # Count within 1600m
 
 # Configuration - modify these paths as needed
 BOUNDS_PATH = "temp/datasets/boundaries.gpkg"
@@ -118,6 +116,8 @@ else:
             print(f"  WARNING: Metrics file not found for bounds_fid {bounds_fid} at {metrics_file}")
             continue
         gdf = gpd.read_file(metrics_file, columns=[EDUCATION_DIST_COL, EDUCATION_COUNT_COL], layer="streets")
+        # Doublecheck geoms are dropped if outside boundary
+        gdf = gdf[gdf.geometry.within(row.geometry)]
         # Filter out invalid values
         valid_mask = (
             gdf[EDUCATION_DIST_COL].notna() & (gdf[EDUCATION_DIST_COL] < float("inf")) & (gdf[EDUCATION_DIST_COL] >= 0)

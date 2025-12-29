@@ -19,72 +19,72 @@ Low POI coverage with uniform spatial distribution across categories.
 
 | City | Country | Mean Z | Between-Cat Std |
 |------|---------|--------|-----------------|
-| Parla | ES | -1.1088 | 0.3453 |
-| Brăila | RO | -0.8894 | 0.2762 |
-| Добрич | BG | -0.8719 | 0.2882 |
-| Ceuta | ES | -0.8598 | 0.4272 |
-| Alcorcón | ES | -0.8347 | 0.4005 |
-| Valdemoro | ES | -0.8154 | 0.2876 |
-| Fuenlabrada | ES | -0.7287 | 0.2514 |
-| Vallès Occidental | ES | -0.7254 | 0.2563 |
-| Arganda del Rey | ES | -0.7190 | 0.5006 |
-| Gasteizko kuadrilla / Cuadrilla de Vitoria | ES | -0.6784 | 0.1777 |
-| Сливен | BG | -0.6461 | 0.3775 |
-| Bydgoszcz | PL | -0.6337 | 0.4007 |
-| Melilla | ES | -0.6179 | 0.2706 |
-| Bilbao | ES | -0.6099 | 0.1792 |
-| Andria | IT | -0.5991 | 0.3289 |
-| Magheru | RO | -0.5830 | 0.2546 |
-| Coslada | ES | -0.5811 | 0.2962 |
-| Mantes-la-Jolie | FR | -0.5767 | 0.2091 |
-| Ostrava | CZ | -0.5758 | 0.2527 |
-| Хасково | BG | -0.5691 | 0.2959 |
-| Cerignola | IT | -0.5671 | 0.2463 |
-| None | None | -0.5633 | 0.0322 |
-| Galați | RO | -0.5592 | 0.1693 |
-| Ploiești | RO | -0.5467 | 0.2517 |
-| Плевен | BG | -0.5386 | 0.2381 |
-| Vallès Occidental | ES | -0.5368 | 0.1852 |
-| Buzău | RO | -0.5351 | 0.2193 |
-| Torrejón de Ardoz | ES | -0.5346 | 0.3601 |
-| Panevėžys | LT | -0.5322 | 0.3304 |
-| Ortsbeirat 6 : Evershagen | DE | -0.5293 | 0.1875 |
+| Parla | ES | -1.1188 | 0.3513 |
+| Alcorcón | ES | -0.9122 | 0.4012 |
+| Brăila | RO | -0.8959 | 0.2640 |
+| Добрич | BG | -0.8610 | 0.2712 |
+| Ceuta | ES | -0.8598 | 0.3620 |
+| Valdemoro | ES | -0.8232 | 0.3628 |
+| Arganda del Rey | ES | -0.7680 | 0.5209 |
+| Vallès Occidental | ES | -0.7516 | 0.2531 |
+| Fuenlabrada | ES | -0.7096 | 0.2590 |
+| Gasteizko kuadrilla / Cuadrilla de Vitoria | ES | -0.6938 | 0.1838 |
+| Melilla | ES | -0.6416 | 0.2541 |
+| Сливен | BG | -0.6384 | 0.3556 |
+| Bydgoszcz | PL | -0.6197 | 0.3693 |
+| Bilbao | ES | -0.6193 | 0.1894 |
+| Cerignola | IT | -0.6029 | 0.2475 |
+| Magheru | RO | -0.5912 | 0.2349 |
+| Ostrava | CZ | -0.5827 | 0.2587 |
+| Coslada | ES | -0.5743 | 0.2675 |
+| Mantes-la-Jolie | FR | -0.5678 | 0.1941 |
+| Хасково | BG | -0.5676 | 0.2878 |
+| None | None | -0.5639 | 0.1457 |
+| Ortsbeirat 6 : Evershagen | DE | -0.5536 | 0.2020 |
+| Galați | RO | -0.5525 | 0.1794 |
+| Andria | IT | -0.5477 | 0.3225 |
+| Плевен | BG | -0.5404 | 0.2407 |
+| Ploiești | RO | -0.5396 | 0.2313 |
+| Vallès Occidental | ES | -0.5364 | 0.2076 |
+| Acerra | IT | -0.5251 | 0.2590 |
+| Jastrzębie-Zdrój | PL | -0.5205 | 0.2872 |
+| Torrejón de Ardoz | ES | -0.5197 | 0.3160 |
 
 ### Consistently Saturated
 High & Uniform
 
 | City | Country | Mean Z | Between-Cat Std |
 |------|---------|--------|-----------------|
-| Enschede | NL | 0.0001 | 0.1873 |
-| Comarca de la Vega de Granada | ES | 0.0003 | 0.2311 |
-| Gütersloh | DE | 0.0006 | 0.1955 |
-| Debrecen | HU | 0.0008 | 0.2163 |
-| Västerås | SE | 0.0010 | 0.1489 |
-| Kaunas | LT | 0.0013 | 0.1749 |
-| Košice | SK | 0.0018 | 0.2072 |
-| Iserlohn | DE | 0.0026 | 0.2062 |
-| Tatabánya | HU | 0.0028 | 0.2565 |
-| Düren | DE | 0.0028 | 0.2359 |
-| České Budějovice | CZ | 0.0032 | 0.2172 |
-| Jürgensby | DE | 0.0040 | 0.1532 |
-| Wolfsburg | DE | 0.0046 | 0.1254 |
-| Zamora | ES | 0.0050 | 0.2695 |
-| Ridderkerk | NL | 0.0060 | 0.2735 |
-| El Bierzo | ES | 0.0075 | 0.2697 |
-| Aix-en-Provence | FR | 0.0081 | 0.2268 |
-| Anzio | IT | 0.0087 | 0.2665 |
-| Hilden | DE | 0.0096 | 0.2160 |
-| Jena-Zentrum | DE | 0.0097 | 0.2742 |
-| Κατσικάς | GR | 0.0104 | 0.3140 |
-| Milano | IT | 0.0125 | 0.1557 |
-| Saint-Julien-en-Genevois | CH | 0.0126 | 0.1235 |
-| Veenendaal | NL | 0.0128 | 0.2645 |
-| Roosendaal | NL | 0.0129 | 0.3499 |
-| Durach | DE | 0.0142 | 0.1764 |
-| Antwerpen | BE | 0.0152 | 0.1317 |
-| Tours | FR | 0.0154 | 0.1542 |
-| Zagreb | HR | 0.0156 | 0.1462 |
-| Brackel | DE | 0.0156 | 0.2964 |
+| Monheim am Rhein | DE | 0.0007 | 0.1869 |
+| Västerås | SE | 0.0007 | 0.1563 |
+| Sjöberg | SE | 0.0009 | 0.2177 |
+| Szczecin | PL | 0.0017 | 0.2028 |
+| Roosendaal | NL | 0.0019 | 0.3400 |
+| Brackel | DE | 0.0038 | 0.2800 |
+| Jürgensby | DE | 0.0043 | 0.1634 |
+| Düren | DE | 0.0044 | 0.2146 |
+| Bellizzi | IT | 0.0086 | 0.2863 |
+| České Budějovice | CZ | 0.0087 | 0.2166 |
+| Jena-Zentrum | DE | 0.0101 | 0.2911 |
+| Veenendaal | NL | 0.0102 | 0.2616 |
+| Hilden | DE | 0.0104 | 0.2136 |
+| Perpignan | FR | 0.0105 | 0.1214 |
+| Tilburg | NL | 0.0108 | 0.2123 |
+| Tours | FR | 0.0109 | 0.1559 |
+| Neusäß | DE | 0.0112 | 0.1805 |
+| Wolfsburg | DE | 0.0112 | 0.1049 |
+| Milano | IT | 0.0114 | 0.1549 |
+| Gallarate | IT | 0.0122 | 0.2138 |
+| Košice | SK | 0.0125 | 0.2069 |
+| Debrecen | HU | 0.0128 | 0.2056 |
+| Saint-Julien-en-Genevois | CH | 0.0132 | 0.1345 |
+| Montpellier | FR | 0.0140 | 0.2057 |
+| Strasbourg | FR | 0.0154 | 0.1741 |
+| Gironès | ES | 0.0158 | 0.1854 |
+| Nord | DE | 0.0160 | 0.1911 |
+| Zagreb | HR | 0.0175 | 0.1424 |
+| Częstochowa | PL | 0.0175 | 0.3156 |
+| Grenoble | FR | 0.0178 | 0.1830 |
 
 ---
 
@@ -92,17 +92,17 @@ High & Uniform
 
 | Category | R² Score | Local Importance | Intermediate Importance | Large Importance |
 |----------|----------|------------------|-------------------------|------------------|
-| Accommodation | 0.5572 | 0.4040 | 0.3371 | 0.2589 |
-| Active Life | 0.6551 | 0.6411 | 0.2068 | 0.1521 |
-| Arts And Entertainment | 0.6315 | 0.4450 | 0.3711 | 0.1839 |
-| Attractions And Activities | 0.6031 | 0.2641 | 0.5289 | 0.2071 |
-| Business And Services | 0.7283 | 0.7559 | 0.1398 | 0.1043 |
-| Eat And Drink | 0.7148 | 0.7230 | 0.1549 | 0.1221 |
-| Education | 0.7255 | 0.7232 | 0.1572 | 0.1196 |
-| Health And Medical | 0.6933 | 0.7211 | 0.1436 | 0.1353 |
-| Public Services | 0.6837 | 0.6408 | 0.2079 | 0.1513 |
-| Religious | 0.5860 | 0.5569 | 0.2323 | 0.2108 |
-| Retail | 0.7016 | 0.7472 | 0.1367 | 0.1161 |
+| Accommodation | 0.5556 | 0.4119 | 0.3275 | 0.2606 |
+| Active Life | 0.6545 | 0.6414 | 0.2061 | 0.1525 |
+| Arts And Entertainment | 0.6342 | 0.4801 | 0.3341 | 0.1858 |
+| Attractions And Activities | 0.6039 | 0.2760 | 0.5168 | 0.2072 |
+| Business And Services | 0.7284 | 0.7566 | 0.1388 | 0.1046 |
+| Eat And Drink | 0.7162 | 0.7231 | 0.1543 | 0.1226 |
+| Education | 0.7256 | 0.7241 | 0.1551 | 0.1208 |
+| Health And Medical | 0.6934 | 0.7228 | 0.1419 | 0.1354 |
+| Public Services | 0.6851 | 0.6497 | 0.2012 | 0.1491 |
+| Religious | 0.5850 | 0.5563 | 0.2322 | 0.2115 |
+| Retail | 0.7028 | 0.7465 | 0.1370 | 0.1164 |
 
 ---
 

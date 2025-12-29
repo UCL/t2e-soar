@@ -45,7 +45,7 @@ from sklearn.model_selection import train_test_split
 
 # Analysis parameters
 # NOTE: Cent column names use templates {d} that get substituted with distances
-DISTANCES = [400, 800, 1200, 1600, 4800, 9600]
+DISTANCES = [400, 800, 1200, 1600, 4800]
 CENT_COLUMNS = ["cc_beta_{d}", "cc_betweenness_beta_{d}"]
 CENT_NAMES = ["Closeness", "Betweenness"]
 CENSUS_COLUMNS = [
@@ -210,7 +210,8 @@ else:
 
         try:
             gdf = gpd.read_file(metrics_file, columns=all_cols_to_load, layer="streets")
-
+            # Doublecheck geoms are dropped if outside boundary
+            gdf = gdf[gdf.geometry.within(row.geometry)]
             # Filter out invalid values
             for col in all_cols_to_load:
                 gdf = gdf[gdf[col].notna() & np.isfinite(gdf[col])]
