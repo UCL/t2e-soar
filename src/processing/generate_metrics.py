@@ -39,7 +39,7 @@ def process_metrics(
     bounds_gdf = bounds_gdf.to_crs(WORKING_CRS)
     # process each boundary
     for bounds_fid, bounds_row in bounds_gdf.iterrows():
-        logger.info(f"Processing metrics for bounds fid: {bounds_fid}")
+        logger.info(f"\n\nProcessing metrics for bounds fid: {bounds_fid}")
         tools.validate_directory(overture_data_dir)
         overture_path = Path(overture_data_dir) / f"overture_{bounds_fid}.gpkg"
         if not overture_path.exists():
@@ -67,6 +67,8 @@ def process_metrics(
         nx_dual = graphs.nx_to_dual(nx_decomp)
         # back to GDF
         nodes_gdf, _edges_gdf, network_structure = io.network_structure_from_nx(nx_dual)
+        # mMark nodes as live if they're within the boundary
+        nodes_gdf["live"] = nodes_gdf.geometry.within(bounds_row.geometry)
         # process centrality
         nodes_gdf = processors.process_centrality(nodes_gdf, network_structure)
         # POI
@@ -96,9 +98,13 @@ def process_metrics(
         )
         if not bldgs_gdf.empty:
             bldgs_gdf["bounds_fid"] = bounds_fid
+            if overwrite is True:
+                tools.remove_layer_if_exists(output_path, "buildings")
             bldgs_gdf.to_file(output_path, driver="GPKG", layer="buildings")
         if not blocks_gdf.empty:
             blocks_gdf["bounds_fid"] = bounds_fid
+            if overwrite is True:
+                tools.remove_layer_if_exists(output_path, "blocks")
             blocks_gdf.to_file(output_path, driver="GPKG", layer="blocks")
         # green spaces
         green_gdf = blocks_gdf[
@@ -164,11 +170,14 @@ def process_metrics(
             grid_values = stats_gdf[col].values  # type: ignore
             # use linear because cubic goes negative
             nodes_gdf[col] = griddata(grid_coords, grid_values, target_coords, method="linear")  # type: ignore
-        # keep only live
+        # keep only live nodes within the boundary
         if not nodes_gdf.empty:
             nodes_gdf["bounds_fid"] = bounds_fid
-            nodes_gdf = nodes_gdf.loc[nodes_gdf.live]
-            nodes_gdf.to_file(output_path, driver="GPKG", layer="streets")
+            nodes_gdf_live = nodes_gdf.loc[nodes_gdf["live"]].copy()
+            if not nodes_gdf_live.empty:
+                if overwrite is True:
+                    tools.remove_layer_if_exists(output_path, "streets")
+                nodes_gdf_live.to_file(output_path, driver="GPKG", layer="streets")
 
 
 if __name__ == "__main__":

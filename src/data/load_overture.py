@@ -28,7 +28,12 @@ REQUIRED_LAYERS = [
 ]
 
 
-def load_overture_layers(bounds_fid: str, bounds_geom_wkt: str, output_path: str) -> None:
+def load_overture_layers(
+    bounds_fid: str,
+    bounds_geom_wkt: str,
+    output_path: str,
+    overwrite: bool,
+) -> None:
     """ """
     # Reconstruct geometry from WKT (safe for multiprocessing)
     bounds_geom: geometry.Polygon = wkt.loads(bounds_geom_wkt)  # type: ignore
@@ -40,27 +45,39 @@ def load_overture_layers(bounds_fid: str, bounds_geom_wkt: str, output_path: str
     nodes_gdf, edges_gdf, clean_edges_gdf = overture_data.load_network(bounds_geom_10km_wgs, to_crs=WORKING_CRS)
     # nodes
     nodes_gdf["bounds_fid"] = bounds_fid
+    if overwrite is True:
+        tools.remove_layer_if_exists(output_path, "nodes")
     nodes_gdf.to_file(output_path, driver="GPKG", layer="nodes")
     # edges
     edges_gdf["bounds_fid"] = bounds_fid
+    if overwrite is True:
+        tools.remove_layer_if_exists(output_path, "edges")
     edges_gdf.to_file(output_path, driver="GPKG", layer="edges")
     # clean edges
     clean_edges_gdf["bounds_fid"] = bounds_fid
+    if overwrite is True:
+        tools.remove_layer_if_exists(output_path, "clean_edges")
     clean_edges_gdf.to_file(output_path, driver="GPKG", layer="clean_edges")
 
     # OVERTURE INFRASTRUCTURE
     infrast_gdf = overture_data.load_infrastructure(bounds_geom_2km_wgs, to_crs=WORKING_CRS)
     infrast_gdf["bounds_fid"] = bounds_fid
+    if overwrite is True:
+        tools.remove_layer_if_exists(output_path, "infrastructure")
     infrast_gdf.to_file(output_path, driver="GPKG", layer="infrastructure")
 
     # OVERTURE PLACES
     places_gdf = overture_data.load_places(bounds_geom_2km_wgs, to_crs=WORKING_CRS)
     places_gdf["bounds_fid"] = bounds_fid
+    if overwrite is True:
+        tools.remove_layer_if_exists(output_path, "places")
     places_gdf.to_file(output_path, driver="GPKG", layer="places")
 
     # OVERTURE BUILDINGS
     buildings_gdf = overture_data.load_buildings(bounds_geom_2km_wgs, to_crs=WORKING_CRS)
     buildings_gdf["bounds_fid"] = bounds_fid
+    if overwrite is True:
+        tools.remove_layer_if_exists(output_path, "buildings")
     buildings_gdf.to_file(output_path, driver="GPKG", layer="buildings")
 
 
@@ -96,7 +113,12 @@ def load_overture_for_bounds(bounds_in_path: str, data_out_dir: str, parallel_wo
                     else:
                         logger.info(f"File missing some layers, will overwrite: {output_path}")
                 # Pass WKT to workers to avoid pickling Shapely geometry objects
-                args = (bounds_fid, bounds_row.geometry.wkt, output_path)
+                args = (
+                    bounds_fid,
+                    bounds_row.geometry.wkt,
+                    output_path,
+                    overwrite,
+                )
                 futs[executor.submit(load_overture_layers, *args)] = args  # type: ignore
             # iterate over completed futures and update progress with tqdm
             for fut in tqdm(futures.as_completed(futs), total=len(futs), desc="Loading Overture"):

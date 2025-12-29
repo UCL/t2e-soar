@@ -3,6 +3,8 @@
 import argparse
 import json
 import logging
+import os
+import sqlite3
 import warnings
 from pathlib import Path
 from typing import Any, cast
@@ -398,3 +400,21 @@ def reproject_geometry(geom, from_crs, to_crs):
     reprojected_geom = transform(transformer.transform, geom)
 
     return reprojected_geom
+
+
+def remove_layer_if_exists(gpkg_path: str | Path, layer: str) -> None:
+    """Remove a single layer from a GeoPackage without affecting other layers."""
+
+    if not os.path.exists(gpkg_path):
+        return
+    try:
+        with fiona.Env():
+            if layer in fiona.listlayers(gpkg_path):
+                logger.info(f"Replacing existing layer '{layer}' from {gpkg_path}")
+                fiona.remove(gpkg_path, layer=layer)
+                # Vacuum the database to reclaim space
+                conn = sqlite3.connect(str(gpkg_path))
+                conn.execute("VACUUM")
+                conn.close()
+    except Exception:
+        pass  # Layer doesn't exist or can't be removed
