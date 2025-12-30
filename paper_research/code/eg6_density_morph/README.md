@@ -2,95 +2,169 @@
 
 ## Summary
 
-Analysis of population density vs building morphology across 655 European cities.
-We cluster **nodes** by morphology profile, then characterize each **city** by the proportion
-of its nodes in each cluster type. This preserves within-city heterogeneity.
+Analysis of building morphology patterns across 654 European cities grouped by 30 countries.
+We cluster **nodes** by morphology profile, then characterize each **country** by the proportion
+of its nodes in each cluster type. This reveals international morphology patterns.
 
 ## Methodology
 
-1. Sample max(20,000, 50%) nodes per city
-2. Cluster nodes by 4 morphology features (K-means, k=30):
-   - **Building**: area, perimeter, compactness, orientation, volume, form factor, corners, shape index, fractal dimension
-   - **Block**: area, perimeter, compactness, orientation, coverage ratio
-3. For each city, compute proportion of nodes in each morphology cluster
-4. Cities are characterized by their full cluster proportion profile
+1. Sample max(5,000, 25%) nodes per city
+2. Cluster nodes by 8 morphology features (BIRCH, k=8):
+   - Building Count, Block Count, Mean Height, Height Variation, Building Area, Fractal Dimension, Block Coverage, Shared Walls
+3. For each country, aggregate proportion of nodes in each morphology cluster
+4. Countries are characterized by their full cluster proportion profile
+5. Countries are hierarchically clustered by their composition similarity
+
 
 ## Node Morphology Clusters
 
-K-means clustering (k=30) on 14 morphology features identified these node types:
+BIRCH clustering (k=8) on 8 morphology features identified these node types.
 
-| Cluster | Nodes       | % Total | Mean Area (m²) | Mean Volume (m³) | Mean Coverage | Characterization                            |
-| ------- | ----------- | ------- | -------------- | ---------------- | ------------- | ------------------------------------------- |
-| 0       | 157,040.0   | 2.2%    | 1171           | 13955            | 0.304         | Large footprint, High volume, High coverage |
-| 1       | 296,423.0   | 4.1%    | 327            | 4027             | 0.585         | Small footprint, Low volume, High coverage  |
-| 2       | 10,361.0    | 0.1%    | 1823           | 23410            | 0.237         | Large footprint, High volume, High coverage |
-| 3       | 146,298.0   | 2.0%    | 179            | 1380             | 0.049         | Small footprint, Low volume, Low coverage   |
-| 4       | 396,755.0   | 5.5%    | 82             | 431              | 0.119         | Small footprint, Low volume, Low coverage   |
-| 5       | 455,243.0   | 6.3%    | 330            | 3750             | 0.126         | Small footprint, Low volume, Low coverage   |
-| 6       | 730,958.0   | 10.2%   | 339            | 3262             | 0.243         | Small footprint, Low volume, High coverage  |
-| 7       | 10,250.0    | 0.1%    | 1081           | 7074             | 0.521         | Large footprint, High volume, High coverage |
-| 8       | 24.0        | 0.0%    | 48463          | 540663           | 16.207        | Large footprint, High volume, High coverage |
-| 9       | 36,665.0    | 0.5%    | 1194           | 15855            | 0.045         | Large footprint, High volume, Low coverage  |
-| 10      | 20,486.0    | 0.3%    | 2199           | 27300            | 0.620         | Large footprint, High volume, High coverage |
-| 11      | 66,873.0    | 0.9%    | 2258           | 32767            | 0.137         | Large footprint, High volume, Low coverage  |
-| 12      | 2,572,184.0 | 35.8%   | 133            | 915              | 0.165         | Small footprint, Low volume, High coverage  |
-| 13      | 9,025.0     | 0.1%    | 1795           | 2866             | 0.152         | Large footprint, Low volume, High coverage  |
-| 14      | 344,217.0   | 4.8%    | 881            | 12294            | 0.308         | Large footprint, High volume, High coverage |
-| 15      | 40,769.0    | 0.6%    | 458            | 1565             | 0.115         | Small footprint, Low volume, Low coverage   |
-| 16      | 4,652.0     | 0.1%    | 11190          | 145339           | 0.405         | Large footprint, High volume, High coverage |
-| 17      | 20,016.0    | 0.3%    | 373            | 574              | 0.086         | Small footprint, Low volume, Low coverage   |
-| 18      | 31,945.0    | 0.4%    | 30             | 114              | 0.033         | Small footprint, Low volume, Low coverage   |
-| 19      | 848,818.0   | 11.8%   | 260            | 2714             | 0.313         | Small footprint, Low volume, High coverage  |
-| 20      | 153,680.0   | 2.1%    | 501            | 5193             | 0.089         | Small footprint, High volume, Low coverage  |
-| 21      | 218,263.0   | 3.0%    | 86             | 499              | 0.101         | Small footprint, Low volume, Low coverage   |
-| 22      | 203.0       | 0.0%    | 2868           | 29618            | 1.830         | Large footprint, High volume, High coverage |
-| 23      | 2,592.0     | 0.0%    | 11286          | 147612           | 0.124         | Large footprint, High volume, Low coverage  |
-| 24      | 11,675.0    | 0.2%    | 1435           | 4132             | 0.148         | Large footprint, High volume, Low coverage  |
-| 25      | 282,369.0   | 3.9%    | 84             | 579              | 0.373         | Small footprint, Low volume, High coverage  |
-| 26      | 296,701.0   | 4.1%    | 636            | 8116             | 0.132         | Large footprint, High volume, Low coverage  |
-| 27      | 12,657.0    | 0.2%    | 63             | 2178             | 0.097         | Small footprint, Low volume, Low coverage   |
-| 28      | 12,730.0    | 0.2%    | 170            | 240              | 0.083         | Small footprint, Low volume, Low coverage   |
-| 29      | 29.0        | 0.0%    | 6415           | 104576           | 4.283         | Large footprint, High volume, High coverage |
+**External characterization** uses three independent variables:
+- **Population Density**: Average density (people/km²)
+- **Network Density**: Street network density (beta coefficient)
+- **Mixed Uses**: Landuse richness (Hill number q=0)
 
-![Node Cluster Profiles](outputs/node_cluster_profiles.png)
+See cluster rankings visualization for relative ordering.
 
-## City Morphology Profiles
+### Cluster Characteristics
 
-Each city is characterized by its distribution across node clusters:
+| ID | Nodes | % Total | Pop Density | Network Density | Mixed Use |
+|----|-------|---------|-------------|-------------|-----------|
+| 1 | 68,467.0 | 34.2% | 3811 | 99.90 | 0.36 |
+| 2 | 20,297.0 | 10.1% | 12449 | 161.31 | 1.33 |
+| 3 | 26,133.0 | 13.1% | 6724 | 129.19 | 0.87 |
+| 4 | 11,813.0 | 5.9% | 5004 | 109.02 | 0.44 |
+| 5 | 32,536.0 | 16.3% | 8715 | 120.97 | 0.75 |
+| 6 | 20,141.0 | 10.1% | 11412 | 156.46 | 1.51 |
+| 7 | 2,741.0 | 1.4% | 14161 | 139.72 | 0.76 |
+| 8 | 17,872.0 | 8.9% | 5650 | 93.99 | 0.41 |
 
-![City Profile Heatmap](outputs/city_profile_heatmap.png)
 
-![City Profiles PCA](outputs/city_profiles_pca.png)
+### Cluster External Characteristics
+![Cluster Rankings](outputs/cluster_external_rankings.png)
 
-## Cluster Proportion Analysis
+### Cluster Profiles (Radar Plot)
+![Cluster Radar Profiles](outputs/cluster_radar_profiles.png)
 
-Cities are characterized by their distribution across morphology clusters.
+### Feature-Cluster Correlations
+![Cluster Feature Correlations](outputs/cluster_feature_correlations.png)
 
-### Example City Profiles (Top 5 by Cluster 0)
+## Country Morphology Profiles
 
-| City            | Country | % Cluster 0 | % Cluster 1 | % Cluster 2 | % Cluster 3 |
-| --------------- | ------- | ----------- | ----------- | ----------- | ----------- | ---- | ----- | ----- | ---- | ---- | ---- | ---- | ---- | ----- | ---- | ---- | ---- | ---- | ---- | ---- | ----- | ----- | ---- | ---- | ---- | ---- | ---- | ----- | ---- | ---- | ---- |
-| Pinto           | ES      | 45.2%       | 0.0%        | 0.0%        | 4.5%        | 0.0% | 0.0%  | 13.9% | 0.0% | 0.0% | 0.3% | 0.0% | 1.8% | 1.5%  | 0.0% | 5.4% | 0.9% | 5.7% | 1.5% | 0.0% | 0.0%  | 6.6%  | 0.0% | 0.0% | 0.0% | 3.3% | 0.0% | 7.8%  | 1.5% | 0.0% | 0.0% |
-| Narva linn      | EE      | 13.7%       | 0.0%        | 0.2%        | 1.0%        | 2.4% | 5.1%  | 14.7% | 0.0% | 0.0% | 0.3% | 0.0% | 3.2% | 12.2% | 0.2% | 3.3% | 0.7% | 0.0% | 0.2% | 1.6% | 0.2%  | 14.3% | 1.7% | 0.0% | 0.0% | 0.0% | 0.0% | 24.9% | 0.1% | 0.1% | 0.0% |
-| Bolzano - Bozen | IT      | 11.8%       | 2.2%        | 0.0%        | 2.2%        | 0.3% | 10.0% | 20.2% | 0.9% | 0.0% | 0.8% | 1.2% | 1.0% | 10.0% | 0.0% | 9.3% | 0.3% | 0.1% | 0.0% | 0.0% | 17.4% | 3.4%  | 1.0% | 0.0% | 0.1% | 0.1% | 0.1% | 7.4%  | 0.1% | 0.0% | 0.0% |
-| Vilnius         | LT      | 10.5%       | 0.1%        | 0.6%        | 3.5%        | 1.7% | 6.7%  | 13.6% | 0.0% | 0.0% | 0.8% | 0.2% | 4.8% | 15.7% | 0.1% | 5.9% | 0.5% | 0.1% | 0.3% | 0.0% | 3.6%  | 7.5%  | 1.6% | 0.0% | 0.1% | 0.1% | 0.0% | 21.4% | 0.1% | 0.1% | 0.0% |
-| Klaipėda        | LT      | 8.2%        | 0.4%        | 0.3%        | 1.8%        | 3.5% | 6.7%  | 11.5% | 0.1% | 0.0% | 1.1% | 0.2% | 4.7% | 21.3% | 0.1% | 1.7% | 1.1% | 0.0% | 0.6% | 0.5% | 1.8%  | 14.8% | 1.8% | 0.0% | 0.0% | 0.3% | 0.0% | 17.2% | 0.0% | 0.2% | 0.0% |
+Each country is characterized by its distribution across node clusters.
+
+### Hierarchically Ordered Heatmap
+Countries ordered by compositional similarity (Ward linkage):
+![Country Profile Heatmap](outputs/country_profile_heatmap.png)
+
+### Stacked Composition Chart
+![Country Composition Stacked](outputs/country_composition_stacked.png)
+
+### City Profiles by Cluster Proportions
+![City Profiles](outputs/city_profiles_clusters.png)
+
+## Morphology Patterns by Country
+
+Countries are characterized by their distribution across morphology clusters.
+
+### Top Countries by Cluster 1
+
+| Country | # Cities | Dominant Cluster | % in Cluster 1 |
+|---------|----------|------------------|---------------------|
+| IE | 5 | Cluster 1 | 61.1% |
+| NL | 43 | Cluster 1 | 53.5% |
+| NO | 3 | Cluster 1 | 48.7% |
+| FR | 72 | Cluster 1 | 48.7% |
+| BE | 13 | Cluster 1 | 46.0% |
+
+### Top Countries by Cluster 2
+
+| Country | # Cities | Dominant Cluster | % in Cluster 2 |
+|---------|----------|------------------|---------------------|
+| LT | 4 | Cluster 1 | 21.0% |
+| SK | 6 | Cluster 1 | 19.7% |
+| AT | 6 | Cluster 1 | 18.0% |
+| EE | 3 | Cluster 5 | 16.2% |
+| CZ | 14 | Cluster 1 | 16.1% |
+
+### Top Countries by Cluster 3
+
+| Country | # Cities | Dominant Cluster | % in Cluster 3 |
+|---------|----------|------------------|---------------------|
+| LU | 1 | Cluster 3 | 31.5% |
+| DE | 103 | Cluster 1 | 21.2% |
+| SK | 6 | Cluster 1 | 20.7% |
+| CZ | 14 | Cluster 1 | 20.6% |
+| CH | 12 | Cluster 5 | 17.6% |
+
+### Top Countries by Cluster 4
+
+| Country | # Cities | Dominant Cluster | % in Cluster 4 |
+|---------|----------|------------------|---------------------|
+| DK | 4 | Cluster 1 | 16.1% |
+| FI | 4 | Cluster 1 | 11.6% |
+| SE | 15 | Cluster 1 | 10.3% |
+| FR | 72 | Cluster 1 | 9.4% |
+| NO | 3 | Cluster 1 | 7.9% |
+
+### Top Countries by Cluster 5
+
+| Country | # Cities | Dominant Cluster | % in Cluster 5 |
+|---------|----------|------------------|---------------------|
+| CY | 2 | Cluster 5 | 47.6% |
+| MT | 1 | Cluster 5 | 36.2% |
+| HR | 5 | Cluster 5 | 34.4% |
+| BG | 13 | Cluster 5 | 32.9% |
+| CH | 12 | Cluster 5 | 32.5% |
+
+### Top Countries by Cluster 6
+
+| Country | # Cities | Dominant Cluster | % in Cluster 6 |
+|---------|----------|------------------|---------------------|
+| GR | 8 | Cluster 6 | 36.9% |
+| BE | 13 | Cluster 1 | 22.3% |
+| ES | 86 | Cluster 6 | 21.4% |
+| NL | 43 | Cluster 1 | 19.6% |
+| LU | 1 | Cluster 3 | 16.4% |
+
+### Top Countries by Cluster 7
+
+| Country | # Cities | Dominant Cluster | % in Cluster 7 |
+|---------|----------|------------------|---------------------|
+| LT | 4 | Cluster 1 | 5.6% |
+| EE | 3 | Cluster 5 | 3.4% |
+| ES | 86 | Cluster 6 | 2.4% |
+| MT | 1 | Cluster 5 | 2.4% |
+| IT | 83 | Cluster 5 | 2.3% |
+
+### Top Countries by Cluster 8
+
+| Country | # Cities | Dominant Cluster | % in Cluster 8 |
+|---------|----------|------------------|---------------------|
+| FI | 4 | Cluster 1 | 18.9% |
+| SE | 15 | Cluster 1 | 18.7% |
+| LT | 4 | Cluster 1 | 18.1% |
+| EE | 3 | Cluster 5 | 17.1% |
+| LV | 3 | Cluster 1 | 16.3% |
 
 ## Outputs
 
-- `city_morphology_profiles.csv`: Full city profiles with cluster proportions
+### Data Files
+- `country_morphology_profiles.csv`: Full country profiles with cluster proportions
 - `node_cluster_summary.csv`: Node cluster characteristics
+- `cluster_external_characterization.csv`: External metrics (density, network density, mixed uses) per cluster
+- `cluster_external_correlations.csv`: Cluster-external metric correlation matrix
+- `top_cluster_1-8_countries.csv`: Top countries by each cluster type
 - `cluster_representatives.csv`: Representative city for each cluster
-- `top_cluster_{{0-3}}_cities.csv`: Top 10 cities by each cluster type
-- `node_cluster_profiles.png`: Node cluster characteristic profiles
-- `city_profile_heatmap.png`: City proportions across node clusters
-- `city_profiles_pca.png`: PCA of city morphology profiles
 
-## Reproducibility
+### Visualizations
+- `cluster_radar_profiles.png`: Individual radar plots for each cluster
+- `cluster_external_rankings.png`: Clusters ranked by external characteristics
+- `cluster_feature_correlations.png`: Heatmap of cluster-feature correlations
+- `node_cluster_profiles.png`: Bar charts of raw cluster means
+- `country_profile_heatmap.png`: Hierarchically ordered country composition heatmap
+- `country_composition_stacked.png`: Stacked bar chart of country compositions
+- `city_profiles_clusters.png`: Cities plotted by contrasting cluster proportions
+- `cluster_1-8_satellite_5x5.jpg`: Satellite imagery exemplars for each cluster
 
-```bash
-cd paper_research/code/eg6_density_morph
-python eg6_density_morph.py
-```
-
-All outputs generated in `outputs/` subfolder.
