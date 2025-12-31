@@ -1,5 +1,7 @@
 \documentclass{elsarticle}
 
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.5cm]{geometry}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{hyperref}
@@ -39,7 +41,7 @@
   \address[bench]{Benchmark Urbanism, \todo{Full postal address}, Country}
 
   \begin{abstract}
-    Spatial analytic workflows for evidence-based urban planning are typically time-intensive and data-source specific, limiting cross-context application. We present SOAR (Scalable, Open, Automated, and Reproducible), a pan-European urban data model providing standardised morphology and accessibility metrics for 699 urban centres. SOAR combines EU-specific datasets---Eurostat High Density Clusters for boundary definition, Census 2021 for demographics, and Copernicus Urban Atlas for land cover---with Overture Maps for street networks, points of interest, and building footprints. The dataset provides over 100 metrics per street network node at six spatial scales (400--9,600m), encompassing network centrality, land-use accessibility and diversity, building morphology, green space proximity, and demographics. Network processing employs automated cleaning via the cityseer Python package with level-aware processing at bridges and classification-based edge merging. Data are distributed as GeoPackage files in EPSG:3035 projection with open-source processing code. SOAR bridges the gap between global datasets with variable quality and national datasets with restrictive licensing, enabling comparative research on walkability, mixed-use development, and urban form.
+    Constructing spatial analytic datasets for urban planning is resource-intensive and data-source specific, limiting cross-context application. We present SOAR (Scalable, Open, Automated, and Reproducible), a pan-European urban data model providing morphology and accessibility metrics for 699 urban centres. SOAR combines EU-specific datasets---Eurostat High Density Clusters for boundary definition, Census 2021 for demographics, and Copernicus Urban Atlas for land cover---with Overture Maps for street networks, points of interest, and building footprints. The dataset provides over 100 metrics per street network node at multiple spatial scales (100--4,800m), encompassing network centrality, land-use accessibility and diversity, building morphology, green space proximity, and demographics. Processing is automated via open-source Python code with fixed parameters for reproducibility. Data are distributed as GeoPackage files in EPSG:3035 projection. This is a derived dataset from open sources processed at continental scale; it is not a curated or validated dataset, and users should assess data quality for their specific applications---particularly for point of interest data, which exhibits geographic variation in completeness. The primary contribution is reducing the barrier to pan-European urban comparison by providing pre-computed metrics in a consistent format.
   \end{abstract}
 
   \begin{keyword}
@@ -59,9 +61,9 @@
 %% ============================================================================
 \section{Introduction}
 
-Evidence-based urban design and planning (EBDP) relies on spatial analytic workflows: network analysis reveals street prominence, proximity metrics quantify access to amenities, and census data characterises population distributions. However, constructing such models is resource-intensive and data-source specific, limiting cross-context applicability. Growing interest in scalable automated models has produced datasets spanning 27,000 US street networks~[1], 931 UK towns with land-use and population data~[2], and 50 cities across 29 countries with network-morphology integration~[3]. OpenStreetMap-derived models can scale globally but suffer variable data quality, particularly for points of interest, while global census sources lack detail. National datasets offer consistency but restrict geographic scope and often impose licensing constraints~[2].
+Constructing spatial analytic datasets for urban planning requires substantial data engineering: network analysis, proximity metrics, census integration, and land-use classification. This work is typically repeated for each study area. Existing large-scale datasets include 27,000 US street networks~[1], 931 UK towns~[2], and 50 cities across 29 countries~[3], but pan-European coverage with consistent methodology has been limited.
 
-The TWIN2EXPAND consortium addresses this gap within the EU context. Continental scope necessitates broad-coverage sources (Overture Maps), while EU boundaries enable use of harmonised regional datasets:
+The TWIN2EXPAND consortium produced SOAR to address this gap. Continental scope requires broad-coverage sources (Overture Maps), while EU boundaries enable use of harmonised regional datasets:
 
 \begin{itemize}
   \item Eurostat 2021 Urban Centres / High Density Clusters data to rigorously define urban extents, from which we have extracted 699 towns and cities.
@@ -71,7 +73,7 @@ The TWIN2EXPAND consortium addresses this gap within the EU context. Continental
 
 We use Overture Maps rather than OpenStreetMap for street networks, infrastructure, points of interest, and building footprints. Overture offers formalised release cycles, improved POI validation, and expanded building coverage via supplementary Google and Microsoft data~[4]. Network processing employs automated cleaning via cityseer~[5], including level-aware processing at bridges and classification-based edge merging.
 
-SOAR (Scalable, Open, Automated, and Reproducible) demonstrates scalable methods for pan-EU urban comparison. The project prioritises openness and reproducibility, providing researchers and planners with consistent metrics for evidence-based planning and policy.
+SOAR (Scalable, Open, Automated, and Reproducible) provides pre-computed urban metrics for pan-EU comparison. The processing pipeline is open-source and reproducible. The primary contribution is the operational scale: deriving consistent metrics across 699 urban centres from heterogeneous open data sources simplifies downstream comparative work that would otherwise require substantial data engineering effort.
 
 %% ============================================================================
 %% SPECIFICATIONS TABLE
@@ -106,15 +108,17 @@ SOAR (Scalable, Open, Automated, and Reproducible) demonstrates scalable methods
 \section*{Value of the Data}
 
 \begin{itemize}
-  \item These data enable \textbf{comparative urban research} across 699 European cities using consistent, standardised metrics computed from harmonised input sources, eliminating methodological inconsistencies that typically arise when combining city-specific datasets.
+  \item \textbf{Consistent metrics across 699 cities}: Metrics are computed using identical methods and parameters, avoiding methodological inconsistencies that arise when combining city-specific datasets.
 
-  \item The \textbf{multi-scale metric design} (400m, 800m, 1,200m, 1,600m, 4,800m, 9,600m) supports analysis at pedestrian, neighbourhood, and district scales. Based on average walking speed of 80m/min ($\approx$5~km/h), these correspond to 5, 10, 15, 20, 60, and 120-minute walking catchments respectively---accommodating research questions from immediate walkability (5-minute neighbourhood) to metropolitan accessibility.
+  \item \textbf{Multi-scale design}: Centrality metrics at 400m, 800m, 1,200m, 1,600m, and 4,800m (5--60 minute walking catchments). Accessibility metrics at 200m, 400m, 800m, 1,200m, and 1,600m.
 
-  \item Urban planners and policymakers can use these data for \textbf{benchmarking and evidence-based planning}, identifying cities with exemplary mixed-use development, green space access, or morphological characteristics to inform local planning strategies.
+  \item \textbf{Network-based aggregation}: Metrics computed along pedestrian routes rather than Euclidean buffers. A park 200m as-the-crow-flies but 800m by foot (due to barriers) is measured at 800m.
 
-  \item The fine-grained, node-level structure (80m street segments) provides \textbf{training data for machine learning} applications in urban pattern recognition, land-use prediction, and automated urban classification.
+  \item \textbf{Distance-weighted accessibility}: Exponential decay ($e^{-\beta d}$) weights nearby POIs more heavily than distant ones.
 
-  \item Full documentation of the processing pipeline and open-source code ensures \textbf{reproducibility and extensibility}, allowing researchers to update the dataset with newer source data or adapt the methodology for other geographic regions.
+  \item \textbf{Fine-grained resolution}: 80m street segments preserve within-neighbourhood heterogeneity.
+
+  \item \textbf{Open and reproducible}: Processing code and parameters are documented; researchers can regenerate or extend the dataset.
 \end{itemize}
 
 %% ============================================================================
@@ -143,27 +147,27 @@ Table~\ref{tab:streets_schema} summarises the key attributes in the streets laye
   \caption{Summary of streets layer attributes (selected metrics shown; full schema in Supplementary Material Section~S1).}
   \label{tab:streets_schema}
   \small
-  \begin{tabular}{@{}L{2.8cm}L{8.5cm}@{}}
+  \begin{tabular}{@{}L{3.2cm}L{8.1cm}@{}}
     \toprule
     \textbf{Attribute group} & \textbf{Description} \\
     \midrule
     \texttt{cc\_beta\_*} & Closeness centrality (gravity-weighted) at distance thresholds \\
     \midrule
-    \texttt{cc\_density\_*} & Node density within distance threshold \\
+    \texttt{cc\_\{landuse\}\_*\_nw} & Unweighted POI count for land-use category \\
     \midrule
-    \texttt{ac\_\{landuse\}\_*} & Accessibility count for land-use category \\
+    \texttt{cc\_\{landuse\}\_*\_wt} & Distance-weighted POI count for land-use category \\
     \midrule
-    \texttt{ac\_mixed\_*} & Land-use diversity (Hill numbers) \\
+    \texttt{cc\_\{landuse\}\_nearest\_*} & Distance to nearest POI in category \\
     \midrule
-    \texttt{mu\_hill\_*} & Mixed-use indices \\
+    \texttt{cc\_hill\_*} & Land-use diversity (Hill numbers $q=0,1,2$) \\
     \midrule
-    \texttt{green\_dist\_*} & Distance to nearest green space \\
+    \texttt{cc\_green\_nearest\_*} & Distance to nearest green space \\
     \midrule
-    \texttt{tree\_dist\_*} & Distance to nearest tree canopy \\
+    \texttt{cc\_trees\_nearest\_*} & Distance to nearest tree canopy \\
     \midrule
-    \texttt{pop\_*} & Interpolated population metrics \\
+    \texttt{cc\_*\_median\_*} & Morphology metrics (median aggregation) \\
     \midrule
-    \texttt{emp\_*} & Interpolated employment metrics \\
+    \texttt{density}, \texttt{t}, \texttt{emp} & Interpolated census metrics \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -189,8 +193,8 @@ Points of interest (POIs) from Overture Maps were classified into 11 aggregated 
     \texttt{education} & Schools, universities, libraries \\
     \texttt{accommodation} & Hotels, hostels \\
     \texttt{active\_life} & Sports, fitness, recreation \\
-    \texttt{arts\_entertainment} & Cinemas, theatres, venues \\
-    \texttt{attractions} & Museums, landmarks, parks \\
+    \texttt{arts\_and\_entertainment} & Cinemas, theatres, venues \\
+    \texttt{attractions\_and\_activities} & Museums, landmarks, parks \\
     \texttt{religious} & Places of worship \\
     \bottomrule
   \end{tabular}
@@ -239,7 +243,7 @@ Table~\ref{tab:sources} summarises input datasets. Street networks from Overture
 
 The pipeline comprises six stages: (1) boundary vectorisation from HDENS-CLST raster; (2--4) clipping of Copernicus datasets (Urban Atlas, Street Tree Layer, Height Model) to boundaries; (5) Overture data extraction per boundary; and (6) metric computation. All scripts support idempotent execution---existing outputs are skipped unless \texttt{--overwrite} is specified---enabling incremental processing and failure recovery.
 
-To ensure accurate metric computation at boundary edges, input datasets are buffered beyond city boundaries by their respective maximum aggregation distances. Street networks are buffered by 9,600m (the maximum centrality threshold), ensuring that nodes near boundaries have complete network context for centrality calculations. Points of interest are buffered by 1,600m (the maximum pedestrian-scale accessibility threshold), capturing all reachable amenities for boundary-proximate locations. Copernicus land cover and tree canopy data are similarly buffered to ensure complete coverage for green space proximity metrics.
+To ensure accurate metric computation at boundary edges, input datasets are buffered beyond city boundaries. Street networks are buffered by 10km, ensuring that nodes near boundaries have complete network context for centrality calculations. Points of interest, buildings, and infrastructure are buffered by 2km, capturing all reachable amenities for boundary-proximate locations. Copernicus land cover and tree canopy data are clipped to boundary bounding boxes to ensure coverage for green space proximity metrics.
 
 \subsection{Metric Computation}
 
@@ -248,10 +252,10 @@ Network centrality metrics quantify a location's prominence within the street ne
 \begin{equation}
   C_i^{\beta} = \sum_{j \neq i} w_j \cdot e^{-\beta \cdot d_{ij}}
 \end{equation}
-where $d_{ij}$ is network distance, $w_j$ is segment length, and $\beta$ controls distance decay~[5]. Harmonic closeness---appropriate for localised implementations constrained by threshold $d_{\max}$---was also computed. Metrics were generated at thresholds of 400m, 800m, 1,200m, 1,600m, 4,800m, and 9,600m, corresponding to 5, 10, 15, 20, 60, and 120-minute walking catchments at 80m/min average pedestrian speed. The shorter thresholds (5--20 minutes) capture pedestrian-scale accessibility relevant to daily errands and commuting choices, while longer thresholds (60--120 minutes) characterise district and metropolitan-scale network structure.
+where $d_{ij}$ is network distance, $w_j$ is segment length, and $\beta$ controls distance decay~[5]. Harmonic closeness---appropriate for localised implementations constrained by threshold $d_{\max}$---was also computed. Metrics were generated at thresholds of 400m, 800m, 1,200m, 1,600m, and 4,800m, corresponding to 5, 10, 15, 20, and 60-minute walking catchments at 80m/min average pedestrian speed. The shorter thresholds (5--20 minutes) capture pedestrian-scale accessibility relevant to daily errands and commuting choices, while the 60-minute threshold characterises district-scale network structure.
 
 \subsubsection{Land-Use Accessibility}
-Accessibility metrics aggregate POI counts over the street network from identical locations as centrality computations, enabling direct correlation~[5]. For each land-use category $k$, both unweighted counts (number of reachable POIs within $d_{\max}$) and distance-weighted counts (applying exponential decay) were computed, alongside nearest-distance measures.
+Accessibility metrics aggregate POI counts over the street network from identical locations as centrality computations, enabling direct correlation~[5]. Unlike Euclidean buffer approaches or zonal aggregation (which assign uniform values to all locations within administrative units), network-based accessibility follows actual pedestrian routes and varies continuously across street segments. For each land-use category $k$, both unweighted counts (number of reachable POIs within $d_{\max}$) and distance-weighted counts (applying exponential decay) were computed, alongside nearest-distance measures. Distance-weighted counts better reflect perceived accessibility: a café at 100m contributes more than one at 1,000m, capturing the empirical finding that amenity usage decays with distance.
 
 Mixed-use diversity was quantified using Hill numbers~[5], the preferred diversity index because it adheres to the replication principle and uses units of effective species:
 \begin{equation}
@@ -278,47 +282,52 @@ Land-use classification consolidates Overture's taxonomy in two stages: schema f
 
 The processing module (\texttt{generate\_metrics.py}) orchestrates metric computation across all boundaries. Networks undergo dual graph transformation (streets as nodes, intersections as edges) after 80m decomposition, enabling segment-level analysis.
 
-\textbf{Centrality}: Beta-weighted (gravity index) and harmonic closeness at six thresholds (400m, 800m, 1,200m, 1,600m, 4,800m, 9,600m) via cityseer~[5].
+\textbf{Centrality}: Beta-weighted (gravity index) and harmonic closeness at five thresholds (400m, 800m, 1,200m, 1,600m, 4,800m) via cityseer~[5].
 
-\textbf{Accessibility}: POI counts (unweighted and distance-weighted) per land-use category within pedestrian-scale thresholds (400m--1,600m, i.e., 5--20-minute walks); Hill number diversity indices ($q=0,1,2$) quantifying land-use heterogeneity~[5].
+\textbf{Accessibility}: POI counts (unweighted and distance-weighted) per land-use category within pedestrian-scale thresholds (200m, 400m, 800m, 1,200m, 1,600m); Hill number diversity indices ($q=0,1,2$) quantifying land-use heterogeneity~[5].
 
-\textbf{Morphology}: Building metrics (area, compactness, orientation, height, volume) and block metrics (coverage ratio, shape) computed via momepy, then aggregated to network nodes.
+\textbf{Morphology}: Building metrics (area, compactness, orientation, height, volume, fractal dimension, shared walls) and block metrics (coverage ratio, shape) computed via momepy, then aggregated to network nodes at 100m and 200m thresholds using median and MAD statistics.
 
-\textbf{Green space}: Network-distance proximity to Urban Atlas green classes and Street Tree Layer polygons, using point-sampled boundaries at 20m intervals.
+\textbf{Green space}: Network-distance proximity to Urban Atlas green classes and Street Tree Layer polygons at 1,600m threshold, using point-sampled boundaries at 20m intervals. Green and tree canopy areas are aggregated at 200m, 400m, and 800m thresholds.
 
 \textbf{Demographics}: Census grid values interpolated to nodes via linear interpolation from cell centroids.
 
 \subsection{Output Format}
 
-Results are exported as GeoPackage files (\texttt{metrics\_\{bounds\_fid\}.gpkg}) in EPSG:3035, each containing three layers: \texttt{streets} (network nodes with all computed metrics), \texttt{buildings} (footprints with morphology), and \texttt{blocks} (polygons with coverage ratios). Dependencies are pinned via \texttt{pyproject.toml}; key packages include cityseer (network analysis), momepy (morphometrics), geopandas (spatial data), and overturemaps (data access). Processing parameters are fixed for reproducibility: 80m decomposition ($\approx$1-minute walk), 8m cleaning tolerance, centrality thresholds [400, 800, 1200, 1600, 4800, 9600]m (5--120 minutes), accessibility thresholds [400, 800, 1200, 1600]m (5--20 minutes).
+Results are exported as GeoPackage files (\texttt{metrics\_\{bounds\_fid\}.gpkg}) in EPSG:3035, each containing three layers: \texttt{streets} (network nodes with all computed metrics), \texttt{buildings} (footprints with morphology), and \texttt{blocks} (polygons with coverage ratios). Dependencies are pinned via \texttt{pyproject.toml}; key packages include cityseer (network analysis), momepy (morphometrics), geopandas (spatial data), and overturemaps (data access). Processing parameters are fixed for reproducibility: 80m decomposition ($\approx$1-minute walk), 8m cleaning tolerance, centrality thresholds [400, 800, 1200, 1600, 4800]m (5--60 minutes), accessibility thresholds [200, 400, 800, 1200, 1600]m, morphology aggregation thresholds [100, 200]m.
 
-\subsection{Potential Applications}
+\subsection{Data Quality Considerations}
 
-SOAR's standardized multi-scale metrics enable diverse research applications across urban planning, geography, and data science. We present ten illustrative examples demonstrating the breadth of potential issues and questions that can be explored in derivative research based on this dataset:
+SOAR is a derived dataset processed via automated pipeline from open data sources. It is not a curated or validated dataset. Users should assess fitness for purpose before analysis:
+
+\begin{itemize}[nosep]
+  \item \textbf{Point of interest data}: POI completeness varies geographically. Some Central and Western European cities (Germany, Netherlands) may exhibit high saturation coverage, while peripheral regions (parts of Spain, Romania, Bulgaria, southern Italy) may show systematic undersaturation. A companion paper~\todo{cite demonstrators} provides a multi-scale regression approach for assessing POI saturation per city.
+  \item \textbf{Building heights}: Derived from 2012 Copernicus raster data; heights may be outdated in areas with recent construction.
+  \item \textbf{Street networks}: Automated cleaning removes disconnected components and simplifies topology; some local idiosyncrasies or redundancies may persist.
+  \item \textbf{Census interpolation}: Demographics are interpolated from 1~km\textsuperscript{2} grid cells to network nodes; this smooths within-cell variation.
+\end{itemize}
+
+The dataset is suitable for comparative analysis across cities at aggregate scales. Fine-grained analysis (e.g., individual street segments in undersaturated cities) may require additional validation against local data sources.
+
+\subsection{Example Use Cases}
+
+The following illustrate ways researchers might use SOAR's pre-computed metrics. These are not exhaustive, nor are the boundaries between them rigid. A companion paper~\todo{cite demonstrators paper} provides worked examples.
 
 \begin{enumerate}[nosep]
-  \item \textbf{POI Data Quality Assessment}: Use Random Forest regression to predict expected POI counts from population; compute z-scores to identify cities with systematic data gaps; aid filtering of dataset to reliable cities before conducting downstream analyses.
+  \item \textbf{Data quality filtering}: POI completeness varies geographically, with some regions exhibiting systematic undersaturation. This demonstrator applies multi-scale regression of POI counts against population densities to identify cities where crowdsourced data may be too sparse for reliable analysis, allowing researchers to filter or weight observations accordingly.
 
-  \item \textbf{Green Space Accessibility Equity}: Measure distance-weighted access to green blocks and tree canopies; stratify by census demographics within cities to identify environmental justice gaps.
+  \item \textbf{Multi-scale analysis}: Relationships observed within cities may differ from those observed between cities. SOAR enables within-city analysis while city-level aggregations support cross-city comparison, and the two perspectives can yield different---sometimes opposing---conclusions. This demonstrator explores the topic in the context of access to green spaces.
 
-  \item \textbf{Educational Infrastructure Gap Analysis}: Overlay walking catchments to educational facilities; overlay with child population from census grids to flag underserved areas.
+  \item \textbf{Access gap identification}: Distance-to-nearest metrics can reveal locations where distances to amenities or services are greater than average or exceed targeted thresholds. This demonstrator explores where distances to education and transport are greater than typical, helping to highlight areas of potential disadvantage warranting further investigation.
 
-  \item \textbf{ML-Based POI Demand Modeling}: Train models using population density and network centrality to predict restaurant/cafe density; identify undersupplied neighborhoods.
+  \item \textbf{Predictive modelling}: Large-scale datasets from multiple cities can enable training of generalisable models. This demonstrator uses network centrality and population density to predict levels of eating and drinking establishments as well as business and services intensities. The consistent feature set across cities can support transfer learning or pooled models.
 
-  \item \textbf{15-Minute City Benchmarking}: Identify streets with access to all 11 POI categories within 15-minute (1200m) and 20-minute (1600m) walks; rank cities by completeness.
+  \item \textbf{Benchmarking}: Cities can be ranked on standardised metrics enabling comparative assessment against peer cities or policy targets. This demonstrator ranks cities by walkable access to amenities and services and identifies those with the best overall access to all land-use categories.
 
-  \item \textbf{Comparative Urban Density Patterns}: Compare population density and building density morphology distributions across cities.
+  \item \textbf{Typology classification}: Clustering algorithms applied to street-level features can identify recurring neighbourhood types that transcend administrative boundaries, revealing morphological similarities across different urban contexts. This demonstrator applies clustering to identify urban morphological forms.
 
-  \item \textbf{Pan-European Amenity Distance Atlas}: Compute median walking distances to essential services per city; aggregate by country (where sufficient coverage) to reveal North-South and East-West gradients.
-
-  \item \textbf{Mixed-Use Development Scoring}: Combine Hill diversity indices with building morphology metrics to classify neighborhoods along single-use $\leftrightarrow$ mixed-use spectrum.
-
-  \item \textbf{Population Intensification Opportunities}: Identify high-centrality, high-diversity nodes with low current population density as optimal densification targets.
-
-  \item \textbf{Transit Station Gap Analysis}: Map density against existing station locations to identify underserved high-demand areas.
+  \item \textbf{Site selection}: Large-scale datasets can be filtered by multiple criteria to identify candidate locations for new facilities, housing, or infrastructure investments. This demonstrator identifies locations with high centrality, mixed uses, and transport access, but lower population density as potential candidates for development.
 \end{enumerate}
-
-These examples illustrate SOAR's versatility for equity analysis, infrastructure planning, benchmarking, predictive modeling, and comparative geography. Prototype methodological workflows for each application are presented in a companion research article~\todo{cite demonstrators paper}.
 
 %% ============================================================================
 %% ETHICS AND DECLARATION
