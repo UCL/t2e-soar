@@ -37,6 +37,7 @@ import pandas as pd
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 # %%
 """
@@ -200,7 +201,7 @@ else:
     all_cols_to_load = centrality_cols + poi_cols + CENSUS_COLUMNS
     all_nodes = []
 
-    for idx, row in saturated_cities.iterrows():
+    for idx, row in tqdm(saturated_cities.iterrows(), total=len(saturated_cities)):
         bounds_fid = row["bounds_fid"]
         city_label = row.get("label", str(bounds_fid))
 

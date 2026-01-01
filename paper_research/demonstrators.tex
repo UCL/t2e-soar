@@ -7,7 +7,6 @@
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{hyperref}
 \usepackage{siunitx}
 \usepackage{xcolor}
 \usepackage{longtable}
@@ -17,6 +16,7 @@
 \usepackage{placeins}
 \usepackage{enumitem}
 \usepackage{amsmath}
+\usepackage{hyperref}
 
 % For placeholder notes during drafting
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
@@ -32,7 +32,7 @@
 
 \begin{frontmatter}
 
-  \title{Ten Exploratory Questions for the SOAR Urban Data Model: Illustrative Examples to Encourage Broader Urban Data Applications}
+  \title{Seven Exploratory Vignettes for the SOAR Urban Data Model: Illustrative Examples to Encourage Broader Urban Data Applications}
 
   \author[bench]{Gareth Simons\corref{cor1}}
   \ead{gareth.simons@ucl.ac.uk}
@@ -44,7 +44,7 @@
   \address[bench]{University College London, United Kingdom}
 
   \begin{abstract}
-    Large-scale urban datasets are often difficult to assess from outside: understanding what questions they can address requires substantial initial investment. This paper presents exploratory worked examples using the SOAR urban data model---a pan-European dataset covering 699 cities with over 100 metrics per street network node. These are not definitive research findings but illustrative vignettes showing types of analysis the data can support. We examine POI data quality, green space accessibility, educational infrastructure, amenity prediction, 15-minute city benchmarking, and urban morphology clustering. Each vignette provides a reproducible workflow and suggests extensions. The purpose is to lower the barrier to entry for researchers considering whether SOAR suits their needs, not to make definitive claims about urban phenomena.
+    Large-scale urban datasets are often difficult to assess from outside: understanding what questions they can address requires substantial initial investment. This paper presents exploratory worked examples using the SOAR urban data model---a pan-European dataset covering 699 cities with over 100 metrics per street network node. These are not definitive research findings but illustrative vignettes showing types of analysis the data can support. We provide seven example templates demonstrating how workflows might leverage the data to explore data quality filtering, multi-scale analysis, access gap identification, predictive modelling, city benchmarking, classification, and site identification. Each vignette provides a reproducible workflow and suggests extensions. The purpose of these vignettes is to lower the barrier to entry for researchers considering whether SOAR suits their needs, not to make definitive claims about urban phenomena.
   \end{abstract}
 
   \begin{keyword}
@@ -65,9 +65,9 @@
 %% ============================================================================
 \section{Introduction}
 
-Large-scale urban datasets can be difficult to evaluate from the outside. Understanding what data are contained, what questions can be addressed, and how workflows might be structured requires substantial effort before a researcher can determine whether a dataset suits their needs. This paper provides worked examples using the SOAR (Scalable, Open, Automated, and Reproducible) urban data model~\todo{}, illustrating the types of questions the data can support.
+Large-scale urban datasets can be difficult to evaluate from the outside. Understanding what data are contained, what questions can be addressed, and how workflows might be structured requires substantial effort before a researcher can determine whether a dataset suits their needs. This paper provides worked examples using the SOAR (Scalable, Open, Automated, and Reproducible) urban data model~\cite{simons2024soar}, illustrating the types of questions the data can support.
 
-SOAR provides pre-computed metrics for 699 European urban centres, derived from Eurostat boundaries and demographics, Copernicus Urban Atlas land cover, and Overture Maps infrastructure data. The dataset includes over 100 metrics per street network node at multiple spatial scales (400--9,600m): network centrality, land-use accessibility, building morphology, green space proximity, and demographics.
+SOAR provides pre-computed metrics for 699 European urban centres, derived from Eurostat boundaries and demographics, Copernicus Urban Atlas land cover, and Overture Maps infrastructure data. The dataset includes over 100 metrics per street network node at multiple spatial scales (200--4,800m): network centrality, land-use accessibility, building morphology, green space proximity, and demographics.
 
 This paper presents exploratory vignettes---worked examples that combine motivation, methodology, analysis, and interpretation. These are explicitly \textit{not} definitive research findings. Each vignette is a starting point: a demonstration of what the data contain and how they might be used, not an exhaustive treatment of any urban phenomenon. The vignettes are intentionally simple, using standard methods (correlations, Random Forests, clustering) rather than sophisticated causal inference or domain-specific theory. Researchers pursuing rigorous investigations should treat these as templates to adapt, not conclusions to cite. Each vignette includes:
 
@@ -79,25 +79,27 @@ This paper presents exploratory vignettes---worked examples that combine motivat
   \item Possible extensions
 \end{itemize}
 
-The vignettes are sequenced by analytical complexity. Vignette 1 assesses POI data quality and identifies cities with reliable coverage. Subsequent vignettes address equity (green space access), infrastructure gaps (education, transit), benchmarking (15-minute cities), predictive modelling (POI demand, densification potential), and comparative geography (cross-national patterns, urban typologies).
+The seven vignettes cover: data quality filtering (POI saturation assessment), multi-scale analysis (green space access), access gap identification (education, transit), predictive modelling (POI demand), benchmarking (15-minute cities), typology classification (urban morphology), and site selection (development opportunities).
 
-The remainder of this paper is structured as follows: Section~2 reviews related work on urban data applications; Sections~3--12 present the ten vignettes; Section~13 discusses cross-cutting themes and limitations; Section~14 concludes.
+The remainder of this paper is structured as follows: Section~2 reviews related work on urban data applications; Sections~3--9 present the seven vignettes; Section~10 discusses cross-cutting themes and limitations; Section~11 concludes.
 
 %% ============================================================================
 %% RELATED WORK
 %% ============================================================================
 \section{Related Work}
 
-\todo{Brief review of: (1) multi-scale urban datasets (OSMnx, Urban Observatory, etc.); (2) POI quality assessment methods; (3) comparative urban analysis frameworks; (4) walkability and accessibility metrics; (5) urban typology clustering approaches. 2-3 pages.}
+The development of large-scale urban datasets has been a major focus of recent urban science. Notable examples include the acquisition of 27,000 US street networks~\cite{boeing2017osmnx}, the characterisation of 931 UK towns~\cite{simons2021thesis}, and the creation of global feature-rich network datasets for 50 cities~\cite{yap2023global}. These efforts have been supported by the maturation of open-source toolsets for urban morphology and network analysis, such as \texttt{OSMnx}~\cite{boeing2017osmnx}, \texttt{momepy}~\cite{fleischmann2019momepy}, and \texttt{cityseer}~\cite{simons2022cityseer}.
+
+The SOAR data model builds on these foundations by providing pan-European coverage with a consistent set of over 100 metrics per street network node. This enables comparative urban analysis at a continental scale, addressing questions of walkability, accessibility, and urban form across diverse national contexts. The vignettes presented in this paper demonstrate how these data can be applied to common urban research tasks, from data quality assessment to site selection.
 
 %% ============================================================================
-%% VIGNETTE 1: POI DATA QUALITY ASSESSMENT
+%% VIGNETTE 1: DATA QUALITY FILTERING
 %% ============================================================================
-\section{Vignette 1: How Can We Assess POI Data Quality Across Cities?}
+\section{Vignette 1: Data Quality Filtering}
 
 \subsection{Motivation}
 
-Point of interest (POI) datasets derived from crowdsourced platforms like OpenStreetMap exhibit spatially heterogeneous completeness, with systematic underrepresentation in peripheral regions and developing economies. Comparative analyses using raw POI counts risk conflating true urban form differences with data quality artefacts. Before conducting cross-city comparisons, researchers must identify which cities have sufficiently complete POI coverage to support reliable analysis.
+POI completeness varies geographically, with some regions exhibiting systematic undersaturation. This vignette applies multi-scale regression of POI counts against population densities to identify cities where crowdsourced data may be too sparse for reliable analysis, allowing researchers to filter or weight observations accordingly.
 
 \subsection{SOAR Metrics Utilised}
 
@@ -112,7 +114,7 @@ Point of interest (POI) datasets derived from crowdsourced platforms like OpenSt
 We develop a grid-based multi-scale regression approach to assess POI data saturation across cities, comparing observed POI densities against population-based expectations to identify undersaturated areas that may indicate data incompleteness. This method provides a quantitative foundation for evaluating data quality prior to comparative urban analysis.
 
 \subsubsection{Multi-Scale Regression Workflow}
-The saturation assessment workflow (\texttt{paper\_research/code/poi\_saturation\_notebook.py}) operates at the 1~km\textsuperscript{2} census grid level, enabling fine-grained spatial analysis:
+The saturation assessment workflow (\texttt{paper\_research/code/eg1\_data\_quality/}) operates at the 1~km\textsuperscript{2} census grid level, enabling fine-grained spatial analysis:
 
 \begin{enumerate}
   \item \textbf{Grid-level aggregation}: POI counts are computed within each census grid cell. Multi-scale population neighborhoods are calculated at local, intermediate, and large radii to capture hierarchical catchment effects.
@@ -148,33 +150,33 @@ Table~\ref{tab:model_performance} summarises Random Forest model performance by 
   \caption{Random Forest regression performance by POI category. Local, intermediate, and large columns show relative feature importance for each population scale.}
   \label{tab:model_performance}
   \small
-  \input{code/eg1_poi_saturation/outputs/table_model_performance.tex}
+  \input{code/eg1_data_quality/outputs/table_model_performance.tex}
 \end{table}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg1_poi_saturation/outputs/feature_importance.png}
+  \includegraphics[width=0.95\textwidth]{code/eg1_data_quality/outputs/feature_importance.png}
   \caption{Feature importance showing which population scale (local, intermediate, large) best predicts POI distribution for each category.}
   \label{fig:saturation-importance}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg1_poi_saturation/outputs/eda_analysis.png}
+  \includegraphics[width=0.95\textwidth]{code/eg1_data_quality/outputs/eda_analysis.png}
   \caption{Exploratory data analysis. Left: Random Forest model fit (R\textsuperscript{2}) by POI category. Right: distribution of z-scores across grid cells per category.}
   \label{fig:saturation-eda}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg1_poi_saturation/outputs/regression_diagnostics.png}
+  \includegraphics[width=0.95\textwidth]{code/eg1_data_quality/outputs/regression_diagnostics.png}
   \caption{Regression diagnostics: predicted vs.\ observed POI counts (log scale) for each category.}
   \label{fig:saturation-diagnostics}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg1_poi_saturation/outputs/city_quadrant_analysis.png}
+  \includegraphics[width=0.95\textwidth]{code/eg1_data_quality/outputs/city_quadrant_analysis.png}
   \caption{City quadrant analysis. X-axis: mean z-score (negative = undersaturation). Y-axis: standard deviation (within-city variability). Quadrant colours: red = consistently undersaturated; green = consistently saturated; orange = variable undersaturated; blue = variable saturated.}
   \label{fig:saturation-quadrant}
 \end{figure}
@@ -189,16 +191,16 @@ Potential directions: temporal trends in POI completeness; category-specific qua
 
 \subsection{Reproducibility}
 
-Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg1_poi_saturation/}
+Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg1_data_quality/}
 
 %% ============================================================================
-%% VIGNETTE 2: GREEN SPACE ACCESSIBILITY AND DENSITY
+%% VIGNETTE 2: MULTI-SCALE ANALYSIS
 %% ============================================================================
-\section{Vignette 2: Does Urban Density Compromise Green Space Access?}
+\section{Vignette 2: Multi-Scale Analysis}
 
 \subsection{Motivation}
 
-Do denser neighbourhoods have better or worse access to parks and tree canopy? This vignette examines within-city correlations between population density and green space proximity across European cities.
+Relationships observed within cities may differ from those observed between cities. SOAR enables both within-city analysis and city-level aggregations for cross-city comparison, and the two perspectives can yield different---sometimes opposing---conclusions. This vignette explores the topic in the context of access to green spaces, examining within-city correlations between population density and green space proximity.
 
 \subsection{SOAR Metrics Utilised}
 
@@ -214,22 +216,22 @@ For each city with $\geq$100 street network nodes, we compute Spearman rank corr
 
 \subsection{Results}
 
-Analysis of 491 cities across 18.7 million street network nodes reveals a consistent within-city pattern for green blocks alongside contrasting behavior for tree canopy:
+Analysis of 672 cities across 16.6 million street network nodes suggests a consistent within-city pattern for green blocks alongside contrasting behavior for tree canopy:
 
-\textbf{Green space (parks):} 487 cities (99\%) exhibit positive correlations, where denser areas face longer walks to parks. Median distance is 70.7m, with 91.1\% of nodes within a 5-minute walk (400m). The strongest positive correlation (Verviers, Belgium: $\rho=0.76$) exemplifies peripheral park placement, while rare negative outliers like Meiderich/Beeck, Germany ($\rho=-0.06$) and Spijkenisse, Netherlands ($\rho=-0.04$) demonstrate integrated green infrastructure in high-density zones.
+\textbf{Green space (parks):} 666 cities (99\%) exhibit positive correlations, where denser areas face longer walks to parks. Median distance is 93.5m, with 91.0\% of nodes within a 5-minute walk (400m). The strongest positive correlation (Verviers, Belgium: $\rho=0.81$) exemplifies peripheral park placement, while rare negative outliers like Meiderich/Beeck, Germany ($\rho=-0.07$) and P\l{}ock, Poland ($\rho=-0.05$) demonstrate integrated green infrastructure in high-density zones.
 
-\textbf{Tree canopy:} 478 cities (97\%) show negative correlations, indicating that denser neighbourhoods have \textit{better} tree canopy access. Median distance is 76.6m, with 85.9\% within 400m. Strong negative correlations (e.g., Soest, Netherlands: $\rho=-0.69$; Rüsselsheim am Main, Germany: $\rho=-0.62$) suggest street tree programmes concentrated in urban cores, likely reflecting municipal maintenance priorities and sidewalk infrastructure availability.
+\textbf{Tree canopy:} 569 cities (85\%) show negative correlations, indicating that denser neighbourhoods have \textit{better} tree canopy access. Median distance is 72.2m, with 91.2\% within 400m. Strong negative correlations (e.g., Valdemoro, Spain: $\rho=-0.67$; Coslada, Spain: $\rho=-0.60$) suggest street tree programmes concentrated in urban cores, likely reflecting municipal maintenance priorities and sidewalk infrastructure availability.
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg2_green_space/outputs/correlation_vs_density.png}
+  \includegraphics[width=0.95\textwidth]{code/eg2_multiscale/outputs/correlation_vs_density.png}
   \caption{\textbf{Green space accessibility and tree canopy versus population density.} $2 \times 2$ grid comparing distance metrics (top row) and correlation analysis (bottom row) across 491 European cities. Left column: green blocks (parks). Right column: tree canopy. Points colored by Spearman correlation strength (blue=negative, red=positive). Top panels show no systematic relationship between city-level density and mean green distance; bottom panels confirm the absence of cross-city patterns for density-access correlations.}
   \label{fig:greenspace-correlation-density}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg2_green_space/outputs/city_density_correlations.png}
+  \includegraphics[width=0.95\textwidth]{code/eg2_multiscale/outputs/city_density_correlations.png}
   \caption{\textbf{Per-city correlation patterns for green space accessibility.} Diverging bar chart ranking cities by density-green correlation. For green blocks: only 4 cities show negative correlations (dense neighborhoods closer to parks); 487 cities show positive correlations (parks in peripheries). For tree canopy: 478 cities show negative correlations (street trees in urban cores); only 13 show positive correlations.}
   \label{fig:greenspace-city-correlations}
 \end{figure}
@@ -246,123 +248,148 @@ Potential directions: green space quality metrics; temporal analysis of densific
 
 \subsection{Reproducibility}
 
-Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg2_green_space/}
+Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg2_multiscale/}
 
 %% ============================================================================
-%% VIGNETTE 3: EDUCATIONAL INFRASTRUCTURE GAP ANALYSIS
+%% VIGNETTE 3: ACCESS GAP IDENTIFICATION
 %% ============================================================================
 
-\section{Vignette 3: Where Are Educational Infrastructure Gaps Most Pronounced?}
+\section{Vignette 3: Access Gap Identification}
 
 \subsection{Motivation}
 
-Access to educational facilities is a fundamental urban equity issue, directly affecting the daily lives of families and children. The spatial distribution of educational facilities varies widely across European cities. We restrict this analysis to cities with \texttt{Consistently Saturated} education POI coverage (see Question~1).
+Distance-to-nearest metrics can reveal locations where distances to amenities or services are greater than average or exceed targeted thresholds. This vignette explores where distances to education and transport are greater than typical, helping to highlight areas of potential disadvantage warranting further investigation.
 
 \subsection{SOAR Metrics Utilised}
 \begin{itemize}[nosep]
-  \item \texttt{cc\_education\_nearest\_max\_1600}: Network distance to nearest education POI
-  \item \texttt{cc\_education\_1600\_wt}: Weighted count of education POIs within 1,600m
-  \item Census-derived population (per-node denominators)
+  \item \texttt{cc\_education\_nearest\_max\_1600}: Network distance to nearest education POI (m)
+  \item \texttt{cc\_transportation\_nearest\_max\_1600}: Network distance to nearest transport stop (m)
+  \item \texttt{cc\_beta\_800}: Local network centrality (demand proxy)
+  \item \texttt{density}: Population density (demand proxy)
 \end{itemize}
 
 \subsection{Methodology}
 
-For each city, we compute mean and median network distances to the nearest school, along with the proportion of nodes within 400m and 800m walking distance. To capture spatial equity, we calculate the P75/P25 ratio (comparing the 75th and 25th percentiles) and the percentage of nodes with access worse than twice the city mean. Analysis is restricted to cities with stable POI coverage (as identified in Question~1), ensuring that results reflect genuine service gaps rather than data artefacts.
+We conduct two complementary analyses:
+
+\textbf{Education access:} For cities with \texttt{Consistently Saturated} education POI coverage (from Vignette~1), we compute mean and median network distances to the nearest school, along with the proportion of nodes within 400m and 800m walking distance. To capture spatial equity, we calculate the P75/P25 ratio and the percentage of nodes with access worse than twice the city mean.
+
+\textbf{Transport gaps:} For cities with reliable transport POI coverage, we identify locations where high demand (based on network centrality and population density) coincides with poor transport supply (long distances to nearest stop). Gap areas are classified using percentile thresholds: high-demand nodes (top 30\%) with low transport supply (bottom 30\%) are flagged as gap areas; those with critically low supply (bottom 15\%) are flagged as critical gaps.
 
 \subsection{Results}
 
-\textbf{Access to education is a tale of two Europes.} In cities like Küsnacht (CH) and Płock (PL), over 65\% of nodes are within a 5-minute walk of a school, and mean access distances are under 400m. By contrast, in cities like Como (IT) and Iserlohn (DE), mean distances exceed 600m and fewer than 40\% of nodes are within 400m. Table~\ref{tab:edu-best-worst} highlights the top and bottom performers.
+\textbf{Education access varies substantially across Europe.} Cities like K\"usnacht (CH) and P\l{}ock (PL) have over 65\% of nodes within a 5-minute walk of a school, while cities like Como (IT) and Iserlohn (DE) have mean distances exceeding 600m. Table~\ref{tab:edu-access} highlights the top and bottom performers.
 
 \begin{table}[htbp]
   \centering
-  \caption{Best and worst access to education (mean distance and \% within 400m).}
-  \label{tab:edu-best-worst}
-  \input{code/eg3_education/outputs/table_access.tex}
+  \caption{Education access: top and bottom cities by mean distance and \% within 400m.}
+  \label{tab:edu-access}
+  \input{code/eg3_access_gaps/outputs/table_access.tex}
 \end{table}
 
-\textbf{Equity is not guaranteed by abundance.} Even in cities with good average access, pockets of disadvantage persist. The P75/P25 ratio ranges from 2.4 (Nieuwegein, NL) to over 6 (Xánthi, GR), and in the least equitable cities, nearly one in five nodes is severely underserved (Table~\ref{tab:edu-equity}).
+\textbf{Equity is not guaranteed by abundance.} Even in cities with good average access, pockets of disadvantage persist. The P75/P25 ratio ranges from approximately 2.4 to over 6, and in the least equitable cities, a substantial fraction of nodes are severely underserved (Table~\ref{tab:edu-equity}).
 
 \begin{table}[htbp]
   \centering
-  \caption{Most and least equitable cities by P75/P25 ratio and \% severely underserved.}
+  \caption{Most and least equitable cities by P75/P25 ratio.}
   \label{tab:edu-equity}
-  \input{code/eg3_education/outputs/table_equity.tex}
+  \input{code/eg3_access_gaps/outputs/table_equity.tex}
 \end{table}
 
 \subsection{Discussion}
 
-Educational access varies dramatically across Europe. The P75/P25 ratio distinguishes cities with equitable distribution from those with concentrated provision. High-performing cities (Venezia, Almere) combine compact form with distributed school placement. Underperforming cities often exhibit suburban sprawl or consolidated school networks. Equity metrics reveal that average access can mask substantial within-city disparities.
+Educational access varies substantially across Europe, with mean distances ranging from approximately 330m to over 640m across the analysed cities. The P75/P25 ratio---ranging from approximately 2.4 to over 6---distinguishes cities with equitable distribution from those with concentrated provision. Notably, cities with good average access may still have substantial pockets of disadvantage: even well-performing cities show 8--20\% of nodes classified as severely underserved. This highlights why average access metrics can mask substantial within-city disparities.
+
+The methodology outlined for transport gap analysis demonstrates how demand-supply mismatches can be identified by combining centrality (as a proxy for activity potential) with accessibility metrics. Locations where high network centrality and population density coincide with poor transport access represent candidates for further investigation. These are descriptive findings that could inform targeted infrastructure planning, not causal claims about infrastructure adequacy.
 
 \subsection{Extensions}
 
-Potential directions: school capacity and enrolment data; socioeconomic correlates; temporal trend analysis; case studies of high-performing cities; school location scenario modelling.
+Potential directions: school capacity and enrolment data; socioeconomic correlates of underserved areas; scenario modelling for new transport stops; temporal trend analysis; case studies of identified gap areas; validation against actual travel behaviour.
 
 \subsection{Reproducibility}
 
-Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg3_education/}
+Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg3_access_gaps/}
 
 %% ============================================================================
-%% VIGNETTE 4: ML-BASED POI DEMAND MODELING
+%% VIGNETTE 4: PREDICTIVE MODELLING
 %% ============================================================================
-\section{Vignette 4: Can We Predict Amenities using Network Centrality and Census Data?}
+\section{Vignette 4: Predictive Modelling}
 
 \subsection{Motivation}
 
-Can network centrality and census demographics predict where amenities locate? This vignette trains regression models to predict POI counts from structural features, testing how well commercial location correlates with network accessibility across different cities.
+Large-scale datasets from multiple cities can enable training of generalisable models. This vignette uses network centrality and population density to predict levels of eating and drinking establishments as well as business and services intensities. The consistent feature set across cities can support transfer learning or pooled models.
 
 \subsection{SOAR Metrics Utilised}
 
 \begin{itemize}[nosep]
-  \item \textbf{Network centrality}: Closeness and betweenness centrality at 400m, 800m, 1,200m, 1,600m, 4,800m, and 9,600m radii
+  \item \textbf{Network centrality}: Closeness centrality at 400m, 800m, 1,200m, 1,600m, and 4,800m radii
   \item \textbf{POI counts}: Eat \& drink establishments (400m); Business \& services establishments (400m)
   \item \textbf{Census variables}: Population density, age structure (under 15, 15--64, 65+), and employment ratio (interpolated from Eurostat 1km grid)
-  \item \textbf{Saturation classification}: From Question~1 (cities classified as \texttt{Consistently Saturated})
+  \item \textbf{Saturation classification}: From Vignette~1 (cities classified as \texttt{Consistently Saturated})
 \end{itemize}
 
 \subsection{Methodology}
 
-We develop an Extra Trees regression approach to predict node-level POI counts based on multi-scale network centrality and census demographics. Analysis is restricted to cities with \texttt{Consistently Saturated} POI coverage for both eat \& drink and business \& services categories (as identified in Question~1), yielding 21 cities and 999,180 street network nodes.
+We develop an Extra Trees regression approach to predict node-level POI counts based on multi-scale network centrality and census demographics. Analysis is restricted to cities with \texttt{Consistently Saturated} POI coverage for both eat \& drink and business \& services categories (as identified in Vignette~1), yielding 27 cities and 694,527 street network nodes.
 
 \subsubsection{Model Training Workflow}
 
-The workflow (\texttt{paper\_research/code/eg4\_amenity\_prediction/}) operates at the street network node level:
+The workflow (\texttt{paper\_research/code/eg4\_prediction/}) operates at the street network node level:
 
 \begin{enumerate}
-  \item \textbf{Data preparation}: Extract network centrality metrics at six spatial scales (400--9,600m) and POI counts for eat \& drink and business \& services categories. Filter to cities with consistent saturation to avoid training on incomplete data.
-  \item \textbf{Feature engineering}: Combine 12 centrality features (closeness and betweenness at 6 scales) with 5 census features (density, age groups, employment). Log-transform all features and targets: $\log(x + 1)$.
+  \item \textbf{Data preparation}: Extract closeness centrality metrics at five spatial scales (400--4,800m) and POI counts for eat \& drink and business \& services categories. Filter to cities with consistent saturation to avoid training on incomplete data.
+  \item \textbf{Feature engineering}: Combine 5 centrality features with 5 census features (density, age groups, employment). Log-transform all features and targets: $\log(x + 1)$.
   \item \textbf{Train-test split}: Randomly split nodes into 90\% training and 10\% testing sets, stratified by city to ensure geographic representation.
-  \item \textbf{Extra Trees training}: Fit separate models for eat \& drink and business \& services. Hyperparameters: 100 estimators, maximum depth of 20, minimum samples per leaf of 50.
+  \item \textbf{Extra Trees training}: Fit separate models for eat \& drink and business \& services. Hyperparameters: 100 estimators, maximum depth of 20.
   \item \textbf{Per-city evaluation}: Compute R\textsuperscript{2}, MAE, and RMSE separately for each city to assess how well the centrality-amenity relationship generalises across urban contexts.
 \end{enumerate}
 
 \subsection{Results}
 
-Extra Trees models achieve strong predictive performance on held-out test data: R\textsuperscript{2} = 0.723 for eat \& drink, R\textsuperscript{2} = 0.724 for business \& services. Per-city R\textsuperscript{2} values reveal how consistently the centrality-amenity relationship holds across different urban forms.
+Extra Trees models achieve strong predictive performance on held-out test data: R\textsuperscript{2} = 0.731 for both eat \& drink and business \& services. Per-city R\textsuperscript{2} values reveal how consistently the centrality-amenity relationship holds across different urban forms.
 
-\textbf{Eat \& drink:} Median city R\textsuperscript{2} = 0.724, with 90.5\% of cities achieving R\textsuperscript{2} $>$ 0.5. Italian cities dominate the best-predicted list (Table~\ref{tab:amenity-best-eat}), suggesting that network structure strongly determines hospitality location in these contexts. Gallarate (R\textsuperscript{2} = 0.35) and Heerlen (R\textsuperscript{2} = 0.45) show poorest fit, potentially indicating amenity distributions driven by factors beyond network accessibility.
+\textbf{Eat \& drink:} Median city R\textsuperscript{2} = 0.709, with 96.3\% of cities achieving R\textsuperscript{2} $>$ 0.5. Italian and Spanish cities dominate the best-predicted list (Table~\ref{tab:amenity-best-eat}), suggesting that network structure strongly determines hospitality location in these contexts. Heerlen (R\textsuperscript{2} = 0.44) shows poorest fit, potentially indicating amenity distributions driven by factors beyond network accessibility.
 
-\textbf{Business \& services:} Median city R\textsuperscript{2} = 0.693, with 95.2\% of cities exceeding R\textsuperscript{2} $>$ 0.5. The pattern mirrors eat \& drink, with Italian cities showing strongest network-amenity alignment (Table~\ref{tab:amenity-best-business}).
+\textbf{Business \& services:} Median city R\textsuperscript{2} = 0.721, with 100\% of cities exceeding R\textsuperscript{2} $>$ 0.5. The pattern mirrors eat \& drink, with Italian cities showing strongest network-amenity alignment (Table~\ref{tab:amenity-best-business}).
 
-\input{code/eg4_amenity_prediction/outputs/table_Eat_and_Drink_400m_cities.tex}
+\begin{table}[htbp]
+  \centering
+  \caption{Top 10 cities by R\textsuperscript{2} for Eat \& Drink (400m).}
+  \label{tab:amenity-best-eat}
+  \small
+  \input{code/eg4_prediction/outputs/table_Eat_and_Drink_400m_cities.tex}
+\end{table}
 
-\input{code/eg4_amenity_prediction/outputs/table_Business_and_Services_400m_cities.tex}
+\begin{table}[htbp]
+  \centering
+  \caption{Top 10 cities by R\textsuperscript{2} for Business \& Services (400m).}
+  \label{tab:amenity-best-business}
+  \small
+  \input{code/eg4_prediction/outputs/table_Business_and_Services_400m_cities.tex}
+\end{table}
 
 \textbf{Feature importance} reveals that intermediate-scale closeness centrality (1,200--1,600m) dominates predictions for both categories (Table~\ref{tab:amenity-importance}), consistent with pedestrian catchment theory---amenities locate where they can serve walkable neighbourhoods rather than immediate adjacency (400m) or regional accessibility (9,600m). Census features contribute substantially, with employment ratio and population density ranking among the top predictors.
 
-\input{code/eg4_amenity_prediction/outputs/table_feature_importance.tex}
+\begin{table}[htbp]
+  \centering
+  \caption{Feature importance for Extra Trees regression models.}
+  \label{tab:amenity-importance}
+  \small
+  \input{code/eg4_prediction/outputs/table_feature_importance.tex}
+\end{table}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.48\textwidth]{code/eg4_amenity_prediction/outputs/Eat & Drink 400m_feature_importance.png}
-  \includegraphics[width=0.48\textwidth]{code/eg4_amenity_prediction/outputs/Business & Services 400m_feature_importance.png}
+  \includegraphics[width=0.48\textwidth]{code/eg4_prediction/outputs/Eat & Drink 400m_feature_importance.png}
+  \includegraphics[width=0.48\textwidth]{code/eg4_prediction/outputs/Business & Services 400m_feature_importance.png}
   \caption{\textbf{Feature importance for amenity prediction models.} Left: Eat \& drink. Right: Business \& services. Intermediate-scale closeness centrality (1,200--1,600m) dominates both models, consistent with pedestrian catchment theory.}
   \label{fig:amenity-importance}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.48\textwidth]{code/eg4_amenity_prediction/outputs/Eat & Drink 400m_city_r2_distribution.png}
-  \includegraphics[width=0.48\textwidth]{code/eg4_amenity_prediction/outputs/Business & Services 400m_city_r2_distribution.png}
+  \includegraphics[width=0.48\textwidth]{code/eg4_prediction/outputs/Eat & Drink 400m_city_r2_distribution.png}
+  \includegraphics[width=0.48\textwidth]{code/eg4_prediction/outputs/Business & Services 400m_city_r2_distribution.png}
   \caption{\textbf{Distribution of per-city R\textsuperscript{2} scores.} Left: Eat \& drink. Right: Business \& services. Most cities cluster at high R\textsuperscript{2} values, with a few outliers showing weaker network-amenity relationships.}
   \label{fig:amenity-r2-dist}
 \end{figure}
@@ -379,35 +406,35 @@ Potential directions: additional explanatory variables (land values, zoning); re
 
 \subsection{Reproducibility}
 
-Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg4_amenity_prediction/}
+Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg4_prediction/}
 
 %% ============================================================================
-%% VIGNETTE 5: 15-MINUTE CITY BENCHMARKING
+%% VIGNETTE 5: BENCHMARKING
 %% ============================================================================
-\section{Vignette 5: Which Cities Best Approximate the 15-Minute City Ideal?}
+\section{Vignette 5: Benchmarking}
 
 \subsection{Motivation}
 
-The ``15-minute city'' concept proposes that residents should access essential services within a 15-minute walk. This vignette operationalises the concept using SOAR's pre-computed POI distances, computing what proportion of street network locations have access to all 10 POI categories within 1,200m.
+Cities can be ranked on standardised metrics enabling comparative assessment against peer cities or policy targets. This vignette ranks cities by walkable access to amenities and services and identifies those with best overall access to all land-use categories, operationalising the ``15-minute city'' concept using SOAR's pre-computed POI distances.
 
 \subsection{SOAR Metrics Utilised}
 
 \begin{itemize}[nosep]
   \item \textbf{POI network distances}: \texttt{cc\_\{category\}\_nearest\_max\_1600} for 10 essential categories
   \item \textbf{POI categories assessed}: Active life, arts \& entertainment, attractions \& activities, business \& services, eat \& drink, education, health \& medical, public services, religious, retail (accommodation excluded as non-essential for daily access)
-  \item \textbf{Saturation classification}: From Question~1 (cities with \texttt{Consistently Saturated} or \texttt{Variable Saturated} combined POI coverage)
+  \item \textbf{Saturation classification}: From Vignette~1 (cities with \texttt{Consistently Saturated} or \texttt{Variable Saturated} combined POI coverage)
 \end{itemize}
 
 \subsection{Methodology}
 
-We develop a node-level completeness scoring approach to benchmark cities against the 15-minute city ideal. Analysis is restricted to cities with reliable POI coverage across multiple categories (as identified in Question~1's between-category quadrant classification).
+We develop a node-level completeness scoring approach to benchmark cities against the 15-minute city ideal. Analysis is restricted to cities with reliable POI coverage across multiple categories (as identified in Vignette~1's between-category quadrant classification).
 
 \subsubsection{Completeness Scoring Workflow}
 
-The workflow (\texttt{paper\_research/code/eg5\_poi\_minutes/}) operates at the street network node level:
+The workflow (\texttt{paper\_research/code/eg5\_benchmarking/}) operates at the street network node level:
 
 \begin{enumerate}
-  \item \textbf{City filtering}: Select cities classified as \texttt{Consistently Saturated} or \texttt{Variable Saturated} in the between-category quadrant analysis (Question~1), ensuring reliable POI data across multiple service types.
+  \item \textbf{City filtering}: Select cities classified as \texttt{Consistently Saturated} or \texttt{Variable Saturated} in the between-category quadrant analysis (Vignette~1), ensuring reliable POI data across multiple service types.
   \item \textbf{Distance extraction}: For each node, extract network distances to nearest POI in each of 10 categories using SOAR's pre-computed \texttt{cc\_\{category\}\_nearest\_max\_1600} metrics.
   \item \textbf{Per-node completeness}: Count how many of the 10 categories are accessible within 1,200m (approximately 15 minutes at 80m/min walking speed). A node with ``full access'' reaches all 10 categories within this threshold.
   \item \textbf{City-level aggregation}: Compute the percentage of nodes with full access (all 10 categories within 1,200m), mean completeness score (average number of accessible categories divided by 10), and per-category access rates.
@@ -420,63 +447,97 @@ The 1,200m threshold operationalises a 15-minute walk assuming approximately 80m
 
 \subsection{Results}
 
-Analysis of cities with reliable POI coverage reveals substantial variation in 15-minute city completeness across European urban centres.
+Analysis of cities with reliable POI coverage suggests substantial variation in 15-minute city completeness across European urban centres.
 
-\textbf{Few cities achieve true 15-minute completeness.} The median city has only a modest percentage of nodes with access to all 10 POI categories within 1,200m. This finding underscores that the 15-minute city ideal remains aspirational for most European cities---even those with good overall accessibility may lack universal coverage across all service types.
+\textbf{Most cities achieve substantial 15-minute completeness, though universal coverage remains elusive.} The median city has 78.3\% of nodes with access to all 10 POI categories within 1,200m, with a range from 48.5\% to 94.5\%. While this suggests many European cities have strong walkable infrastructure, the gap between median and best performers indicates room for improvement---even cities with good overall accessibility may have neighbourhoods lacking coverage across all service types.
 
-\textbf{Top-performing cities} demonstrate that compact urban form and mixed-use development can deliver near-complete 15-minute access. Table~\ref{tab:15min-best} shows cities with highest percentages of fully-accessible nodes. These cities share characteristics of pedestrian-oriented development, fine-grained land-use mixing, and comprehensive local service provision.
+\textbf{Top-performing cities in this analysis} demonstrate that compact urban form and mixed-use development can deliver near-complete 15-minute access. Table~\ref{tab:15min-best} shows cities with highest percentages of fully-accessible nodes. These cities share characteristics of pedestrian-oriented development, fine-grained land-use mixing, and comprehensive local service provision.
 
-\input{code/eg5_poi_minutes/outputs/table_top_cities.tex}
+\begin{table}[htbp]
+  \centering
+  \caption{Top 10 cities by 15-minute city completeness.}
+  \label{tab:15min-best}
+  \small
+  \input{code/eg5_benchmarking/outputs/table_top_cities.tex}
+\end{table}
 
-\textbf{Bottom-performing cities} exhibit either sprawling urban form, car-oriented development patterns, or systematic gaps in specific service categories. Table~\ref{tab:15min-worst} highlights cities with lowest completeness scores.
+\textbf{Bottom-performing cities in this analysis} exhibit either sprawling urban form, car-oriented development patterns, or systematic gaps in specific service categories. Table~\ref{tab:15min-worst} highlights cities with lowest completeness scores.
 
-\input{code/eg5_poi_minutes/outputs/table_bottom_cities.tex}
+\begin{table}[htbp]
+  \centering
+  \caption{Bottom 10 cities by 15-minute city completeness.}
+  \label{tab:15min-worst}
+  \small
+  \input{code/eg5_benchmarking/outputs/table_bottom_cities.tex}
+\end{table}
+
+\textbf{National differences} are also evident. Table~\ref{tab:15min-country} aggregates city scores by country, showing that Southern European countries (Spain, Romania, Croatia, Italy) tend to have higher proportions of fully accessible nodes compared to Nordic countries (Sweden, Denmark, Norway, Finland), likely reflecting differences in urban density and zoning traditions.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Country rankings by mean 15-minute city completeness score.}
+  \label{tab:15min-country}
+  \small
+  \input{code/eg5_benchmarking/outputs/table_country_rankings.tex}
+\end{table}
 
 \textbf{Bottleneck categories} reveal which services most frequently limit full 15-minute access. Table~\ref{tab:15min-bottlenecks} ranks POI categories by mean access rate, identifying systematic gaps that planners could target for intervention.
 
-\input{code/eg5_poi_minutes/outputs/table_bottlenecks.tex}
+\begin{table}[htbp]
+  \centering
+  \caption{POI categories ranked by mean 15-minute access rate (bottleneck analysis).}
+  \label{tab:15min-bottlenecks}
+  \small
+  \input{code/eg5_benchmarking/outputs/table_bottlenecks.tex}
+\end{table}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg5_poi_minutes/outputs/15min_city_ranking.png}
+  \includegraphics[width=0.95\textwidth]{code/eg5_benchmarking/outputs/15min_city_ranking.png}
   \caption{\textbf{15-minute city completeness ranking.} Left: Top 20 cities with highest proportion of nodes achieving full 15-minute access. Right: Bottom 20 cities. Colour intensity reflects completeness score.}
   \label{fig:15min-ranking}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.7\textwidth]{code/eg5_poi_minutes/outputs/completeness_distribution.png}
+  \includegraphics[width=0.7\textwidth]{code/eg5_benchmarking/outputs/completeness_distribution.png}
   \caption{\textbf{Distribution of 15-minute city scores across European cities.} Histogram showing the percentage of nodes with full access to all 10 POI categories. Red dashed line indicates median.}
   \label{fig:15min-distribution}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg5_poi_minutes/outputs/category_access_heatmap.png}
+  \includegraphics[width=0.95\textwidth]{code/eg5_benchmarking/outputs/category_access_heatmap.png}
   \caption{\textbf{Per-category access rates for top and bottom cities.} Heatmap showing which POI categories are most/least accessible within 1,200m. Columns represent categories; rows represent cities. Darker colours indicate lower access rates, revealing category-specific bottlenecks.}
   \label{fig:15min-heatmap}
 \end{figure}
 
 \subsection{Discussion}
 
-Few cities have high proportions of nodes with access to all 10 categories. Full access is typically limited by one or two categories rather than general deficits. This metric is sensitive to category definitions and distance thresholds; different operationalisations would yield different rankings.
+The analysis reveals that full 15-minute access is typically limited by one or two categories rather than general deficits across all services. Religious facilities (87.4\% mean access) and arts \& entertainment venues (92.5\%) consistently emerge as bottleneck categories, while business \& services (99.9\%) and retail (99.5\%) achieve near-universal coverage. This pattern suggests that commercial activities locate to maximise accessibility, while specialised cultural and religious facilities serve larger catchments.
+
+Top-performing cities (Venezia at 94.5\%, Bahía de Cádiz at 93.5\%) share characteristics of compact historic cores with fine-grained land-use mixing. Italian cities dominate the top rankings, appearing 7 times in the top 10. Bottom performers tend to be smaller cities or suburban agglomerations where dispersed development patterns limit walkable service provision.
+
+National patterns are evident: Southern European countries (Italy, Spain, Croatia) show higher median completeness than Nordic countries (Sweden, Denmark, Finland), likely reflecting historical urban density, zoning traditions, and car-oriented versus pedestrian-oriented development. However, these patterns should be interpreted cautiously---POI data completeness (Vignette~1) may also vary systematically by region.
+
+This metric is sensitive to category definitions and distance thresholds; different operationalisations would yield different rankings. The 1,200m threshold operationalises one interpretation of ``15-minute city,'' but actual travel times depend on terrain, pedestrian infrastructure quality, and individual mobility.
 
 \subsection{Extensions}
 
-Potential directions: category weighting by use frequency; actual routing travel times; opening hours analysis; cycling vs walking comparisons; socioeconomic correlates; scenario modelling.
+Potential directions: category weighting by use frequency or essentiality; actual routing travel times accounting for pedestrian infrastructure; opening hours analysis to capture temporal accessibility; cycling vs walking comparisons; socioeconomic correlates of access gaps; scenario modelling for targeted infrastructure investment.
 
 \subsection{Reproducibility}
 
-Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg5_poi_minutes/}
+Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg5_benchmarking/}
 
 %% ============================================================================
-%% VIGNETTE 6: COMPARATIVE URBAN MORPHOLOGY PATTERNS
+%% VIGNETTE 6: TYPOLOGY CLASSIFICATION
 %% ============================================================================
-\section{Vignette 6: How Do Morphology Patterns Vary Across European Cities?}
+\section{Vignette 6: Typology Classification}
 
 \subsection{Motivation}
 
-Do European cities share common morphological patterns, or does each develop unique forms? This vignette identifies recurring neighbourhood types via clustering, then characterises cities by their mix of types.
+Clustering algorithms applied to street-level features can identify recurring neighbourhood types that transcend administrative boundaries, revealing morphological similarities across different urban contexts. This vignette applies clustering to identify urban morphological forms and characterises cities by their mix of types.
 
 \subsection{SOAR Metrics Utilised}
 
@@ -502,7 +563,7 @@ We develop a node-level clustering approach that identifies morphological neighb
 
 \subsubsection{Clustering Workflow}
 
-The workflow (\texttt{paper\_research/code/eg6\_morphology/}) operates at the street network node level:
+The workflow (\texttt{paper\_research/code/eg6\_typology/}) operates at the street network node level:
 
 \begin{enumerate}
   \item \textbf{Data preparation}: Extract 8 morphology features at 200m scale for all nodes. Apply log transformation to normalise skewed distributions, then standardise (z-score) across all nodes.
@@ -520,36 +581,44 @@ The 8 features capture complementary dimensions of urban form: density metrics (
 
 Analysis of street network nodes across European cities identifies 8 distinct morphological neighbourhood types with interpretable characteristics.
 
-\textbf{Cluster profiles reveal distinct urban fabrics.} Figure~\ref{fig:morph-radar} shows standardised feature profiles for each cluster. Cluster~7 represents dense, tall, complex urban cores with high building counts and shared walls. Cluster~1 represents sparse, low-rise peripheral development with large building footprints but low coverage. Intermediate clusters capture suburban forms, industrial areas, and historic centres with varying combinations of density, height, and complexity.
+\textbf{The resulting cluster profiles suggest distinct urban fabrics.} Figure~\ref{fig:morph-radar} shows standardised feature profiles for each cluster, and Table~\ref{tab:morph-clusters} summarises their key characteristics. Cluster~7 represents dense, tall, complex urban cores with high building counts and shared walls. Cluster~1 represents sparse, low-rise peripheral development with large building footprints but low coverage. Intermediate clusters capture suburban forms, industrial areas, and historic centres with varying combinations of density, height, and complexity.
 
-\textbf{External metrics validate cluster interpretations.} Ranking clusters by population density, street network density, and land-use diversity (Figure~\ref{fig:morph-rankings}) confirms that morphological clustering captures functional urban differences. High-density clusters (Cluster~7) exhibit 5--10$\times$ higher population density than low-density clusters (Cluster~1), with corresponding differences in street network connectivity and mixed-use intensity.
+\begin{table}[htbp]
+  \centering
+  \caption{Characteristics of the 8 morphological clusters. Pop Density in persons/km\textsuperscript{2}, Network Density in nodes/km\textsuperscript{2}.}
+  \label{tab:morph-clusters}
+  \small
+  \input{code/eg6_typology/outputs/table_cluster_characteristics.tex}
+\end{table}
+
+\textbf{External metrics appear to support cluster interpretations.} Ranking clusters by population density, street network density, and land-use diversity (Figure~\ref{fig:morph-rankings}) confirms that morphological clustering captures functional urban differences. High-density clusters (Cluster~7) exhibit 5--10$\times$ higher population density than low-density clusters (Cluster~1), with corresponding differences in street network connectivity and mixed-use intensity.
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg6_morphology/outputs/cluster_radar_profiles.png}
+  \includegraphics[width=0.95\textwidth]{code/eg6_typology/outputs/cluster_radar_profiles.png}
   \caption{\textbf{Morphological cluster profiles.} Radar plots showing standardised feature values for each of 8 clusters. Axes represent: Building Count, Block Count, Mean Height, Height Variation, Building Area, Fractal Dimension, Block Coverage, and Shared Walls. Values are z-scores (0 = mean across all clusters).}
   \label{fig:morph-radar}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg6_morphology/outputs/cluster_external_rankings.png}
+  \includegraphics[width=0.95\textwidth]{code/eg6_typology/outputs/cluster_external_rankings.png}
   \caption{\textbf{Clusters ranked by external characteristics.} Horizontal bar charts ranking the 8 morphological clusters by mean population density (left), street network density (centre), and land-use diversity (right). Cluster~7 consistently ranks highest across all three metrics.}
   \label{fig:morph-rankings}
 \end{figure}
 
-\textbf{National patterns emerge in city compositions.} When cities are plotted by their proportions in contrasting cluster types (Figure~\ref{fig:morph-cities}), clear geographic patterns appear. Italian cities cluster toward high proportions in dense, mixed-use morphological types. Dutch and German cities show more balanced distributions. Eastern European cities (Romania, Poland) tend toward higher proportions in lower-density suburban types, potentially reflecting post-socialist development patterns.
+\textbf{National patterns appear to emerge in city compositions.} When cities are plotted by their proportions in contrasting cluster types (Figure~\ref{fig:morph-cities}), clear geographic patterns appear. Italian cities cluster toward high proportions in dense, mixed-use morphological types. Dutch and German cities show more balanced distributions. Eastern European cities (Romania, Poland) tend toward higher proportions in lower-density suburban types, potentially reflecting post-socialist development patterns.
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{code/eg6_morphology/outputs/city_profiles_clusters.png}
+  \includegraphics[width=0.95\textwidth]{code/eg6_typology/outputs/city_profiles_clusters.png}
   \caption{\textbf{City morphology profiles by contrasting cluster proportions.} Left: Cities plotted by percentage of nodes in highest-density vs.\ lowest-density clusters. Right: Cities plotted by percentage in highest vs.\ lowest mixed-use clusters. Points coloured by country. Italian cities (green) cluster toward dense/mixed forms; Eastern European cities spread toward lower-density types.}
   \label{fig:morph-cities}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.7\textwidth]{code/eg6_morphology/outputs/country_composition_stacked.png}
+  \includegraphics[width=0.7\textwidth]{code/eg6_typology/outputs/country_composition_stacked.png}
   \caption{\textbf{Country morphology compositions.} Stacked bar chart showing the proportion of nodes in each morphological cluster by country. Countries are ordered by hierarchical clustering of their composition vectors, grouping nations with similar urban form distributions.}
   \label{fig:morph-country-stacked}
 \end{figure}
@@ -558,15 +627,111 @@ Analysis of street network nodes across European cities identifies 8 distinct mo
 
 \subsection{Discussion}
 
-European cities share common neighbourhood building blocks despite diverse planning traditions. The 8 clusters represent recognisable urban fabrics that recur across national contexts, but the mix varies systematically by country. Most cities contain multiple morphological types---this heterogeneity would be invisible in city-level aggregates but is captured by the compositional approach. Country clustering suggests shared planning histories and development economics create detectable signatures in aggregate urban form.
+The analysis suggests that European cities may share common neighbourhood building blocks despite diverse planning traditions. The 8 clusters span a spectrum from sparse peripheral development (Cluster~1: lowest density at 5,405 persons/km\textsuperscript{2}) to dense urban cores (Cluster~8: highest density at 17,180 persons/km\textsuperscript{2}). Notably, the most common cluster type (Cluster~7, comprising 36\% of sampled nodes) represents moderate-density development with relatively low mixed-use scores, suggesting this suburban-to-urban transitional form dominates European urban fabric.
+
+The external characterisation reveals that morphological clustering captures meaningful functional differences: population density varies by a factor of 4 across clusters, network density by 1.6, and land-use diversity (Hill $q=0$) by 3. The clusters represent recognisable urban fabrics that recur across national contexts, but the mix varies systematically by country---Greek cities show high concentrations in Cluster~2 (37\%), while Dutch and Irish cities concentrate in Cluster~6 (60\% and 55\% respectively).
+
+Most cities contain multiple morphological types---this heterogeneity would be invisible in city-level aggregates but is captured by the compositional approach. Country clustering suggests that shared planning histories, housing policies, and development economics leave detectable signatures in aggregate urban form. The distinction between Nordic countries (high Cluster~7 proportions), Mediterranean countries (more varied distributions), and Western European countries (Cluster~6 dominant) aligns with known differences in planning traditions.
 
 \subsection{Extensions}
 
-Potential directions: temporal evolution of compositions; correlations with urban outcomes; transitional neighbourhood identification; morphological vs functional similarity; satellite imagery validation.
+Potential directions: temporal evolution of compositions using historical imagery; correlations with urban outcomes (energy use, health, economic activity); transitional neighbourhood identification at cluster boundaries; morphological vs functional similarity comparisons; satellite imagery validation of cluster assignments.
 
 \subsection{Reproducibility}
 
-Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg6_morphology/}
+Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg6_typology/}
+
+%% ============================================================================
+%% VIGNETTE 7: SITE SELECTION
+%% ============================================================================
+\section{Vignette 7: Site Selection}
+
+\subsection{Motivation}
+
+Large-scale datasets can be filtered by multiple criteria to identify candidate locations for new facilities, housing, or infrastructure investments. This vignette identifies locations with high centrality, mixed uses, and transport access, but lower population density as potential candidates for development.
+
+\subsection{SOAR Metrics Utilised}
+
+\begin{itemize}[nosep]
+  \item \textbf{Diversity indices}: Hill numbers ($q=0$, $q=1$, $q=2$) at 400m measuring land-use mix
+  \item \textbf{Network centrality}: \texttt{cc\_beta\_1600} (20-minute catchment)
+  \item \textbf{Transport access}: \texttt{cc\_transportation\_nearest\_max\_1600} (distance to nearest stop)
+  \item \textbf{Population density}: \texttt{density} (persons/km²)
+  \item \textbf{Saturation classification}: From Vignette~1 (cities with \texttt{Consistently Saturated} or \texttt{Variable Saturated} POI coverage)
+\end{itemize}
+
+\subsection{Methodology}
+
+We classify street network nodes into typologies based on combinations of centrality, diversity, transport access, and density. Nodes with high centrality, high diversity, and good transport access but lower population density represent potential development opportunities---locations where urban infrastructure supports intensification but current utilisation is low.
+
+\subsubsection{Classification Workflow}
+
+The workflow (\texttt{paper\_research/code/eg7\_site\_selection/}) operates at the street network node level:
+
+\begin{enumerate}
+  \item \textbf{City filtering}: Select cities with reliable POI coverage (as identified in Vignette~1).
+  \item \textbf{Metric extraction}: For each node, extract diversity indices, centrality, transport distance, and population density.
+  \item \textbf{Threshold classification}: Define high/low thresholds using within-city percentiles (70th percentile for high, 30th for low). Classify nodes as:
+    \begin{itemize}[nosep]
+      \item Mixed-use dense: High diversity and high density
+      \item Mixed-use opportunity: High diversity, high centrality, good transport access, but low density
+      \item Single-use dense: Low diversity but high density
+      \item Peripheral: Low centrality and low diversity
+    \end{itemize}
+  \item \textbf{City profiling}: Compute the percentage of nodes in each typology per city.
+  \item \textbf{Ranking}: Rank cities by proportion of mixed-use nodes and by proportion of opportunity nodes.
+\end{enumerate}
+
+\subsection{Results}
+
+Analysis of cities with reliable POI coverage suggests variation in urban form typologies and development potential.
+
+\textbf{Mixed-use cities} have high proportions of nodes with diverse land-use accessibility, indicating fine-grained mixing of residential, commercial, and service functions. Table~\ref{tab:mixed-use-cities} shows cities with highest mixed-use proportions.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Cities with highest proportion of mixed-use nodes.}
+  \label{tab:mixed-use-cities}
+  \input{code/eg7_site_selection/outputs/table_mixed_use_cities.tex}
+\end{table}
+
+\textbf{Opportunity cities} have substantial proportions of nodes that combine high connectivity and diversity with lower current population density, suggesting potential for sustainable densification. Table~\ref{tab:opportunity-cities} highlights cities with highest opportunity proportions.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Cities with highest proportion of development opportunity nodes.}
+  \label{tab:opportunity-cities}
+  \input{code/eg7_site_selection/outputs/table_opportunity_cities.tex}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.48\textwidth]{code/eg7_site_selection/outputs/city_mixed_use_ranking.png}
+  \includegraphics[width=0.48\textwidth]{code/eg7_site_selection/outputs/city_opportunity_ranking.png}
+  \caption{\textbf{City rankings by urban form typology.} Left: Cities ranked by proportion of mixed-use nodes. Right: Cities ranked by proportion of development opportunity nodes (high connectivity and diversity with lower population density).}
+  \label{fig:site-rankings}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\textwidth]{code/eg7_site_selection/outputs/typology_distribution.png}
+  \caption{\textbf{Distribution of urban form typologies across analysed cities.} Histogram showing the proportion of nodes classified into each typology category (mixed-use dense, mixed-use opportunity, single-use dense, peripheral).}
+  \label{fig:typology-distribution}
+\end{figure}
+
+\subsection{Discussion}
+
+The typology classification illustrates how to identify locations where infrastructure (connectivity, land-use mix, transport access) exceeds current utilisation (population density). These are not recommendations for development---such decisions require local planning knowledge, market analysis, and community input---but rather a filtering mechanism to identify areas warranting further investigation.
+
+The threshold-based classification is sensitive to parameter choices; different percentile cutoffs would identify different opportunity areas.
+
+\subsection{Extensions}
+
+Potential directions: additional criteria (land ownership, zoning, building age); scenario modelling for new infrastructure; correlation with property values or vacancy rates; longitudinal analysis of densification patterns; case studies of identified opportunity areas.
+
+\subsection{Reproducibility}
+
+Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/code/eg7_site_selection/}
 
 %% ============================================================================
 %% DISCUSSION
@@ -575,7 +740,7 @@ Code, outputs, and documentation: \url{https://github.com/[repo]/paper_research/
 
 \subsection{Cross-Cutting Themes}
 
-Across all eight questions, several themes emerge: (1) data quality assessment provides a foundation for comparative analysis; (2) multi-scale metrics capture neighbourhood effects at varying radii; (3) node-level granularity identifies within-city inequities missed by coarse zonal aggregations; and (4) reproducible workflows using standardised metrics enable researchers new to spatial network analysis.
+Across all seven vignettes, several themes emerge: (1) data quality assessment provides a foundation for comparative analysis; (2) multi-scale metrics capture neighbourhood effects at varying radii; (3) node-level granularity identifies within-city inequities missed by coarse zonal aggregations; and (4) reproducible workflows using standardised metrics enable researchers new to spatial network analysis.
 
 \subsection{Limitations}
 
@@ -590,7 +755,7 @@ Each question provides sufficient methodological detail to enable replication. R
   \item \textbf{Cross-dataset integration}: Combining SOAR with other data sources (mobility data, economic indicators, policy records) for richer analyses
 \end{itemize}
 
-Additional limitations include: (1) POI data quality variations across regions (addressed in Question~1); (2) temporal constraints (SOAR represents a snapshot); (3) lack of behavioural validation (network distances are proxies for actual travel behaviour); (4) computational requirements; and (5) the inherent limitations of any single dataset in capturing urban complexity.
+Additional limitations include: (1) POI data quality variations across regions (addressed in Vignette~1); (2) temporal constraints (SOAR represents a snapshot); (3) lack of behavioural validation (network distances are proxies for actual travel behaviour); (4) computational requirements; and (5) the inherent limitations of any single dataset in capturing urban complexity.
 
 \subsection{Adapting These Analyses}
 
@@ -610,7 +775,7 @@ Researchers can adapt these analyses by:
 %% ============================================================================
 \section{Conclusion}
 
-This paper presents exploratory worked examples using the SOAR urban data model. These vignettes illustrate the types of analysis the dataset can support---data quality assessment, accessibility comparisons, infrastructure gap identification, predictive modelling, benchmarking, and morphology clustering---without claiming definitive findings on any urban phenomenon.
+This paper presents exploratory worked examples using the SOAR urban data model. These vignettes illustrate the types of analysis the dataset can support---data quality filtering, multi-scale analysis, access gap identification, predictive modelling, benchmarking, typology classification, and site selection---without claiming definitive findings on any urban phenomenon.
 
 The vignettes are starting points. Researchers interested in rigorous investigation of the questions raised may need to:
 \begin{itemize}[nosep]
@@ -627,7 +792,11 @@ The contribution is practical: reproducible code and clear workflows that lower 
 %% ============================================================================
 \section*{Acknowledgements}
 
-\todo{Acknowledge TWIN2EXPAND consortium, funding sources, data providers.}
+This work was supported by the European Union's Horizon programme under the TWIN2EXPAND project. We acknowledge the data providers: Overture Maps Foundation, Copernicus Land Monitoring Service, and Eurostat.
+
+\section*{Funding}
+
+This work was supported by the European Union's Horizon programme under grant agreement No. \todo{no.} (TWIN2EXPAND project).
 
 %% ============================================================================
 %% REFERENCES

@@ -1,6 +1,6 @@
 # Amenity Supply Prediction Using Network Centrality
 
-**Analysis Date:** 2025-12-31
+**Analysis Date:** 2026-01-01
 
 ## Overview
 
@@ -21,7 +21,7 @@ showing how well this relationship generalizes across different urban contexts.
 
 | Category | R² (train) | R² (test) | MAE (test) | RMSE (test) |
 |----------|-----------|----------|-----------|------------|
-| Eat & Drink 400M | 0.746 | 0.731 | 0.496 | 0.642 |
+| Eat & Drink 400M | 0.746 | 0.731 | 0.497 | 0.643 |
 | Business & Services 400M | 0.747 | 0.731 | 0.585 | 0.755 |
 
 ## Per-City Prediction Accuracy
@@ -33,7 +33,7 @@ generalizes across different urban contexts.
 
 - **Median City R²:** 0.709
 - **Mean City R²:** 0.704
-- **R² Range:** 0.439 to 0.857
+- **R² Range:** 0.440 to 0.857
 - **Cities with R² > 0.5:** 26 (96.3%)
 
 #### Top 10 Best Predicted Cities
@@ -41,30 +41,30 @@ generalizes across different urban contexts.
 | City | R² | MAE | RMSE | N Nodes |
 |------|-----|-----|------|---------|
 | Bari | 0.857 | 0.430 | 0.584 | 14,855 |
-| la Safor | 0.822 | 0.423 | 0.601 | 5,435 |
-| Ragusa | 0.819 | 0.374 | 0.511 | 6,693 |
-| la Plana Alta | 0.817 | 0.446 | 0.627 | 10,265 |
-| Alessandria | 0.809 | 0.457 | 0.590 | 5,417 |
+| la Safor | 0.821 | 0.425 | 0.603 | 5,435 |
+| Ragusa | 0.819 | 0.375 | 0.512 | 6,693 |
+| la Plana Alta | 0.816 | 0.448 | 0.629 | 10,265 |
+| Alessandria | 0.809 | 0.458 | 0.590 | 5,417 |
 | Torino | 0.790 | 0.485 | 0.638 | 70,391 |
 | Cremona | 0.780 | 0.431 | 0.565 | 6,138 |
-| Gent | 0.772 | 0.482 | 0.605 | 30,182 |
-| Brescia | 0.764 | 0.434 | 0.564 | 30,497 |
-| Pavia | 0.760 | 0.492 | 0.660 | 7,255 |
+| Gent | 0.771 | 0.483 | 0.606 | 30,182 |
+| Brescia | 0.764 | 0.435 | 0.564 | 30,497 |
+| Pavia | 0.759 | 0.493 | 0.661 | 7,255 |
 
 #### Top 10 Worst Predicted Cities
 
 | City | R² | MAE | RMSE | N Nodes |
 |------|-----|-----|------|---------|
-| Heerlen | 0.439 | 0.488 | 0.612 | 33,426 |
-| Pordenone / Pordenon | 0.582 | 0.499 | 0.657 | 10,823 |
-| Gallarate | 0.585 | 0.479 | 0.606 | 17,720 |
+| Heerlen | 0.440 | 0.488 | 0.611 | 33,426 |
+| Pordenone / Pordenon | 0.585 | 0.497 | 0.655 | 10,823 |
+| Gallarate | 0.586 | 0.479 | 0.606 | 17,720 |
 | Bergamo | 0.590 | 0.496 | 0.638 | 41,833 |
-| Busto Arsizio | 0.617 | 0.482 | 0.616 | 36,203 |
+| Busto Arsizio | 0.618 | 0.482 | 0.616 | 36,203 |
 | Ravenna | 0.626 | 0.524 | 0.664 | 8,922 |
-| Lecco | 0.648 | 0.444 | 0.636 | 7,149 |
-| Modena | 0.651 | 0.534 | 0.701 | 14,782 |
+| Lecco | 0.647 | 0.444 | 0.637 | 7,149 |
+| Modena | 0.650 | 0.535 | 0.702 | 14,782 |
 | Prato | 0.657 | 0.468 | 0.613 | 20,100 |
-| Vigevano | 0.668 | 0.478 | 0.629 | 6,019 |
+| Liberec | 0.668 | 0.458 | 0.599 | 16,157 |
 
 #### R² Distribution
 
@@ -74,37 +74,37 @@ generalizes across different urban contexts.
 
 - **Median City R²:** 0.721
 - **Mean City R²:** 0.721
-- **R² Range:** 0.565 to 0.865
+- **R² Range:** 0.564 to 0.864
 - **Cities with R² > 0.5:** 27 (100.0%)
 
 #### Top 10 Best Predicted Cities
 
 | City | R² | MAE | RMSE | N Nodes |
 |------|-----|-----|------|---------|
-| Ragusa | 0.865 | 0.406 | 0.570 | 6,693 |
-| Cremona | 0.816 | 0.499 | 0.643 | 6,138 |
-| Bari | 0.810 | 0.548 | 0.724 | 14,855 |
+| Ragusa | 0.864 | 0.406 | 0.571 | 6,693 |
+| Cremona | 0.816 | 0.498 | 0.643 | 6,138 |
+| Bari | 0.809 | 0.549 | 0.725 | 14,855 |
 | la Safor | 0.804 | 0.550 | 0.759 | 5,435 |
-| Alessandria | 0.799 | 0.535 | 0.710 | 5,417 |
-| Torino | 0.792 | 0.558 | 0.739 | 70,391 |
-| Pavia | 0.789 | 0.566 | 0.722 | 7,255 |
-| la Plana Alta | 0.777 | 0.585 | 0.801 | 10,265 |
-| Bellizzi | 0.768 | 0.600 | 0.768 | 5,715 |
+| Alessandria | 0.798 | 0.536 | 0.712 | 5,417 |
+| Torino | 0.792 | 0.559 | 0.739 | 70,391 |
+| Pavia | 0.789 | 0.567 | 0.722 | 7,255 |
+| la Plana Alta | 0.779 | 0.583 | 0.798 | 10,265 |
+| Bellizzi | 0.766 | 0.604 | 0.771 | 5,715 |
 | Milano | 0.752 | 0.563 | 0.731 | 227,228 |
 
 #### Top 10 Worst Predicted Cities
 
 | City | R² | MAE | RMSE | N Nodes |
 |------|-----|-----|------|---------|
-| Modena | 0.565 | 0.679 | 0.892 | 14,782 |
-| Heerlen | 0.595 | 0.566 | 0.726 | 33,426 |
-| Pordenone / Pordenon | 0.623 | 0.600 | 0.771 | 10,823 |
-| Prato | 0.636 | 0.639 | 0.797 | 20,100 |
-| Gallarate | 0.661 | 0.565 | 0.704 | 17,720 |
+| Modena | 0.564 | 0.679 | 0.892 | 14,782 |
+| Heerlen | 0.594 | 0.567 | 0.726 | 33,426 |
+| Pordenone / Pordenon | 0.622 | 0.601 | 0.771 | 10,823 |
+| Prato | 0.637 | 0.639 | 0.796 | 20,100 |
+| Gallarate | 0.661 | 0.566 | 0.704 | 17,720 |
 | Bergamo | 0.667 | 0.601 | 0.742 | 41,833 |
-| Treviso | 0.673 | 0.626 | 0.783 | 9,625 |
-| Carpi | 0.676 | 0.580 | 0.741 | 6,372 |
-| Seiersberg-Pirka | 0.677 | 0.600 | 0.756 | 37,891 |
+| Treviso | 0.672 | 0.628 | 0.785 | 9,625 |
+| Carpi | 0.675 | 0.581 | 0.741 | 6,372 |
+| Seiersberg-Pirka | 0.677 | 0.601 | 0.757 | 37,891 |
 | Liberec | 0.682 | 0.542 | 0.701 | 16,157 |
 
 #### R² Distribution
@@ -117,16 +117,16 @@ generalizes across different urban contexts.
 
 | Rank | Feature | Importance |
 |------|---------|------------|
-| 1 | cc_beta_1200 | 0.1707 |
-| 2 | cc_beta_1600 | 0.1572 |
-| 3 | y_1564 | 0.1170 |
-| 4 | cc_beta_800 | 0.1150 |
-| 5 | y_ge65 | 0.0918 |
-| 6 | density | 0.0853 |
-| 7 | emp | 0.0833 |
-| 8 | y_lt15 | 0.0694 |
-| 9 | cc_beta_4800 | 0.0531 |
-| 10 | cc_beta_400 | 0.0307 |
+| 1 | cc_beta_1200 | 0.1726 |
+| 2 | cc_beta_1600 | 0.1516 |
+| 3 | y_1564 | 0.1262 |
+| 4 | cc_beta_800 | 0.1172 |
+| 5 | y_ge65 | 0.0922 |
+| 6 | density | 0.0829 |
+| 7 | emp | 0.0790 |
+| 8 | y_lt15 | 0.0721 |
+| 9 | cc_beta_4800 | 0.0477 |
+| 10 | cc_beta_400 | 0.0317 |
 
 ![Feature Importance](outputs/Eat%20&%20Drink%20400m_feature_importance.png)
 
@@ -134,16 +134,16 @@ generalizes across different urban contexts.
 
 | Rank | Feature | Importance |
 |------|---------|------------|
-| 1 | cc_beta_1200 | 0.2140 |
-| 2 | cc_beta_1600 | 0.1695 |
-| 3 | cc_beta_800 | 0.1466 |
-| 4 | y_1564 | 0.0996 |
-| 5 | emp | 0.0745 |
-| 6 | y_lt15 | 0.0677 |
-| 7 | y_ge65 | 0.0593 |
-| 8 | density | 0.0529 |
-| 9 | cc_beta_4800 | 0.0451 |
-| 10 | cc_beta_400 | 0.0402 |
+| 1 | cc_beta_1200 | 0.2137 |
+| 2 | cc_beta_1600 | 0.1711 |
+| 3 | cc_beta_800 | 0.1454 |
+| 4 | y_1564 | 0.0930 |
+| 5 | emp | 0.0678 |
+| 6 | y_ge65 | 0.0670 |
+| 7 | y_lt15 | 0.0668 |
+| 8 | density | 0.0569 |
+| 9 | cc_beta_4800 | 0.0459 |
+| 10 | cc_beta_400 | 0.0405 |
 
 ![Feature Importance](outputs/Business%20&%20Services%20400m_feature_importance.png)
 

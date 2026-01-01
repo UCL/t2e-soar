@@ -31,14 +31,14 @@ See cluster rankings visualization for relative ordering.
 
 | ID | Nodes | % Total | Pop Density | Network Density | Mixed Use |
 |----|-------|---------|-------------|-------------|-----------|
-| 1 | 18,957.0 | 9.5% | 13122 | 1072.20 | 4.27 |
-| 2 | 42,642.0 | 21.3% | 4721 | 976.38 | 2.84 |
-| 3 | 23,955.0 | 12.0% | 7457 | 1169.95 | 4.46 |
-| 4 | 23,203.0 | 11.6% | 13441 | 1324.84 | 6.80 |
-| 5 | 62,839.0 | 31.4% | 4127 | 788.02 | 2.14 |
-| 6 | 7,268.0 | 3.6% | 5105 | 902.44 | 2.42 |
-| 7 | 10,928.0 | 5.5% | 10931 | 1230.90 | 4.71 |
-| 8 | 10,208.0 | 5.1% | 4434 | 857.63 | 2.38 |
+| 1 | 10,641.0 | 5.3% | 5405 | 909.86 | 2.50 |
+| 2 | 21,660.0 | 10.8% | 13032 | 1343.16 | 6.87 |
+| 3 | 16,778.0 | 8.4% | 12662 | 1277.75 | 5.08 |
+| 4 | 26,133.0 | 13.1% | 6724 | 1076.86 | 4.15 |
+| 5 | 5,513.0 | 2.8% | 8045 | 920.80 | 2.89 |
+| 6 | 39,268.0 | 19.6% | 4308 | 969.35 | 2.72 |
+| 7 | 72,122.0 | 36.1% | 4501 | 815.96 | 2.27 |
+| 8 | 7,885.0 | 3.9% | 17180 | 1099.07 | 4.96 |
 
 
 ### Cluster External Characteristics
@@ -72,81 +72,81 @@ Countries are characterized by their distribution across morphology clusters.
 
 | Country | # Cities | Dominant Cluster | % in Cluster 1 |
 |---------|----------|------------------|---------------------|
-| MT | 1 | Cluster 5 | 21.3% |
-| EE | 3 | Cluster 5 | 20.8% |
-| IT | 83 | Cluster 5 | 20.0% |
-| LV | 3 | Cluster 5 | 19.6% |
-| LT | 4 | Cluster 5 | 18.6% |
+| DK | 4 | Cluster 7 | 12.6% |
+| SE | 15 | Cluster 7 | 11.2% |
+| FI | 4 | Cluster 7 | 11.0% |
+| EE | 3 | Cluster 7 | 9.4% |
+| LT | 4 | Cluster 7 | 8.9% |
 
 ### Top Countries by Cluster 2
 
 | Country | # Cities | Dominant Cluster | % in Cluster 2 |
 |---------|----------|------------------|---------------------|
-| NL | 43 | Cluster 2 | 57.4% |
-| IE | 5 | Cluster 2 | 52.0% |
-| FR | 72 | Cluster 2 | 42.8% |
-| BE | 13 | Cluster 2 | 41.4% |
-| DE | 103 | Cluster 5 | 27.4% |
+| GR | 8 | Cluster 2 | 37.1% |
+| ES | 86 | Cluster 7 | 23.9% |
+| BE | 13 | Cluster 6 | 19.8% |
+| LU | 1 | Cluster 4 | 18.1% |
+| PT | 10 | Cluster 7 | 15.1% |
 
 ### Top Countries by Cluster 3
 
 | Country | # Cities | Dominant Cluster | % in Cluster 3 |
 |---------|----------|------------------|---------------------|
-| SK | 6 | Cluster 3 | 25.7% |
-| LU | 1 | Cluster 3 | 22.3% |
-| CZ | 14 | Cluster 5 | 21.4% |
-| DE | 103 | Cluster 5 | 19.0% |
-| PL | 50 | Cluster 5 | 18.9% |
+| LT | 4 | Cluster 7 | 24.4% |
+| EE | 3 | Cluster 7 | 18.4% |
+| LV | 3 | Cluster 7 | 16.9% |
+| SK | 6 | Cluster 7 | 16.5% |
+| BG | 13 | Cluster 7 | 16.3% |
 
 ### Top Countries by Cluster 4
 
 | Country | # Cities | Dominant Cluster | % in Cluster 4 |
 |---------|----------|------------------|---------------------|
-| GR | 8 | Cluster 4 | 30.8% |
-| ES | 86 | Cluster 4 | 27.1% |
-| BE | 13 | Cluster 2 | 20.3% |
-| LU | 1 | Cluster 3 | 19.7% |
-| AT | 6 | Cluster 5 | 16.6% |
+| LU | 1 | Cluster 4 | 31.5% |
+| DE | 103 | Cluster 7 | 21.2% |
+| SK | 6 | Cluster 7 | 20.7% |
+| CZ | 14 | Cluster 7 | 20.6% |
+| CH | 12 | Cluster 7 | 17.6% |
 
 ### Top Countries by Cluster 5
 
 | Country | # Cities | Dominant Cluster | % in Cluster 5 |
 |---------|----------|------------------|---------------------|
-| DK | 4 | Cluster 5 | 65.2% |
-| CY | 2 | Cluster 5 | 65.1% |
-| FI | 4 | Cluster 5 | 59.8% |
-| SI | 2 | Cluster 5 | 58.3% |
-| HU | 12 | Cluster 5 | 56.9% |
+| LV | 3 | Cluster 7 | 10.5% |
+| EE | 3 | Cluster 7 | 8.3% |
+| LT | 4 | Cluster 7 | 7.8% |
+| SE | 15 | Cluster 7 | 6.8% |
+| LU | 1 | Cluster 4 | 5.5% |
 
 ### Top Countries by Cluster 6
 
 | Country | # Cities | Dominant Cluster | % in Cluster 6 |
 |---------|----------|------------------|---------------------|
-| DK | 4 | Cluster 5 | 8.3% |
-| SE | 15 | Cluster 5 | 8.2% |
-| LT | 4 | Cluster 5 | 6.7% |
-| FI | 4 | Cluster 5 | 6.6% |
-| EE | 3 | Cluster 5 | 6.6% |
+| NL | 43 | Cluster 6 | 59.9% |
+| IE | 5 | Cluster 6 | 55.1% |
+| FR | 72 | Cluster 6 | 40.0% |
+| BE | 13 | Cluster 6 | 39.0% |
+| DE | 103 | Cluster 7 | 25.7% |
 
 ### Top Countries by Cluster 7
 
 | Country | # Cities | Dominant Cluster | % in Cluster 7 |
 |---------|----------|------------------|---------------------|
-| BG | 13 | Cluster 5 | 14.8% |
-| LT | 4 | Cluster 5 | 14.1% |
-| EE | 3 | Cluster 5 | 13.0% |
-| LV | 3 | Cluster 5 | 12.1% |
-| SK | 6 | Cluster 3 | 10.7% |
+| CY | 2 | Cluster 7 | 73.5% |
+| DK | 4 | Cluster 7 | 69.3% |
+| FI | 4 | Cluster 7 | 63.8% |
+| SI | 2 | Cluster 7 | 62.2% |
+| HU | 12 | Cluster 7 | 61.4% |
 
 ### Top Countries by Cluster 8
 
 | Country | # Cities | Dominant Cluster | % in Cluster 8 |
 |---------|----------|------------------|---------------------|
-| IE | 5 | Cluster 2 | 12.1% |
-| FR | 72 | Cluster 2 | 8.2% |
-| DE | 103 | Cluster 5 | 6.4% |
-| SK | 6 | Cluster 3 | 6.2% |
-| CZ | 14 | Cluster 5 | 6.2% |
+| MT | 1 | Cluster 7 | 16.1% |
+| GR | 8 | Cluster 2 | 12.8% |
+| IT | 83 | Cluster 7 | 11.6% |
+| BG | 13 | Cluster 7 | 9.1% |
+| CY | 2 | Cluster 7 | 7.3% |
 
 ## Outputs
 

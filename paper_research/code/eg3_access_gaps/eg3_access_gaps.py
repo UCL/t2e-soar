@@ -149,9 +149,7 @@ else:
         gdf = gdf[gdf.geometry.within(row.geometry)]
 
         valid_mask = (
-            gdf[EDUCATION_DIST_COL].notna()
-            & (gdf[EDUCATION_DIST_COL] < float("inf"))
-            & (gdf[EDUCATION_DIST_COL] >= 0)
+            gdf[EDUCATION_DIST_COL].notna() & (gdf[EDUCATION_DIST_COL] < float("inf")) & (gdf[EDUCATION_DIST_COL] >= 0)
         )
         gdf = gdf[valid_mask]
 
@@ -197,7 +195,7 @@ print("\nSTEP A3: Computing education access statistics")
 edu_df = pd.DataFrame(education_data).sort_values("mean_dist")
 overall_mean = edu_df["mean_dist"].mean()
 
-print(f"\n  Cross-city summary:")
+print("\n  Cross-city summary:")
 print(f"    Mean distance to education: {overall_mean:.1f}m")
 print(f"    Best city: {edu_df.iloc[0]['city_label']} ({edu_df.iloc[0]['mean_dist']:.1f}m)")
 print(f"    Worst city: {edu_df.iloc[-1]['city_label']} ({edu_df.iloc[-1]['mean_dist']:.1f}m)")
@@ -264,9 +262,9 @@ else:
             # Compute supply score (inverse of distance to transport)
             dist_min, dist_max = streets[TRANSPORT_DIST_COL].quantile([0.01, 0.99])
             if dist_max > dist_min:
-                streets["supply_score"] = 1 - (
-                    (streets[TRANSPORT_DIST_COL] - dist_min) / (dist_max - dist_min)
-                ).clip(0, 1)
+                streets["supply_score"] = 1 - ((streets[TRANSPORT_DIST_COL] - dist_min) / (dist_max - dist_min)).clip(
+                    0, 1
+                )
             else:
                 streets["supply_score"] = 0.5
 

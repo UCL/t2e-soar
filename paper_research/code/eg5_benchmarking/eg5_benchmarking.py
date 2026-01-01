@@ -50,6 +50,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from tqdm import tqdm
 
 # %%
 """
@@ -157,7 +158,11 @@ else:
     print("  Loading individual city metrics files...")
     city_data = []
 
-    for idx, row in saturated_cities.iterrows():
+    for idx, row in tqdm(
+        saturated_cities.iterrows(),
+        total=len(saturated_cities),
+        desc="Loading city metrics",
+    ):
         bounds_fid = row["bounds_fid"]
         city_label = row.get("label", str(bounds_fid))
         country = row.get("country", "Unknown")
@@ -642,7 +647,9 @@ print("\nSTEP 7: Country-level aggregation")
 # Add country info to city_df if not present
 if "country" in city_df.columns:
     # Compute median distances per category for each city (for country aggregation)
-    city_df["essential_median"] = city_df[[f"pct_{cat}_15min" for cat in POI_CATEGORIES if f"pct_{cat}_15min" in city_df.columns]].mean(axis=1)
+    city_df["essential_median"] = city_df[
+        [f"pct_{cat}_15min" for cat in POI_CATEGORIES if f"pct_{cat}_15min" in city_df.columns]
+    ].mean(axis=1)
 
     # Filter to countries with enough cities
     country_counts = city_df.groupby("country").size()
@@ -670,13 +677,13 @@ if "country" in city_df.columns:
 
     country_df = pd.DataFrame(country_stats).sort_values("mean_pct_full_15min", ascending=False)
 
-    print(f"\n  Top 5 Countries by 15-min Access:")
+    print("\n  Top 5 Countries by 15-min Access:")
     for _, row in country_df.head(5).iterrows():
         print(f"    {row['country']}: {row['mean_pct_full_15min']:.1f}% (n={int(row['n_cities'])})")
 
     # Save country results
     country_df.to_csv(output_path / "country_15min_scores.csv", index=False, float_format="%.1f")
-    print(f"\n  Saved country_15min_scores.csv")
+    print("\n  Saved country_15min_scores.csv")
 
     # Country ranking visualization
     fig, ax = plt.subplots(figsize=(12, 8))

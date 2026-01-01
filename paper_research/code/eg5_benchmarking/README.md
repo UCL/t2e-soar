@@ -1,6 +1,6 @@
 # 15-Minute City Benchmarking Report
 
-**Analysis Date:** 2025-12-31
+**Analysis Date:** 2026-01-01
 
 ## Overview
 

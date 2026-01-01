@@ -42,6 +42,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from tqdm import tqdm
 
 # Green/tree access columns from SOAR metrics
 GREEN_ACCESS_COLS = [
@@ -97,7 +98,7 @@ if green_nodes_file.exists():
 else:
     print(f"Aggregating metrics from {len(bounds_gdf)} cities...")
     all_nodes = []
-    for idx, row in bounds_gdf.iterrows():
+    for idx, row in tqdm(bounds_gdf.iterrows(), total=len(bounds_gdf)):
         bounds_fid = row.get("bounds_fid", row.get("fid", idx))
         metrics_file = metrics_dir / f"metrics_{bounds_fid}.gpkg"
         if not metrics_file.exists():
