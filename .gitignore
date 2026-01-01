@@ -3,6 +3,34 @@ temp
 *.tmp
 cache
 
+# LaTeX temporary files
+*.aux
+*.bbl
+*.blg
+*.idx
+*.ind
+*.lof
+*.lot
+*.out
+*.toc
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.fls
+*.log
+*.fdb_latexmk
+*.snm
+*.synctex.gz
+*.synctex(busy)
+*.nav
+*.vrb
+*.spl
+*.dvi
+paper/*.pdf
+
 # MAC
 .DS_Store
 

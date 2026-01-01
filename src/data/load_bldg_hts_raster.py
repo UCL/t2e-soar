@@ -3,117 +3,104 @@
 import argparse
 import os
 import shutil
-import subprocess
 import zipfile
 from pathlib import Path
+
+import geopandas as gpd
+import rasterio
+from rasterio.merge import merge
+from shapely import geometry
+from tqdm import tqdm
 
 from src import tools
 
 logger = tools.get_logger(__name__)
-db_config = tools.get_db_config()
-os.environ["PGPASSWORD"] = db_config["password"]  # type: ignore
 
 
-def load_bldg_hts(data_dir_path: str, bin_path: str | None) -> None:
+def load_bldg_hts(bounds_in_path: str, data_dir_path: str, cities_data_out_dir: str) -> None:
     """ """
-    # drop existing
-    tools.drop_table("eu", "bldg_hts")
+    tools.validate_filepath(bounds_in_path)
+    tools.validate_directory(data_dir_path)
+    tools.validate_directory(cities_data_out_dir, create=True)
+    # load bounds
+    bounds_gdf = gpd.read_file(bounds_in_path, layer="bounds")
+    bounds_gdf = bounds_gdf.to_crs(3035)
+    bounds_gdf.geometry = bounds_gdf.geometry.buffer(2000)
+    bounds_geom = bounds_gdf.union_all()
     # Loop through each ZIP file and upload TIFs
-    first_file = True
+    logger.info("Loading building heights rasters")
+    raster_tiles = []
     dir_path: Path = Path(data_dir_path)
     unzip_dir = dir_path / "temp_unzipped/"
-    for zip_file_name in os.listdir(dir_path):
+    for zip_file_name in tqdm(os.listdir(dir_path)):
         if zip_file_name.endswith(".zip"):
-            # Create directory for unzipped files
-            if os.path.exists(unzip_dir):
-                shutil.rmtree(unzip_dir)
-            os.makedirs(unzip_dir)
-            full_zip_path = dir_path / zip_file_name
-            # Unzip
-            with zipfile.ZipFile(full_zip_path, "r") as zip_ref:
-                zip_ref.extractall(unzip_dir)
+            temp_unzip_dir = unzip_dir / zip_file_name.rstrip(".zip")
+            os.makedirs(temp_unzip_dir, exist_ok=True)
+            src_zip_path = dir_path / zip_file_name
+            with zipfile.ZipFile(src_zip_path, "r") as zip_ref:
+                zip_ref.extractall(temp_unzip_dir)
             # Find the tif file
-            for walk_dir_path, _dir_names, file_names in os.walk(unzip_dir):
+            for walk_dir_path, _dir_names, file_names in os.walk(temp_unzip_dir):
                 for raster_file_name in file_names:
                     if raster_file_name.endswith(".tif"):
                         full_raster_path = str((Path(walk_dir_path) / raster_file_name).resolve())
-                        sql_path = str((unzip_dir / "output.sql").resolve())
-                        # Run raster2pgsql and psql to import the raster into PostGIS
-                        try:
-                            with open(sql_path, "w") as f:
-                                subprocess.run(
-                                    [
-                                        "raster2pgsql" if bin_path is None else str(Path(bin_path) / "raster2pgsql"),
-                                        "-c" if first_file is True else "-a",
-                                        "-s",
-                                        "3035",
-                                        full_raster_path,
-                                        "eu.bldg_hts",
-                                    ],
-                                    check=True,
-                                    stdout=f,
-                                )
-                            subprocess.run(
-                                [  # type: ignore
-                                    "psql" if bin_path is None else str(Path(bin_path) / "psql"),
-                                    "-h",
-                                    db_config["host"],
-                                    "-U",
-                                    db_config["user"],
-                                    "-d",
-                                    db_config["database"],
-                                    "-p",
-                                    str(db_config["port"]),
-                                    "-f",
-                                    sql_path,
-                                ],
-                                check=True,
-                            )
-                        except Exception as err:
-                            logger.error(err)
-                            continue
-            # Delete the unzipped files
-            shutil.rmtree(unzip_dir)
-            first_file = False
-    # add constraints
-    tools.db_execute(
-        """
-        SELECT AddRasterConstraints(
-            'eu'::name, 
-            'bldg_hts'::name, 
-            'rast'::name,
-            'blocksize',
-            'extent',
-            'num_bands',
-            'pixel_types',
-            'srid'
-        );
-        CREATE INDEX bldg_hts_rast_gist_idx
-            ON eu.bldg_hts
-            USING gist (ST_ConvexHull(rast));
-        """
-    )
+                        # load and check itx
+                        with rasterio.open(full_raster_path) as src:
+                            if src.crs.to_epsg() != 3035:
+                                logger.warning(f"Skipping raster with unexpected CRS: {src.crs}")
+                                continue
+                            if not geometry.box(*list(src.bounds)).intersects(bounds_geom):
+                                continue
+                            raster_tiles.append(full_raster_path)
+    logger.info(f"Found {len(raster_tiles)} rasters intersecting bounds")
+
+    logger.info("Merging and saving rasters per bounds")
+    # iter bounds
+    for bounds_fid, bounds_row in tqdm(bounds_gdf.iterrows(), total=len(bounds_gdf)):
+        # filter rasters intersecting bounds
+        intersecting_rasters = []
+        for raster_fp in raster_tiles:
+            with rasterio.open(raster_fp) as src:
+                if geometry.box(*list(src.bounds)).intersects(bounds_row.geometry):
+                    intersecting_rasters.append(raster_fp)
+        if not intersecting_rasters:
+            continue
+        intersecting_rasters = [rasterio.open(fp) for fp in intersecting_rasters]
+        mosaic, out_trans = merge(intersecting_rasters)
+        out_meta = intersecting_rasters[0].meta.copy()
+        out_meta.update(
+            {"driver": "GTiff", "height": mosaic.shape[1], "width": mosaic.shape[2], "transform": out_trans}
+        )
+        out_path = Path(cities_data_out_dir) / f"bldg_hts_{bounds_fid}.tif"
+        with rasterio.open(out_path, "w", **out_meta) as dest:
+            dest.write(mosaic)
+        # Close all opened files
+        for src in intersecting_rasters:
+            src.close()
+    # Delete the unzipped files
+    shutil.rmtree(unzip_dir)
 
 
 if __name__ == "__main__":
     """
-    Examples are run from the project folder (the folder containing src)
-    python -m src.data.load_bldg_hts_raster "./temp/Digital height Model EU" eu bldg_hts \
-        /Applications/Postgres.app/Contents/Versions/15/bin/
+    python -m src.data.load_bldg_hts_raster \
+        temp/datasets/boundaries.gpkg \
+            temp/Results-Building_Height_2012_3035_eu \
+                temp/cities_data/heights
     """
     if True:
         parser = argparse.ArgumentParser(description="Load building heights raster data.")
-        parser.add_argument("data_dir_path", type=str, help="Input data directory with zipped data files.")
+        parser.add_argument("bounds_in_path", type=str, help="Input data directory with boundary GPKG.")
         parser.add_argument(
-            "--bin_path", type=str, required=False, default=None, help="Optional 'bin' path for raster2pgsql and psql."
+            "data_dir_path", type=str, help="Input data directory with zipped building heights rasters."
         )
+        parser.add_argument("cities_data_out_dir", type=str, help="Output data directory for building heights TIFs.")
         args = parser.parse_args()
         logger.info(f"Loading building heights data from path: {args.data_dir_path}")
-        data_dir_path = Path(args.data_dir_path)
-        if not data_dir_path.exists():
-            raise OSError("Input directory does not exist")
-        if not data_dir_path.is_dir():
-            raise OSError("Expected input directory, not a file name")
-        load_bldg_hts(args.data_dir_path, args.bin_path)
+        load_bldg_hts(args.bounds_in_path, args.data_dir_path, args.cities_data_out_dir)
     else:
-        load_bldg_hts("./temp/Digital Height Model EU", "/Applications/Postgres.app/Contents/Versions/16/bin/")
+        load_bldg_hts(
+            "temp/datasets/boundaries.gpkg",
+            "temp/Building_Height_2012_3035_eu",
+            "temp/cities_data/heights",
+        )

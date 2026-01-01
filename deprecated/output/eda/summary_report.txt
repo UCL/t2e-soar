@@ -1,0 +1,140 @@
+================================================================================
+CITY-LEVEL DATA EXPLORATORY ANALYSIS SUMMARY
+================================================================================
+
+Total cities: 699
+
+POPULATION STATISTICS:
+  Mean: 242190
+  Median: 103614
+  Std: 549498
+  Min: 13045
+  Max: 9773325
+
+AREA STATISTICS (km²):
+  Mean: 84.14
+  Median: 52.23
+  Std: 121.81
+  Min: 8.13
+  Max: 1835.91
+
+POI COUNT STATISTICS BY CATEGORY:
+
+  Business And Services:
+    Mean: 3706.0
+    Median: 1708.0
+    Std: 7308.7
+    Min: 135
+    Max: 103597
+    Cities with zero: 0
+
+  Active Life:
+    Mean: 371.9
+    Median: 182.0
+    Std: 700.7
+    Min: 13
+    Max: 9583
+    Cities with zero: 0
+
+  Arts And Entertainment:
+    Mean: 196.6
+    Median: 88.0
+    Std: 413.5
+    Min: 1
+    Max: 5891
+    Cities with zero: 0
+
+  Public Services:
+    Mean: 425.7
+    Median: 194.0
+    Std: 879.4
+    Min: 9
+    Max: 14537
+    Cities with zero: 0
+
+  Retail:
+    Mean: 2001.5
+    Median: 991.0
+    Std: 4019.5
+    Min: 49
+    Max: 58573
+    Cities with zero: 0
+
+  Health And Medical:
+    Mean: 632.0
+    Median: 300.0
+    Std: 1196.0
+    Min: 11
+    Max: 13009
+    Cities with zero: 0
+
+  Eat And Drink:
+    Mean: 1133.8
+    Median: 498.0
+    Std: 2585.4
+    Min: 14
+    Max: 41241
+    Cities with zero: 0
+
+  Education:
+    Mean: 430.2
+    Median: 201.0
+    Std: 844.5
+    Min: 10
+    Max: 12290
+    Cities with zero: 0
+
+  Attractions And Activities:
+    Mean: 258.8
+    Median: 106.0
+    Std: 570.1
+    Min: 7
+    Max: 9015
+    Cities with zero: 0
+
+  Religious:
+    Mean: 108.1
+    Median: 51.0
+    Std: 214.8
+    Min: 3
+    Max: 3085
+    Cities with zero: 0
+
+  Accommodation:
+    Mean: 204.1
+    Median: 77.0
+    Std: 502.2
+    Min: 1
+    Max: 7485
+    Cities with zero: 0
+
+================================================================================
+COUNTRY-LEVEL SUMMARY:
+================================================================================
+
+Cities with country data: 694 (99.3%)
+Number of countries: 29
+
+Top 10 Countries by Number of Cities:
+  ES: 111 cities
+  DE: 110 cities
+  IT: 87 cities
+  FR: 76 cities
+  PL: 54 cities
+  NL: 51 cities
+  RO: 32 cities
+  CH: 20 cities
+  CZ: 16 cities
+  SE: 16 cities
+
+Top 10 Countries by Total Population:
+  DE: 28,887,204
+  FR: 24,709,969
+  ES: 24,690,036
+  IT: 21,170,494
+  PL: 11,331,325
+  NL: 9,107,666
+  RO: 6,143,803
+  GR: 5,168,028
+  BE: 3,923,683
+  SE: 3,655,146
