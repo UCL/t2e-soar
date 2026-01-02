@@ -30,11 +30,11 @@ SOAR: A Scalable, Open, Automated, and Reproducible Urban Data Model for the EU}
 
 \section{Complete Streets Layer Schema}
 
-The streets layer contains network nodes with computed metrics. All distance-dependent metrics are computed at multiple thresholds: 400m, 800m, 1200m, 1600m (for accessibility), and additionally 4800m, 9600m (for centrality). Table~\ref{tab:complete_streets} provides the complete attribute schema.
+The streets layer contains network nodes with computed metrics. Distance thresholds vary by metric type: centrality at 400m, 800m, 1200m, 1600m, 4800m; accessibility at 200m, 400m, 800m, 1200m, 1600m; morphology at 100m, 200m; green space proximity at 1600m; green area aggregation at 200m, 400m, 800m. Table~\ref{tab:complete_streets} provides the complete attribute schema.
 
 \begin{landscape}
-  \begin{longtable}{@{}L{4cm}L{2.5cm}L{10cm}L{3cm}@{}}
-    \caption{Complete streets layer attribute schema. Suffix \texttt{\_XXX} indicates distance threshold in metres.} \label{tab:complete_streets} \\
+  \begin{longtable}{@{}L{7cm}L{2cm}L{8cm}L{3cm}@{}}
+    \caption{Complete streets layer attribute schema. Suffix \texttt{\_DDD} indicates distance threshold in metres.} \label{tab:complete_streets} \\
     \toprule
     \textbf{Attribute} & \textbf{Type} & \textbf{Description} & \textbf{Source/Method} \\
     \midrule
@@ -62,99 +62,102 @@ The streets layer contains network nodes with computed metrics. All distance-dep
     \texttt{y} & Float & Y coordinate (EPSG:3035) & Geometry \\
     \midrule
 
-    \multicolumn{4}{l}{\textbf{Network Centrality (Segment-Based)}} \\
+    \multicolumn{4}{l}{\textbf{Network Centrality (Segment-Based, DDD = 400, 800, 1200, 1600, 4800)}} \\
     \midrule
-    \texttt{cc\_beta\_XXX} & Float & Beta-weighted closeness (gravity index) & cityseer segment centrality \\
-    \texttt{cc\_harmonic\_XXX} & Float & Harmonic closeness & cityseer segment centrality \\
-    \texttt{cc\_density\_XXX} & Float & Node density within threshold & cityseer segment centrality \\
-    \texttt{cc\_farness\_XXX} & Float & Total network distance to reachable nodes & cityseer segment centrality \\
-    \texttt{cc\_betweenness\_XXX} & Float & Segment betweenness centrality & cityseer segment centrality \\
-    \midrule
-
-    \multicolumn{4}{l}{\textbf{Accessibility -- POI Counts (per land-use category)}} \\
-    \midrule
-    \texttt{ac\_accommodation\_XXX\_nw} & Integer & Unweighted count of accommodation POIs & cityseer accessibility \\
-    \texttt{ac\_accommodation\_XXX\_wt} & Float & Distance-weighted count of accommodation POIs & cityseer accessibility \\
-    \texttt{ac\_accommodation\_nearest\_max\_XXX} & Float & Distance to nearest accommodation POI (m) & cityseer accessibility \\
-    \texttt{ac\_active\_life\_XXX\_nw} & Integer & Unweighted count of active life POIs & cityseer accessibility \\
-    \texttt{ac\_active\_life\_XXX\_wt} & Float & Distance-weighted count of active life POIs & cityseer accessibility \\
-    \texttt{ac\_active\_life\_nearest\_max\_XXX} & Float & Distance to nearest active life POI (m) & cityseer accessibility \\
-    \texttt{ac\_arts\_entertainment\_XXX\_nw} & Integer & Unweighted count of arts/entertainment POIs & cityseer accessibility \\
-    \texttt{ac\_arts\_entertainment\_XXX\_wt} & Float & Distance-weighted count of arts/entertainment POIs & cityseer accessibility \\
-    \texttt{ac\_arts\_entertainment\_nearest\_max\_XXX} & Float & Distance to nearest arts/entertainment POI (m) & cityseer accessibility \\
-    \texttt{ac\_attractions\_XXX\_nw} & Integer & Unweighted count of attractions POIs & cityseer accessibility \\
-    \texttt{ac\_attractions\_XXX\_wt} & Float & Distance-weighted count of attractions POIs & cityseer accessibility \\
-    \texttt{ac\_attractions\_nearest\_max\_XXX} & Float & Distance to nearest attractions POI (m) & cityseer accessibility \\
-    \texttt{ac\_business\_services\_XXX\_nw} & Integer & Unweighted count of business/services POIs & cityseer accessibility \\
-    \texttt{ac\_business\_services\_XXX\_wt} & Float & Distance-weighted count of business/services POIs & cityseer accessibility \\
-    \texttt{ac\_business\_services\_nearest\_max\_XXX} & Float & Distance to nearest business/services POI (m) & cityseer accessibility \\
-    \texttt{ac\_eat\_and\_drink\_XXX\_nw} & Integer & Unweighted count of eat/drink POIs & cityseer accessibility \\
-    \texttt{ac\_eat\_and\_drink\_XXX\_wt} & Float & Distance-weighted count of eat/drink POIs & cityseer accessibility \\
-    \texttt{ac\_eat\_and\_drink\_nearest\_max\_XXX} & Float & Distance to nearest eat/drink POI (m) & cityseer accessibility \\
-    \texttt{ac\_education\_XXX\_nw} & Integer & Unweighted count of education POIs & cityseer accessibility \\
-    \texttt{ac\_education\_XXX\_wt} & Float & Distance-weighted count of education POIs & cityseer accessibility \\
-    \texttt{ac\_education\_nearest\_max\_XXX} & Float & Distance to nearest education POI (m) & cityseer accessibility \\
-    \texttt{ac\_health\_medical\_XXX\_nw} & Integer & Unweighted count of health/medical POIs & cityseer accessibility \\
-    \texttt{ac\_health\_medical\_XXX\_wt} & Float & Distance-weighted count of health/medical POIs & cityseer accessibility \\
-    \texttt{ac\_health\_medical\_nearest\_max\_XXX} & Float & Distance to nearest health/medical POI (m) & cityseer accessibility \\
-    \texttt{ac\_public\_services\_XXX\_nw} & Integer & Unweighted count of public services POIs & cityseer accessibility \\
-    \texttt{ac\_public\_services\_XXX\_wt} & Float & Distance-weighted count of public services POIs & cityseer accessibility \\
-    \texttt{ac\_public\_services\_nearest\_max\_XXX} & Float & Distance to nearest public services POI (m) & cityseer accessibility \\
-    \texttt{ac\_religious\_XXX\_nw} & Integer & Unweighted count of religious POIs & cityseer accessibility \\
-    \texttt{ac\_religious\_XXX\_wt} & Float & Distance-weighted count of religious POIs & cityseer accessibility \\
-    \texttt{ac\_religious\_nearest\_max\_XXX} & Float & Distance to nearest religious POI (m) & cityseer accessibility \\
-    \texttt{ac\_retail\_XXX\_nw} & Integer & Unweighted count of retail POIs & cityseer accessibility \\
-    \texttt{ac\_retail\_XXX\_wt} & Float & Distance-weighted count of retail POIs & cityseer accessibility \\
-    \texttt{ac\_retail\_nearest\_max\_XXX} & Float & Distance to nearest retail POI (m) & cityseer accessibility \\
+    \texttt{cc\_beta\_DDD} & Float & Beta-weighted closeness (gravity index with exponential decay) & cityseer \\
+    \texttt{cc\_cycles\_DDD} & Float & Cycle count within threshold & cityseer \\
+    \texttt{cc\_density\_DDD} & Float & Street segment density within threshold & cityseer \\
+    \texttt{cc\_farness\_DDD} & Float & Total network distance to reachable segments & cityseer \\
+    \texttt{cc\_harmonic\_DDD} & Float & Harmonic closeness (sum of inverse distances) & cityseer \\
+    \texttt{cc\_hillier\_DDD} & Float & Hillier-type closeness (node count / avg distance) & cityseer \\
+    \texttt{cc\_betweenness\_DDD} & Float & Segment betweenness centrality & cityseer \\
+    \texttt{cc\_betweenness\_beta\_DDD} & Float & Beta-weighted betweenness centrality & cityseer \\
     \midrule
 
-    \multicolumn{4}{l}{\textbf{Mixed-Use Diversity Indices}} \\
+    \multicolumn{4}{l}{\textbf{Accessibility -- POI Counts (DDD = 200, 400, 800, 1200, 1600)}} \\
     \midrule
-    \texttt{mu\_hill\_q0\_XXX\_nw} & Float & Hill diversity (q=0, richness) unweighted & cityseer mixed-use \\
-    \texttt{mu\_hill\_q0\_XXX\_wt} & Float & Hill diversity (q=0, richness) distance-weighted & cityseer mixed-use \\
-    \texttt{mu\_hill\_q1\_XXX\_nw} & Float & Hill diversity (q=1, exp Shannon) unweighted & cityseer mixed-use \\
-    \texttt{mu\_hill\_q1\_XXX\_wt} & Float & Hill diversity (q=1, exp Shannon) distance-weighted & cityseer mixed-use \\
-    \texttt{mu\_hill\_q2\_XXX\_nw} & Float & Hill diversity (q=2, inv Simpson) unweighted & cityseer mixed-use \\
-    \texttt{mu\_hill\_q2\_XXX\_wt} & Float & Hill diversity (q=2, inv Simpson) distance-weighted & cityseer mixed-use \\
-    \midrule
-
-    \multicolumn{4}{l}{\textbf{Building Morphology (aggregated from buildings layer)}} \\
-    \midrule
-    \texttt{bldg\_area\_mean\_XXX} & Float & Mean building area within threshold (m²) & momepy + aggregation \\
-    \texttt{bldg\_area\_sum\_XXX} & Float & Total building area within threshold (m²) & momepy + aggregation \\
-    \texttt{bldg\_perimeter\_mean\_XXX} & Float & Mean building perimeter (m) & momepy + aggregation \\
-    \texttt{bldg\_compactness\_mean\_XXX} & Float & Mean compactness ($4\pi A / P^2$) & momepy + aggregation \\
-    \texttt{bldg\_orientation\_mean\_XXX} & Float & Mean orientation (degrees) & momepy + aggregation \\
-    \texttt{bldg\_height\_mean\_XXX} & Float & Mean building height (m) & Copernicus DHM + aggregation \\
-    \texttt{bldg\_volume\_mean\_XXX} & Float & Mean building volume (m³) & Area × Height \\
-    \texttt{bldg\_floor\_area\_ratio\_XXX} & Float & Floor area ratio (total floor area / land area) & Aggregation \\
+    \texttt{cc\_accommodation\_DDD\_nw} & Integer & Unweighted count of accommodation POIs & cityseer \\
+    \texttt{cc\_accommodation\_DDD\_wt} & Float & Distance-weighted count of accommodation POIs & cityseer \\
+    \texttt{cc\_accommodation\_nearest\_max\_DDD} & Float & Distance to nearest accommodation POI (m) & cityseer \\
+    \texttt{cc\_active\_life\_DDD\_nw/wt} & Float & Active life POI counts (unweighted/weighted) & cityseer \\
+    \texttt{cc\_arts\_and\_entertainment\_DDD\_nw/wt} & Float & Arts and entertainment POI counts & cityseer \\
+    \texttt{cc\_attractions\_and\_activities\_DDD\_nw/wt} & Float & Attractions and activities POI counts & cityseer \\
+    \texttt{cc\_business\_and\_services\_DDD\_nw/wt} & Float & Business and services POI counts & cityseer \\
+    \texttt{cc\_eat\_and\_drink\_DDD\_nw/wt} & Float & Eat and drink POI counts & cityseer \\
+    \texttt{cc\_education\_DDD\_nw/wt} & Float & Education POI counts & cityseer \\
+    \texttt{cc\_health\_and\_medical\_DDD\_nw/wt} & Float & Health and medical POI counts & cityseer \\
+    \texttt{cc\_public\_services\_DDD\_nw/wt} & Float & Public services POI counts & cityseer \\
+    \texttt{cc\_religious\_DDD\_nw/wt} & Float & Religious POI counts & cityseer \\
+    \texttt{cc\_retail\_DDD\_nw/wt} & Float & Retail POI counts & cityseer \\
+    \texttt{cc\_\{category\}\_nearest\_max\_DDD} & Float & Distance to nearest POI in category (m) & cityseer \\
     \midrule
 
-    \multicolumn{4}{l}{\textbf{Green Space Proximity}} \\
+    \multicolumn{4}{l}{\textbf{Infrastructure Accessibility (DDD = 200, 400, 800, 1200, 1600)}} \\
     \midrule
-    \texttt{green\_dist\_XXX} & Float & Distance to nearest green space (m) & Urban Atlas + spatial join \\
-    \texttt{green\_area\_XXX} & Float & Total green space area within threshold (m²) & Urban Atlas + aggregation \\
-    \texttt{tree\_dist\_XXX} & Float & Distance to nearest tree canopy (m) & Street Tree Layer + spatial join \\
-    \texttt{tree\_area\_XXX} & Float & Total tree canopy area within threshold (m²) & Street Tree Layer + aggregation \\
+    \texttt{cc\_transport\_DDD\_nw/wt} & Float & Transport stops/stations counts & cityseer \\
+    \texttt{cc\_street\_furn\_DDD\_nw/wt} & Float & Street furniture counts (benches, fountains) & cityseer \\
+    \texttt{cc\_parking\_DDD\_nw/wt} & Float & Parking facility counts & cityseer \\
+    \midrule
+
+    \multicolumn{4}{l}{\textbf{Mixed-Use Diversity Indices (DDD = 200, 400, 800, 1200, 1600)}} \\
+    \midrule
+    \texttt{cc\_hill\_q0\_DDD\_nw} & Float & Hill diversity (q=0, richness) unweighted & cityseer \\
+    \texttt{cc\_hill\_q0\_DDD\_wt} & Float & Hill diversity (q=0, richness) distance-weighted & cityseer \\
+    \texttt{cc\_hill\_q1\_DDD\_nw} & Float & Hill diversity (q=1, exp Shannon) unweighted & cityseer \\
+    \texttt{cc\_hill\_q1\_DDD\_wt} & Float & Hill diversity (q=1, exp Shannon) distance-weighted & cityseer \\
+    \texttt{cc\_hill\_q2\_DDD\_nw} & Float & Hill diversity (q=2, inv Simpson) unweighted & cityseer \\
+    \texttt{cc\_hill\_q2\_DDD\_wt} & Float & Hill diversity (q=2, inv Simpson) distance-weighted & cityseer \\
+    \midrule
+
+    \multicolumn{4}{l}{\textbf{Building Morphology (DDD = 100, 200; stat = median, mad; suf = nw, wt)}} \\
+    \midrule
+    \texttt{cc\_area\_\{stat\}\_DDD\_\{suf\}} & Float & Building area statistics (m²) & momepy \\
+    \texttt{cc\_perimeter\_\{stat\}\_DDD\_\{suf\}} & Float & Building perimeter statistics (m) & momepy \\
+    \texttt{cc\_compactness\_\{stat\}\_DDD\_\{suf\}} & Float & Circular compactness ($4\pi A / P^2$) & momepy \\
+    \texttt{cc\_orientation\_\{stat\}\_DDD\_\{suf\}} & Float & Orientation angle (degrees) & momepy \\
+    \texttt{cc\_mean\_height\_\{stat\}\_DDD\_\{suf\}} & Float & Building height (m) & Copernicus DHM \\
+    \texttt{cc\_volume\_\{stat\}\_DDD\_\{suf\}} & Float & Building volume (m³) & momepy \\
+    \texttt{cc\_floor\_area\_ratio\_\{stat\}\_DDD\_\{suf\}} & Float & Floor area ratio (3m floor height) & momepy \\
+    \texttt{cc\_form\_factor\_\{stat\}\_DDD\_\{suf\}} & Float & Form factor ($A / (h \cdot P)$) & momepy \\
+    \texttt{cc\_corners\_\{stat\}\_DDD\_\{suf\}} & Float & Corner count & momepy \\
+    \texttt{cc\_shape\_index\_\{stat\}\_DDD\_\{suf\}} & Float & Shape index & momepy \\
+    \texttt{cc\_shared\_walls\_\{stat\}\_DDD\_\{suf\}} & Float & Shared wall length (m) & momepy \\
+    \texttt{cc\_fractal\_dimension\_\{stat\}\_DDD\_\{suf\}} & Float & Fractal dimension & momepy \\
+    \texttt{cc\_building\_DDD\_nw/wt} & Float & Building count (unweighted/weighted) & cityseer \\
+    \midrule
+
+    \multicolumn{4}{l}{\textbf{Green Space Proximity (DDD = 200, 400, 800)}} \\
+    \midrule
+    \texttt{cc\_green\_nearest\_max\_1600} & Float & Distance to nearest green space (m) & Urban Atlas + cityseer \\
+    \texttt{cc\_trees\_nearest\_max\_1600} & Float & Distance to nearest tree canopy (m) & Street Tree Layer + cityseer \\
+    \texttt{cc\_green\_area\_sum\_DDD\_nw/wt} & Float & Green space area within threshold (km²) & Urban Atlas \\
+    \texttt{cc\_trees\_area\_sum\_DDD\_nw/wt} & Float & Tree canopy area within threshold (km²) & Street Tree Layer \\
     \midrule
 
     \multicolumn{4}{l}{\textbf{Demographics (interpolated from census grid)}} \\
     \midrule
-    \texttt{pop\_total} & Float & Total population (interpolated) & Census 2021 + interpolation \\
-    \texttt{pop\_density\_XXX} & Float & Population density within threshold (per km²) & Census 2021 + aggregation \\
-    \texttt{pop\_change} & Float & Population change 2011-2021 (\%) & Census 2021 \\
-    \texttt{emp\_total} & Float & Total employment (interpolated) & Census 2021 + interpolation \\
-    \texttt{emp\_density\_XXX} & Float & Employment density within threshold (per km²) & Census 2021 + aggregation \\
-    \texttt{age\_0\_14\_pct} & Float & Population aged 0-14 (\%) & Census 2021 \\
-    \texttt{age\_15\_64\_pct} & Float & Population aged 15-64 (\%) & Census 2021 \\
-    \texttt{age\_65\_plus\_pct} & Float & Population aged 65+ (\%) & Census 2021 \\
-    \texttt{foreign\_born\_pct} & Float & Foreign-born population (\%) & Census 2021 \\
+    \texttt{t} & Float & Total population & Census 2021 + interpolation \\
+    \texttt{density} & Float & Population density (pop / land surface) & Census 2021 \\
+    \texttt{m}, \texttt{f} & Float & Male / female population counts & Census 2021 \\
+    \texttt{m\_\%}, \texttt{f\_\%} & Float & Male / female percentages & Census 2021 \\
+    \texttt{y\_lt15}, \texttt{y\_1564}, \texttt{y\_ge65} & Float & Age cohort counts (under 15, 15--64, 65+) & Census 2021 \\
+    \texttt{y\_lt15\_\%}, \texttt{y\_1564\_\%}, \texttt{y\_ge65\_\%} & Float & Age cohort percentages & Census 2021 \\
+    \texttt{emp} & Float & Employment count & Census 2021 \\
+    \texttt{emp\_\%} & Float & Employment percentage & Census 2021 \\
+    \texttt{nat}, \texttt{eu\_oth}, \texttt{oth} & Float & Nationality counts (national, EU other, non-EU) & Census 2021 \\
+    \texttt{nat\_\%}, \texttt{eu\_oth\_\%}, \texttt{oth\_\%} & Float & Nationality percentages & Census 2021 \\
+    \texttt{same}, \texttt{chg\_in}, \texttt{chg\_out} & Float & Migration counts (same residence, in, out) & Census 2021 \\
+    \texttt{same\_\%}, \texttt{chg\_in\_\%}, \texttt{chg\_out\_\%} & Float & Migration percentages & Census 2021 \\
     \midrule
 
-    \multicolumn{4}{l}{\textbf{Block Characteristics (aggregated from blocks layer)}} \\
+    \multicolumn{4}{l}{\textbf{Block Characteristics (DDD = 100, 200; stat = median, mad; suf = nw, wt)}} \\
     \midrule
-    \texttt{block\_coverage\_ratio\_XXX} & Float & Building coverage ratio within blocks & Urban Atlas + aggregation \\
-    \texttt{block\_area\_mean\_XXX} & Float & Mean block area (m²) & Urban Atlas + aggregation \\
+    \texttt{cc\_block\_area\_\{stat\}\_DDD\_\{suf\}} & Float & Block area statistics (m²) & Urban Atlas + momepy \\
+    \texttt{cc\_block\_perimeter\_\{stat\}\_DDD\_\{suf\}} & Float & Block perimeter statistics (m) & Urban Atlas + momepy \\
+    \texttt{cc\_block\_compactness\_\{stat\}\_DDD\_\{suf\}} & Float & Block circular compactness & Urban Atlas + momepy \\
+    \texttt{cc\_block\_orientation\_\{stat\}\_DDD\_\{suf\}} & Float & Block orientation (degrees) & Urban Atlas + momepy \\
+    \texttt{cc\_block\_covered\_ratio\_\{stat\}\_DDD\_\{suf\}} & Float & Building coverage ratio & Urban Atlas + momepy \\
+    \texttt{cc\_block\_DDD\_nw/wt} & Float & Block count (unweighted/weighted) & cityseer \\
 
   \end{longtable}
 \end{landscape}
@@ -163,7 +166,7 @@ The streets layer contains network nodes with computed metrics. All distance-dep
 
 Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Maps categories to the 11 analytical land-use classes.
 
-\begin{longtable}{@{}L{3cm}L{4cm}L{8cm}@{}}
+\begin{longtable}{@{}L{4cm}L{3cm}L{8cm}@{}}
   \caption{Complete land-use classification schema mapping Overture categories to analytical classes.} \label{tab:complete_landuse} \\
   \toprule
   \textbf{Analytical Class} & \textbf{Intermediate Class} & \textbf{Overture Categories (examples)} \\
@@ -195,7 +198,7 @@ Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Map
   & specialty & bookshop, florist, pharmacy (retail) \\
   \midrule
 
-  \multirow{2}{*}{business\_services} & office & office, coworking\_space \\
+  \multirow{2}{*}{business\_and\_services} & office & office, coworking\_space \\
   & professional\_services & law\_firm, consulting, accounting, real\_estate \\
   \midrule
 
@@ -203,7 +206,7 @@ Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Map
   & civic & post\_office, library (public), community\_center \\
   \midrule
 
-  \multirow{3}{*}{health\_medical} & healthcare & hospital, clinic, medical\_center \\
+  \multirow{3}{*}{health\_and\_medical} & healthcare & hospital, clinic, medical\_center \\
   & pharmacy & pharmacy (medical), drugstore \\
   & wellness & dentist, physiotherapy, optician \\
   \midrule
@@ -221,16 +224,28 @@ Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Map
   & outdoor & park (active), hiking\_trail, sports\_field \\
   \midrule
 
-  \multirow{2}{*}{arts\_entertainment} & culture & cinema, theatre, concert\_hall, opera\_house \\
+  \multirow{2}{*}{arts\_and\_entertainment} & culture & cinema, theatre, concert\_hall, opera\_house \\
   & entertainment & bowling, arcade, casino, nightlife\_venue \\
   \midrule
 
-  \multirow{3}{*}{attractions} & tourism & museum, gallery, monument, landmark \\
+  \multirow{3}{*}{attractions\_and\_activities} & tourism & museum, gallery, monument, landmark \\
   & attractions & zoo, aquarium, amusement\_park, viewpoint \\
   & nature & botanical\_garden, nature\_reserve, beach \\
   \midrule
 
   religious & religious & church, mosque, synagogue, temple, monastery \\
+  \midrule
+
+  \multicolumn{3}{l}{\textbf{Infrastructure Categories}} \\
+  \midrule
+
+  transport & transportation & bus\_stop, tram\_stop, metro\_station, train\_station, ferry\_terminal \\
+  \midrule
+
+  street\_furn & amenity & bench, drinking\_fountain, public\_toilet, shelter \\
+  \midrule
+
+  parking & parking & parking\_lot, parking\_garage, bicycle\_parking \\
 
 \end{longtable}
 
@@ -336,9 +351,10 @@ Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Map
 
 \begin{itemize}
   \item \textbf{Method}: Segment-based (dual graph)
-  \item \textbf{Thresholds}: [400, 800, 1200, 1600, 4800, 9600] metres
-  \item \textbf{Walking times}: [5, 10, 15, 20, 60, 120] minutes
+  \item \textbf{Thresholds}: [400, 800, 1200, 1600, 4800] metres
+  \item \textbf{Walking times}: [5, 10, 15, 20, 60] minutes
   \item \textbf{Walking speed}: 80 m/min ($\approx$4.8 km/h)
+  \item \textbf{Metrics}: beta, harmonic, hillier, farness, cycles, density, betweenness, betweenness\_beta
   \item \textbf{Beta decay}: Exponential ($e^{-\beta \cdot d}$)
   \item \textbf{Min threshold weight}: 0.01832 (default cityseer value)
 \end{itemize}
@@ -346,12 +362,31 @@ Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Map
 \subsection{Accessibility Computation}
 
 \begin{itemize}
-  \item \textbf{Thresholds}: [400, 800, 1200, 1600] metres
-  \item \textbf{Walking times}: [5, 10, 15, 20] minutes
+  \item \textbf{Thresholds}: [200, 400, 800, 1200, 1600] metres
+  \item \textbf{Walking times}: [2.5, 5, 10, 15, 20] minutes
   \item \textbf{Max assignment distance}: 100m (POI to nearest network edge)
   \item \textbf{Metrics}: Unweighted count, distance-weighted count, nearest distance
+  \item \textbf{Categories}: 11 land-use (places) + 3 infrastructure
   \item \textbf{Weight function}: Exponential decay
   \item \textbf{Hill diversity}: q = [0, 1, 2] for richness, Shannon, Simpson
+\end{itemize}
+
+\subsection{Morphology Computation}
+
+\begin{itemize}
+  \item \textbf{Thresholds}: [100, 200] metres
+  \item \textbf{Statistics}: median, median absolute deviation (MAD)
+  \item \textbf{Building metrics}: area, perimeter, compactness, orientation, corners, shape\_index, fractal\_dimension, shared\_walls, volume, floor\_area\_ratio, form\_factor
+  \item \textbf{Block metrics}: area, perimeter, compactness, orientation, covered\_ratio
+  \item \textbf{Library}: momepy 0.7.2
+\end{itemize}
+
+\subsection{Green Space Computation}
+
+\begin{itemize}
+  \item \textbf{Proximity threshold}: 1600 metres
+  \item \textbf{Aggregation thresholds}: [200, 400, 800] metres
+  \item \textbf{Sources}: Urban Atlas (green space classes 14100, 14200, 14400), Street Tree Layer
 \end{itemize}
 
 \subsection{POI Saturation Assessment}
@@ -382,7 +417,7 @@ Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Map
 
 \begin{itemize}
   \item \textbf{Python}: 3.12
-  \item \textbf{cityseer}: 4.14.3 (network analysis, centrality, accessibility)
+  \item \textbf{cityseer}: 4.14.3 (network analysis, centrality, accessibility, mixed-use, network-based aggregations)
   \item \textbf{momepy}: 0.7.2 (morphometrics)
   \item \textbf{geopandas}: 1.0.1 (spatial data handling)
   \item \textbf{overturemaps}: 0.6.0 (Overture data access)
@@ -390,15 +425,14 @@ Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Map
   \item \textbf{shapely}: 2.0.5 (geometric operations)
   \item \textbf{scikit-learn}: 1.5.1 (Random Forest regression)
   \item \textbf{rasterio}: 1.3.10 (raster data handling)
-  \item \textbf{pyogrio}: 0.9.0 (fast vector I/O)
 \end{itemize}
 
 \subsection{Environment Management}
 
 \begin{itemize}
-  \item \textbf{Package manager}: uv 0.4.15
+  \item \textbf{Package manager}: uv
   \item \textbf{Dependency specification}: pyproject.toml (PEP 621)
-  \item \textbf{Reproducibility}: Pinned versions in pyproject.toml
+  \item \textbf{Reproducibility}: v1.0.0 release on Github repository
 \end{itemize}
 
 \section{Computational Requirements}
@@ -406,17 +440,16 @@ Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Map
 \subsection{Hardware}
 
 \begin{itemize}
-  \item \textbf{Minimum RAM}: 16 GB (32 GB recommended for largest cities)
-  \item \textbf{Storage}: $\approx$500 GB for all 699 cities (complete pipeline outputs)
-  \item \textbf{Processing time}: $\approx$2-5 hours per city (depending on size and complexity)
+  \item \textbf{Minimum RAM}: $\approx$32 GB recommended
+  \item \textbf{Storage}: $\approx$500 GB recommended for processing all data and cities
+  \item \textbf{Processing time}: $\approx$1 day for data preparation and $\approx$3 days for metric computation on M1 Macbook Pro
 \end{itemize}
 
 \subsection{Parallelisation}
 
 \begin{itemize}
-  \item \textbf{City-level}: Fully independent (embarrassingly parallel)
-  \item \textbf{Metric computation}: Single-threaded cityseer Rust backend
-  \item \textbf{Recommended strategy}: Process multiple cities simultaneously
+  \item \textbf{Overture data}: Threads can be specifiied for speeding network cleaning
+  \item \textbf{Metric computation}: Parallel processing supported via cityseer rust algorithms
 \end{itemize}
 
 \section{Data Quality Notes}
@@ -424,56 +457,15 @@ Table~\ref{tab:complete_landuse} provides the complete mapping from Overture Map
 \subsection{Known Limitations}
 
 \begin{itemize}
-  \item \textbf{Temporal mismatch}: Source datasets span 2012-2024
+  \item \textbf{Temporal mismatch}: Source datasets span 2012--2025
     \begin{itemize}
       \item Building heights: 2012
       \item Urban Atlas: 2018
       \item Census: 2021
-      \item Overture: 2024
+      \item Overture: 2025
     \end{itemize}
   \item \textbf{POI completeness}: Variable across regions (see saturation assessment)
-  \item \textbf{Building heights}: Not available for all FUAs; missing values set to estimated median
-  \item \textbf{Network topology}: Minor inconsistencies at administrative boundaries
-\end{itemize}
-
-\subsection{Quality Assurance}
-
-\begin{itemize}
-  \item \textbf{Network validation}: Automatic cleaning via cityseer (8m tolerance)
-  \item \textbf{Topology checks}: Connected component analysis (min 100 nodes)
-  \item \textbf{Attribute validation}: Range checks on computed metrics
-  \item \textbf{Visual inspection}: Sample cities checked for geometric accuracy
-  \item \textbf{Saturation assessment}: POI quality validated via multi-scale regression
-\end{itemize}
-
-\section{Citation Information}
-
-\subsection{Dataset Citation}
-
-When using this dataset, please cite:
-
-\begin{quote}
-  Simons, G. et al. (2025). SOAR: A Scalable, Open, Automated, and Reproducible Urban Data Model for the EU. \textit{Data in Brief}, [volume]([issue]), [pages]. DOI: [to be assigned]
-\end{quote}
-
-\subsection{Software Citation}
-
-The cityseer package should be cited as:
-
-\begin{quote}
-  Simons, G. (2022). The cityseer Python package for pedestrian-scale network-based urban analysis. \textit{Environment and Planning B: Urban Analytics and City Science}, 49(9), 2356--2361. \url{https://doi.org/10.1177/23998083221133827}
-\end{quote}
-
-\subsection{Source Data Citations}
-
-\begin{itemize}
-  \item \textbf{Overture Maps}: Overture Maps Foundation (2024). Overture Maps Data -- 2024 Release. \url{https://overturemaps.org/}
-
-  \item \textbf{HDENS-CLST}: European Commission, Joint Research Centre (2023). High Density Clusters -- HDENS-CLST 2021. \url{https://ghsl.jrc.ec.europa.eu/}
-
-  \item \textbf{Urban Atlas}: European Environment Agency (2020). Urban Atlas 2018. Copernicus Land Monitoring Service. \url{https://land.copernicus.eu/local/urban-atlas}
-
-  \item \textbf{Census Grid}: Eurostat (2024). Census 2021 -- Population Grid. \url{https://ec.europa.eu/eurostat/web/gisco/geodata/population-distribution/geostat}
+  \item \textbf{Building heights}: Not available for all areas; missing values set to estimated median
 \end{itemize}
 
 \end{document}

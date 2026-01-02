@@ -34,14 +34,18 @@
 
   \title{Seven Exploratory Vignettes for the SOAR Urban Data Model: Illustrative Examples to Encourage Broader Urban Data Applications}
 
-  \author[bench]{Gareth Simons\corref{cor1}}
+  \author[spacesyntax]{Gareth Simons\corref{cor1}}
   \ead{gareth.simons@ucl.ac.uk}
   \cortext[cor1]{Corresponding author}
 
-  \author[bench]{Second Author}
-  \author[bench]{Third Author}
+  \author[spacesyntax]{Kayvan Karimi}
+  \author[spacesyntax]{Sepehr Zhand}
 
-  \address[bench]{University College London, United Kingdom}
+  \affiliation[spacesyntax]{organization={Space Syntax Laboratory, UCL Bartlett School of Architecture},
+    addressline={22 Gordon Street},
+    city={London},
+    country={United Kingdom}
+  }
 
   \begin{abstract}
     Large-scale urban datasets offer substantial opportunities for comparative research across cities and regions. This paper presents exploratory worked examples using the SOAR urban data model---a pan-European dataset covering 699 cities with over 100 metrics per street network node. We provide seven vignette templates demonstrating how workflows can leverage the data for data quality filtering, multi-scale analysis, access gap identification, predictive modelling, city benchmarking, typology classification, and site selection. Each vignette provides a reproducible workflow with code, results, and suggested extensions. These are illustrative starting points rather than definitive findings---templates to help researchers get started with the data and build more rigorous investigations. The purpose is to lower the barrier to entry for researchers exploring pan-European urban analysis.
@@ -67,7 +71,7 @@
 
 Large-scale urban datasets offer substantial opportunities for comparative research, but realising their potential requires understanding what questions the data can address and how analytical workflows might be structured. This paper provides worked examples using the SOAR (Scalable, Open, Automated, and Reproducible) urban data model, demonstrating the range of questions the data can support and lowering the barrier to entry for researchers exploring pan-European urban analysis.
 
-This paper presents exploratory vignettes---worked examples that combine motivation, methodology, analysis, and interpretation. These are explicitly \textit{not} definitive research findings. Each vignette is a starting point: a demonstration of what the data contain and how they might be used, not an exhaustive treatment of any urban phenomenon. The vignettes are intentionally simple, using standard methods (correlations, Random Forests, clustering) rather than sophisticated causal inference or domain-specific theory. Researchers pursuing rigorous investigations should treat these as templates to help get started with the data and on which more rigorous work can be built. Each vignette includes:
+This paper presents exploratory vignettes---worked examples that combine motivation, methodology, analysis, and interpretation. These are explicitly \textit{not} definitive research findings. Each vignette is a starting point: a demonstration of what the data contains and how it might be used as part of urban analytical workflows. The vignettes are intentionally simple, using relatively standard Python workflows and related methods (correlations, Random Forests, clustering). Researchers pursuing rigorous investigations should treat these as templates to get started with the data and on which more rigorous work can be developed. Each vignette includes:
 
 \begin{itemize}[nosep]
   \item Research motivation
@@ -112,7 +116,7 @@ POI completeness varies geographically, with some regions exhibiting systematic 
 \subsection{SOAR Metrics Utilised}
 
 \begin{itemize}[nosep]
-  \item \textbf{POI counts}: 11 land-use categories (accommodation, active life, arts \& entertainment, attractions, business services, eat \& drink, education, health \& medical, public services, religious, retail)
+  \item \textbf{POI counts}: 11 land-use categories (accommodation, active\_life, arts\_and\_entertainment, attractions\_and\_activities, business\_and\_services, eat\_and\_drink, education, health\_and\_medical, public\_services, religious, retail)
   \item \textbf{Census demographics}: Population counts at 1~km\textsuperscript{2} grid resolution
   \item \textbf{Multi-scale neighbourhoods}: Local (2~km), intermediate (5~km), and large (10~km) radii
 \end{itemize}
@@ -273,7 +277,7 @@ Distance-to-nearest metrics can reveal locations where distances to amenities or
 \subsection{SOAR Metrics Utilised}
 \begin{itemize}[nosep]
   \item \texttt{cc\_education\_nearest\_max\_1600}: Network distance to nearest education POI (m)
-  \item \texttt{cc\_transportation\_nearest\_max\_1600}: Network distance to nearest transport stop (m)
+  \item \texttt{cc\_transport\_nearest\_max\_1600}: Network distance to nearest transport stop (m)
   \item \texttt{cc\_beta\_800}: Local network centrality (demand proxy)
   \item \texttt{density}: Population density (demand proxy)
 \end{itemize}
@@ -392,7 +396,7 @@ Extra Trees models achieve strong predictive performance on held-out test data: 
   \input{code/eg4_prediction/outputs/table_Business_and_Services_400m_cities.tex}
 \end{table}
 
-\textbf{Feature importance} reveals that intermediate-scale closeness centrality (1,200--1,600m) dominates predictions for both categories (Table~\ref{tab:amenity-importance}), consistent with pedestrian catchment theory---amenities locate where they can serve walkable neighbourhoods rather than immediate adjacency (400m) or regional accessibility (9,600m). Census features contribute substantially, with employment ratio and population density ranking among the top predictors.
+\textbf{Feature importance} reveals that intermediate-scale closeness centrality (1,200--1,600m) dominates predictions for both categories (Table~\ref{tab:amenity-importance}), consistent with pedestrian catchment theory---amenities locate where they can serve walkable neighbourhoods rather than immediate adjacency (400m) or regional accessibility (4,800m). Census features contribute substantially, with employment ratio and population density ranking among the top predictors.
 
 \begin{table}[htbp]
   \centering
@@ -445,7 +449,7 @@ Cities can be ranked on standardised metrics enabling comparative assessment aga
 
 \begin{itemize}[nosep]
   \item \textbf{POI network distances}: \texttt{cc\_\{category\}\_nearest\_max\_1600} for 10 essential categories
-  \item \textbf{POI categories assessed}: Active life, arts \& entertainment, attractions \& activities, business \& services, eat \& drink, education, health \& medical, public services, religious, retail (accommodation excluded as non-essential for daily access)
+  \item \textbf{POI categories assessed}: active\_life, arts\_and\_entertainment, attractions\_and\_activities, business\_and\_services, eat\_and\_drink, education, health\_and\_medical, public\_services, religious, retail (accommodation excluded as non-essential for daily access)
   \item \textbf{Saturation classification}: From Vignette~1 (cities with \texttt{Consistently Saturated} or \texttt{Variable Saturated} combined POI coverage)
 \end{itemize}
 
@@ -485,7 +489,7 @@ Analysis of cities with reliable POI coverage suggests substantial variation in 
   \input{code/eg5_benchmarking/outputs/table_top_cities.tex}
 \end{table}
 
-\textbf{Bottom-performing cities in this analysis} exhibit either sprawling urban form, car-oriented development patterns, or systematic gaps in specific service categories. Table~\ref{tab:15min-worst} highlights cities with lowest completeness scores.
+\textbf{Bottom-performing cities in this analysis} exhibit either sprawling urban form, car-oriented development patterns, or systematic gaps in specific service categories. Table~\ref{tab:10min-worst} highlights cities with lowest completeness scores.
 
 \begin{table}[htbp]
   \centering
@@ -700,7 +704,7 @@ Large-scale datasets can be filtered by multiple criteria to identify candidate 
 \begin{itemize}[nosep]
   \item \textbf{Diversity indices}: Hill numbers ($q=0$, $q=1$, $q=2$) at 400m measuring land-use mix
   \item \textbf{Network centrality}: \texttt{cc\_beta\_1600} (20-minute catchment)
-  \item \textbf{Transport access}: \texttt{cc\_transportation\_nearest\_max\_1600} (distance to nearest stop)
+  \item \textbf{Transport access}: \texttt{cc\_transport\_nearest\_max\_1600} (distance to nearest stop)
   \item \textbf{Population density}: \texttt{density} (persons/km²)
   \item \textbf{Saturation classification}: From Vignette~1 (cities with \texttt{Consistently Saturated} or \texttt{Variable Saturated} POI coverage)
 \end{itemize}

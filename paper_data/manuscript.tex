@@ -31,14 +31,18 @@
 
   \title{SOAR: A Scalable, Open, Automated, and Reproducible Urban Data Model for the EU}
 
-  \author[bench]{Gareth Simons\corref{cor1}}
-  \ead{g.simons@benchmarkurbanism.com}
+  \author[spacesyntax]{Gareth Simons\corref{cor1}}
+  \ead{gareth.simons@ucl.ac.uk}
   \cortext[cor1]{Corresponding author}
 
-  \author[bench]{Second Author}
-  \author[bench]{Third Author}
+  \author[spacesyntax]{Kayvan Karimi}
+  \author[spacesyntax]{Sepehr Zhand}
 
-  \address[bench]{Benchmark Urbanism, \todo{Full postal address}, Country}
+  \affiliation[spacesyntax]{organization={Space Syntax Laboratory, UCL Bartlett School of Architecture},
+    addressline={22 Gordon Street},
+    city={London},
+    country={United Kingdom}
+  }
 
   \begin{abstract}
     Constructing spatial analytic datasets for urban planning is resource-intensive and data-source specific, limiting cross-context application. We present SOAR (Scalable, Open, Automated, and Reproducible), a pan-European urban data model providing morphology and accessibility metrics for 699 urban centres. SOAR combines EU-specific datasets---Eurostat High Density Clusters for boundary definition, Census 2021 for demographics, and Copernicus Urban Atlas for land cover---with Overture Maps for street networks, points of interest, and building footprints. The dataset provides over 100 metrics per street network node at multiple spatial scales (100--4,800m), encompassing network centrality, land-use accessibility and diversity, building morphology, green space proximity, and demographics. Processing is automated via open-source Python code with fixed parameters for reproducibility. Data are distributed as GeoPackage files in EPSG:3035 projection. This is a derived dataset from open sources processed at continental scale; it is not a curated or validated dataset, and users should assess data quality for their specific applications---particularly for point of interest data, which exhibits geographic variation in completeness. The primary contribution is reducing the barrier to pan-European urban comparison by providing pre-computed metrics in a consistent format.
@@ -97,7 +101,7 @@ SOAR (Scalable, Open, Automated, and Reproducible) provides pre-computed urban m
     \midrule
     \textbf{Data accessibility} & Repository: Zenodo. Data identification number: \todo{DOI}. URL: \todo{URL} \\
     \midrule
-    \textbf{Related research article} & \todo{None / or cite future CEUS paper} \\
+    \textbf{Related research article} & \todo{cite demonstrators paper} \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -130,23 +134,23 @@ Table~\ref{tab:usecases} illustrates potential applications of SOAR's pre-comput
   \caption{Example research applications enabled by SOAR.}
   \label{tab:usecases}
   \small
-  \begin{tabular}{@{}L{3cm}L{4.5cm}L{4.5cm}@{}}
+  \begin{tabular}{@{}L{4.5cm}L{7.5cm}@{}}
     \toprule
-    \textbf{Use Case} & \textbf{Relevant Metrics} & \textbf{Example Application} \\
+    extbf{Use Case} & \textbf{Example Application} \\
     \midrule
-    Data quality filtering & POI counts vs.\ population density & Identify cities with sparse POI coverage via regression residuals \\
+    Data quality filtering & Identify cities with lower than expected POI saturation via regression residuals \\
     \addlinespace
-    Multi-scale analysis & Metrics at multiple thresholds & Compare within-city vs.\ between-city relationships \\
+    Multi-scale analysis & Compare within-city vs.\ between-city relationships \\
     \addlinespace
-    Access gap identification & Distance-to-nearest metrics & Locate areas with poor access to education or transport \\
+    Access gap identification & Locate areas with poor access to services or amenities such as education or transport \\
     \addlinespace
-    Predictive modelling & Centrality, density, accessibility & Train cross-city models for land-use intensity prediction \\
+    Predictive modelling & Train cross-city models for land-use intensity prediction \\
     \addlinespace
-    Benchmarking & All accessibility metrics & Rank cities by walkable access to amenities \\
+    Benchmarking & Benchmark and rank cities by walkable access to amenities \\
     \addlinespace
-    Typology classification & Morphology, centrality, mixed-use & Cluster neighbourhoods into recurring urban forms \\
+    Classification & Cluster neighbourhoods into characteristic urban forms \\
     \addlinespace
-    Site selection & Centrality, accessibility, density & Filter locations meeting multiple development criteria \\
+    Site selection & Filter locations meeting target development criteria \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -185,13 +189,13 @@ Table~\ref{tab:streets_schema} summarises the key attributes in the streets laye
     \midrule
     \texttt{cc\_\{landuse\}\_*\_wt} & Distance-weighted POI count for land-use category \\
     \midrule
-    \texttt{cc\_\{landuse\}\_nearest\_*} & Distance to nearest POI in category \\
+    \texttt{cc\_\{landuse\}\_nearest\_max\_*} & Distance to nearest POI in category \\
     \midrule
     \texttt{cc\_hill\_*} & Land-use diversity (Hill numbers $q=0,1,2$) \\
     \midrule
-    \texttt{cc\_green\_nearest\_*} & Distance to nearest green space \\
+    \texttt{cc\_green\_nearest\_max\_*} & Distance to nearest green space \\
     \midrule
-    \texttt{cc\_trees\_nearest\_*} & Distance to nearest tree canopy \\
+    \texttt{cc\_trees\_nearest\_max\_*} & Distance to nearest tree canopy \\
     \midrule
     \texttt{cc\_*\_median\_*} & Morphology metrics (median aggregation) \\
     \midrule
