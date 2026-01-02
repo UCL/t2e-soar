@@ -58,7 +58,7 @@ jobs:
           prerelease: ${{ steps.check_prerelease.outputs.is_prerelease == 'true' }}
           name: Release v${{ steps.tag.outputs.version }}
           body: |
-            Release of ba-ebdp-toolkit version ${{ steps.tag.outputs.version }}
+            Release of t2esoar version ${{ steps.tag.outputs.version }}
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
