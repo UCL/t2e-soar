@@ -1,10 +1,9 @@
 # %% [markdown];
 """
-# 15-Minute City Benchmarking
+# Walkable Access Benchmarking
 
-Evaluates how well European cities approximate the "15-minute city" ideal by
-measuring the proportion of street network nodes with access to all essential
-POI categories within 15-minute (1200m) and 20-minute (1600m) walking distances.
+Evaluates walkable access to essential services by measuring the proportion of
+street network nodes with access to all essential POI categories within 800m.
 
 ## Steps
 1. Load city saturation results from EG1 and filter to well-covered cities
@@ -14,20 +13,13 @@ POI categories within 15-minute (1200m) and 20-minute (1600m) walking distances.
 5. Generate rankings, visualizations, and summary report
 
 ## Key Outputs
-- **city_15min_scores.csv**: Per-city 15-minute completeness scores
-- **city_20min_scores.csv**: Per-city 20-minute completeness scores
-- **15min_city_ranking.png**: Bar chart of top/bottom cities
+- **city_10min_scores.csv**: Per-city completeness scores at 800m threshold
+- **10min_city_ranking.png**: Bar chart of top/bottom cities
 - **completeness_distribution.png**: Histogram of completeness across cities
 - **README.md**: Summary report with key findings
 
 ## Metrics Used (from SOAR pre-computed)
 - `cc_{category}_nearest_max_1600`: Network distance to nearest POI of each category (m)
-
-## 15-Minute City Concept
-The "15-minute city" (ville du quart d'heure) proposes that residents should access
-essential daily services within a 15-minute walk. We operationalize this as:
-- 15-minute threshold: 1200m (assuming ~80m/min walking speed)
-- 20-minute threshold: 1600m (more relaxed standard)
 
 ## POI Categories Assessed (11 categories)
 1. accommodation <- skipped
@@ -57,10 +49,10 @@ from tqdm import tqdm
 ## Configuration
 """
 
-# POI categories for 15-minute city assessment
-# These represent essential daily services
+# POI categories for walkable access assessment
+# These represent typical services
 POI_CATEGORIES = [
-    # "accommodation",  # Excluded as not essential for daily access
+    # "accommodation",  # Excluded as not essential for access
     "active_life",
     "arts_and_entertainment",
     "attractions_and_activities",
@@ -78,7 +70,7 @@ POI_CATEGORIES = [
 POI_DISTANCE_COLS = [f"cc_{cat}_nearest_max_1600" for cat in POI_CATEGORIES]
 
 # Walking distance threshold (meters)
-THRESHOLD_15MIN = 1200  # ~15 min at 80m/min
+THRESHOLD = 800  # ~10 min at 80m/min
 
 # Minimum nodes per city for reliable statistics
 MIN_NODES = 100
@@ -107,7 +99,7 @@ temp_path = Path(TEMP_DIR)
 temp_path.mkdir(parents=True, exist_ok=True)
 
 print("=" * 80)
-print("Exploratory Question 5: 15-Minute City Benchmarking")
+print("Exploratory Question 5: Walkable Access Benchmarking")
 print("=" * 80)
 print(f"\nOutput directory: {output_path}")
 print(f"Temp directory: {temp_path}")
@@ -198,7 +190,7 @@ else:
             for cat, col in zip(POI_CATEGORIES, POI_DISTANCE_COLS):
                 if col in gdf.columns:
                     categories_present.append(cat)
-                    completeness_15min += (gdf[col] <= THRESHOLD_15MIN).astype(int)
+                    completeness_15min += (gdf[col] <= THRESHOLD).astype(int)
 
             n_categories = len(categories_present)
 
@@ -220,7 +212,7 @@ else:
             category_access_15min = {}
             for cat, col in zip(POI_CATEGORIES, POI_DISTANCE_COLS):
                 if col in gdf.columns:
-                    category_access_15min[f"pct_{cat}_15min"] = (gdf[col] <= THRESHOLD_15MIN).sum() / n_nodes * 100
+                    category_access_15min[f"pct_{cat}_15min"] = (gdf[col] <= THRESHOLD).sum() / n_nodes * 100
 
             city_record = {
                 "bounds_fid": bounds_fid,
@@ -260,11 +252,11 @@ print("\nSTEP 3: Computing city rankings")
 
 city_df = pd.DataFrame(city_data)
 
-# Sort by 15-minute full access percentage
+# Sort by 1200m threshold full access percentage
 city_df_15min = city_df.sort_values("pct_full_15min", ascending=False)
 
 # Summary statistics
-print("\n  15-Minute City Summary:")
+print("\n  Walkable Access Summary (800m threshold):")
 print(f"    Cities analyzed: {len(city_df)}")
 print(f"    Mean full access: {city_df['pct_full_15min'].mean():.1f}%")
 print(f"    Median full access: {city_df['pct_full_15min'].median():.1f}%")
@@ -297,8 +289,8 @@ colors_top = plt.cm.viridis(np.linspace(0.5, 1.0, len(top_20)))[::-1]  # Brighte
 bars = ax.barh(range(len(top_20)), top_20["pct_full_15min"], color=colors_top)
 ax.set_yticks(range(len(top_20)))
 ax.set_yticklabels([f"{row['city_label']} ({row['country']})" for _, row in top_20.iterrows()])
-ax.set_xlabel("% Nodes with Full 15-min Access", fontsize=10)
-ax.set_title("Top 20 Cities: 15-Minute City Completeness", fontsize=11, fontweight="bold")
+ax.set_xlabel("% Nodes with Full Access (800m)", fontsize=10)
+ax.set_title("Top 20 Cities: Walkable Access Completeness", fontsize=11, fontweight="bold")
 ax.invert_yaxis()
 ax.set_xlim(0, 100)
 for spine in ["top", "right"]:
@@ -310,15 +302,15 @@ colors_bottom = plt.cm.viridis(np.linspace(0, 0.5, len(bottom_20)))[::-1]  # Dar
 bars = ax.barh(range(len(bottom_20)), bottom_20["pct_full_15min"], color=colors_bottom)
 ax.set_yticks(range(len(bottom_20)))
 ax.set_yticklabels([f"{row['city_label']} ({row['country']})" for _, row in bottom_20.iterrows()])
-ax.set_xlabel("% Nodes with Full 15-min Access", fontsize=10)
-ax.set_title("Bottom 20 Cities: 15-Minute City Completeness", fontsize=11, fontweight="bold")
+ax.set_xlabel("% Nodes with Full Access (800m)", fontsize=10)
+ax.set_title("Bottom 20 Cities: Walkable Access Completeness", fontsize=11, fontweight="bold")
 ax.invert_yaxis()
 ax.set_xlim(0, 100)
 for spine in ["top", "right"]:
     ax.spines[spine].set_visible(False)
 
 plt.tight_layout()
-ranking_path = output_path / "15min_city_ranking.png"
+ranking_path = output_path / "10min_city_ranking.png"
 plt.savefig(ranking_path, dpi=150, bbox_inches="tight", facecolor="white")
 plt.close()
 print(f"  Saved ranking plot to {ranking_path}")
@@ -334,9 +326,9 @@ ax.axvline(
     linewidth=2,
     label=f"Median: {city_df['pct_full_15min'].median():.1f}%",
 )
-ax.set_xlabel("% Nodes with Full 15-min Access", fontsize=10)
+ax.set_xlabel("% Nodes with Full Access (800m)", fontsize=10)
 ax.set_ylabel("Number of Cities", fontsize=10)
-ax.set_title("Distribution of 15-Minute City Scores", fontsize=11, fontweight="bold")
+ax.set_title("Distribution of Walkable Access Scores", fontsize=11, fontweight="bold")
 ax.legend(loc="upper right", fontsize=9)
 for spine in ["top", "right"]:
     ax.spines[spine].set_visible(False)
@@ -369,7 +361,7 @@ ax.set_xticks(range(len(POI_CATEGORIES)))
 ax.set_xticklabels(category_labels, rotation=45, ha="right", fontsize=8)
 ax.set_yticks(range(len(top_15)))
 ax.set_yticklabels([f"{row['city_label']}" for _, row in top_15.iterrows()], fontsize=9)
-ax.set_title("Top 15 Cities: Category Access (15-min)", fontsize=11, fontweight="bold")
+ax.set_title("Top 15 Cities: Category Access (800m)", fontsize=11, fontweight="bold")
 plt.colorbar(im, ax=ax, label="% Nodes with Access", shrink=0.8)
 
 # Bottom 15 cities heatmap
@@ -379,7 +371,7 @@ ax.set_xticks(range(len(POI_CATEGORIES)))
 ax.set_xticklabels(category_labels, rotation=45, ha="right", fontsize=8)
 ax.set_yticks(range(len(bottom_15)))
 ax.set_yticklabels([f"{row['city_label']}" for _, row in bottom_15.iterrows()], fontsize=9)
-ax.set_title("Bottom 15 Cities: Category Access (15-min)", fontsize=11, fontweight="bold")
+ax.set_title("Bottom 15 Cities: Category Access (800m)", fontsize=11, fontweight="bold")
 plt.colorbar(im, ax=ax, label="% Nodes with Access", shrink=0.8)
 
 plt.tight_layout()
@@ -395,7 +387,7 @@ print(f"  Saved heatmap to {heatmap_path}")
 
 print("\nSTEP 5: Exporting results")
 
-# Export 15-minute scores
+# Export 800m threshold scores
 cols_15min = [
     "city_label",
     "country",
@@ -417,14 +409,14 @@ export_15min.columns = [
     "% >= 6 Categories",
     "% >= 9 Categories",
 ]
-out_file = output_path / "city_15min_scores.csv"
+out_file = output_path / "city_10min_scores.csv"
 export_15min.to_csv(out_file, index=False, float_format="%.1f")
-print(f"  Saved 15-minute scores to {out_file}")
+print(f"  Saved 800m threshold scores to {out_file}")
 
 # Export per-category access rates
 category_cols_all = ["city_label", "country"] + [f"pct_{cat}_15min" for cat in POI_CATEGORIES]
 export_categories = city_df_15min[category_cols_all].copy()
-out_file = output_path / "city_category_access_15min.csv"
+out_file = output_path / "city_category_access_10min.csv"
 export_categories.to_csv(out_file, index=False, float_format="%.1f")
 print(f"  Saved per-category access rates to {out_file}")
 
@@ -449,14 +441,23 @@ top_10_15min = city_df_15min.head(10)
 bottom_10_15min = city_df_15min.tail(10).iloc[::-1]
 
 report_lines = [
-    "# 15-Minute City Benchmarking Report",
+    "# Walkable Access Benchmarking Report",
     "",
     f"**Analysis Date:** {pd.Timestamp.now().strftime('%Y-%m-%d')}",
     "",
-    "## Overview",
+    "## Vignette Purpose",
     "",
-    'This analysis evaluates how well European cities approximate the "15-minute city" ideal,',
-    "where residents can access all essential services within a 15-minute walk (1200m).",
+    "Cities can be ranked on standardised metrics enabling comparative assessment against peer cities",
+    "or policy targets. This vignette ranks cities by walkable access to essential services across",
+    "multiple service categories.",
+    "",
+    "## Analysis Overview",
+    "",
+    "For 339 European cities with above average saturation POI coverage, we evaluate access to 10 essential",
+    "service categories within 800m (approximately 10-minute walk at 80m/min). For each street network node,",
+    "we count accessible categories and compute city-level metrics: percentage of nodes with",
+    "'full access' (all 10 categories reachable), mean completeness scores, and per-category access rates.",
+    "Results identify bottleneck categories and top-performing cities.",
     "",
     "## Summary Statistics",
     "",
@@ -464,14 +465,14 @@ report_lines = [
     f"- **Total Street Network Nodes:** {city_df['n_nodes'].sum():,}",
     f"- **POI Categories Assessed:** {len(POI_CATEGORIES)}",
     "",
-    "### 15-Minute City (1200m threshold)",
+    "### Walkable Access at 800m Threshold",
     "",
     f"- **Mean Full Access:** {city_df['pct_full_15min'].mean():.1f}% of nodes",
     f"- **Median Full Access:** {city_df['pct_full_15min'].median():.1f}% of nodes",
     f"- **Range:** {city_df['pct_full_15min'].min():.1f}% to {city_df['pct_full_15min'].max():.1f}%",
     f"- **Cities with >50% Full Access:** {(city_df['pct_full_15min'] > 50).sum()} ({(city_df['pct_full_15min'] > 50).mean() * 100:.1f}%)",
     "",
-    "## Top 10 Cities (15-Minute Access)",
+    "## Top 10 Cities (800m Access)",
     "",
     "| Rank | City | Country | % Full Access | Mean Completeness |",
     "|------|------|---------|---------------|-------------------|",
@@ -485,7 +486,7 @@ for rank, (_, row) in enumerate(top_10_15min.iterrows(), 1):
 report_lines.extend(
     [
         "",
-        "## Bottom 10 Cities (15-Minute Access)",
+        "## Bottom 10 Cities (800m Access)",
         "",
         "| Rank | City | Country | % Full Access | Mean Completeness |",
         "|------|------|---------|---------------|-------------------|",
@@ -502,7 +503,7 @@ report_lines.extend(
         "",
         "## Bottleneck Categories",
         "",
-        "Categories with lowest average access rates (limiting factors for 15-minute completeness):",
+        "Categories with lowest average access rates (limiting factors for walkable completeness):",
         "",
         "| Rank | Category | Mean Access Rate |",
         "|------|----------|------------------|",
@@ -530,9 +531,9 @@ report_lines.extend(
         "",
         "## Visualizations",
         "",
-        "### City Rankings (15-Minute)",
+        "### City Rankings (800m Threshold)",
         "",
-        "![15-Minute City Ranking](outputs/15min_city_ranking.png)",
+        "![Walkable Access Ranking](outputs/10min_city_ranking.png)",
         "",
         "### Completeness Distribution",
         "",
@@ -542,9 +543,13 @@ report_lines.extend(
         "",
         "![Category Access Heatmap](outputs/category_access_heatmap.png)",
         "",
+        "### Country Rankings",
+        "",
+        "![Country Ranking Chart](outputs/country_ranking_chart.png)",
+        "",
         "## Key Findings",
         "",
-        "1. **Few cities achieve true 15-minute completeness**: The median city has only",
+        "1. **Few cities achieve full walkable completeness**: The median city has only",
         f"   {city_df['pct_full_15min'].median():.1f}% of nodes with access to all {len(POI_CATEGORIES)} POI categories within 1200m.",
         "",
         f"2. **Bottleneck categories**: {category_means_sorted[0][0].replace('_', ' ').title()} and",
@@ -556,16 +561,16 @@ report_lines.extend(
         "",
         "## Methodology Notes",
         "",
-        "- Walking distance threshold: 1200m (~15 min at 80m/min)",
+        "- Walking distance threshold: 800m (approximately 10 min at 80m/min)",
         "- Network distances (not Euclidean) from street network nodes to nearest POI",
         "- Restricted to cities with sufficient POI data quality (from EG1 saturation analysis)",
         "- Required combined saturation in reliable quadrants",
         "",
         "## Output Files",
         "",
-        "- `city_15min_scores.csv`: Per-city 15-minute completeness metrics",
-        "- `city_category_access_15min.csv`: Per-category access rates by city",
-        "- `15min_city_ranking.png`: Bar chart of top/bottom cities",
+        "- `city_10min_scores.csv`: Per-city completeness metrics at 800m threshold",
+        "- `city_category_access_10min.csv`: Per-category access rates by city",
+        "- `10min_city_ranking.png`: Bar chart of top/bottom cities",
         "- `completeness_distribution.png`: Histogram of completeness scores",
         "- `category_access_heatmap.png`: Heatmap of per-category access",
         "",
@@ -677,13 +682,13 @@ if "country" in city_df.columns:
 
     country_df = pd.DataFrame(country_stats).sort_values("mean_pct_full_15min", ascending=False)
 
-    print("\n  Top 5 Countries by 15-min Access:")
+    print("\n  Top 5 Countries by 10-min Access:")
     for _, row in country_df.head(5).iterrows():
         print(f"    {row['country']}: {row['mean_pct_full_15min']:.1f}% (n={int(row['n_cities'])})")
 
     # Save country results
-    country_df.to_csv(output_path / "country_15min_scores.csv", index=False, float_format="%.1f")
-    print("\n  Saved country_15min_scores.csv")
+    country_df.to_csv(output_path / "country_10min_scores.csv", index=False, float_format="%.1f")
+    print("\n  Saved country_10min_scores.csv")
 
     # Country ranking visualization
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -693,8 +698,8 @@ if "country" in city_df.columns:
     ax.barh(range(len(plot_data)), plot_data["mean_pct_full_15min"], color=colors)
     ax.set_yticks(range(len(plot_data)))
     ax.set_yticklabels(plot_data["country"])
-    ax.set_xlabel("Mean % Full 15-min Access")
-    ax.set_title("Country Rankings: 15-Minute City Performance", fontweight="bold")
+    ax.set_xlabel("Mean % Full 10-min Access")
+    ax.set_title("Country Rankings: 10-Minute City Performance", fontweight="bold")
 
     for i, (_, row) in enumerate(plot_data.iterrows()):
         ax.annotate(f"n={int(row['n_cities'])}", xy=(row["mean_pct_full_15min"] + 1, i), va="center", fontsize=8)
@@ -736,13 +741,13 @@ print("DEMONSTRATOR 5 COMPLETE")
 print("=" * 80)
 print(f"\nOutputs saved to: {output_path}")
 print("\nCity-level files:")
-print("  - city_15min_scores.csv")
-print("  - city_category_access_15min.csv")
-print("  - 15min_city_ranking.png")
+print("  - city_10min_scores.csv (800m threshold)")
+print("  - city_category_access_10min.csv")
+print("  - 10min_city_ranking.png")
 print("  - completeness_distribution.png")
 print("  - category_access_heatmap.png")
 print("\nCountry-level files:")
-print("  - country_15min_scores.csv")
+print("  - country_10min_scores.csv")
 print("  - country_ranking_chart.png")
 print("  - table_country_rankings.tex")
 print(f"\nREADME.md saved to: {report_path}")

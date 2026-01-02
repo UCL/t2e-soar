@@ -11,14 +11,14 @@ Assesses POI data quality using multi-scale neighborhood analysis of 1km census 
 4-7. EDA, regression diagnostics, feature importance, and report generation
 
 ## Key Outputs
-- **grid_counts_regress.gpkg**: Grid cells with z-scores (deviation from expected POI counts)
-- **city_analysis_results.gpkg**: City-level statistics with quadrant classification
-- **README.md**: Comprehensive markdown report
+- **outputs/grid_counts_regress.gpkg**: Grid cells with z-scores (deviation from expected POI counts)
+- **outputs/city_analysis_results.gpkg**: City-level statistics with quadrant classification
+- **README.md**: Markdown report
 
 ## Z-Score Interpretation
 - z < 0: Fewer POIs than expected (undersaturated)
-- z > 0: More POIs than expected (saturated)
-- Quadrant analysis: mean z-score (level) × std z-score (variability)
+- z > 0: Higher than average POIs (saturated)
+- Quadrant analysis: mean z-score (level) x std z-score (variability)
 """
 
 from pathlib import Path
@@ -35,6 +35,12 @@ from sklearn.ensemble import RandomForestRegressor
 from tqdm import tqdm
 
 from src.landuse_categories import COMMON_LANDUSE_CATEGORIES, merge_landuse_categories
+
+# Configuration - modify these paths as needed
+BOUNDS_PATH = "temp/datasets/boundaries.gpkg"
+OVERTURE_DATA_DIR = "temp/cities_data/overture"
+CENSUS_PATH = "temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg"
+OUTPUT_DIR = "paper_research/code/eg1_data_quality/outputs"
 
 # %%
 """
@@ -270,12 +276,6 @@ def aggregate_grid_stats(
     return grids_in_cities
 
 
-# Configuration - modify these paths as needed
-BOUNDS_PATH = "temp/datasets/boundaries.gpkg"
-OVERTURE_DATA_DIR = "temp/cities_data/overture"
-CENSUS_PATH = "temp/Eurostat_Census-GRID_2021_V2/ESTAT_Census_2021_V2.gpkg"
-OUTPUT_DIR = "paper_research/code/eg1_data_quality/outputs"
-
 # %%
 """
 ## Step 1: Aggregate Grid-Level Statistics
@@ -313,7 +313,8 @@ Z-scores on residuals identify grids with more/fewer POIs than expected.
 **Log Transform Rationale**: Both features and target are log-transformed because:
 1. POI counts follow a power-law relationship with population (POI ∝ pop^β), which becomes linear in log-log space
 2. Log-scale residuals are more normally distributed for count data, making z-scores statistically valid
-3. Interpretation becomes multiplicative (% deviation) rather than additive (count deviation), which is more meaningful across density ranges
+3. Interpretation becomes multiplicative (% deviation) rather than additive (count deviation), 
+which is more meaningful across density ranges
 """
 
 print("STEP 2: Multiple regression analysis")
@@ -544,10 +545,7 @@ def plot_quadrant_scatter(ax, x_data, y_data, std_med, title):
         x, y = x_data.iloc[i], y_data.iloc[i]
         if pd.isna(x) or pd.isna(y):
             continue
-        if x < 0:
-            color = "#d62728" if y < std_med else "#ff7f0e"
-        else:
-            color = "#2ca02c" if y < std_med else "#1f77b4"
+        color = ("#d62728" if y < std_med else "#ff7f0e") if x < 0 else "#2ca02c" if y < std_med else "#1f77b4"
         ax.scatter(x, y, c=color, alpha=0.6, edgecolors="dimgrey", linewidths=0.3, s=25)
 
     ax.axhline(y=std_med, color="dimgrey", linestyle="--", linewidth=0.8, alpha=0.7)
@@ -855,22 +853,36 @@ print("\nSTEP 7: Markdown Report Generation")
 report_lines = [
     "# POI Quality Assessment Report",
     "",
+    "## Vignette Purpose",
+    "",
+    "POI completeness varies geographically, with some regions exhibiting systematic undersaturation.",
+    "This vignette applies multi-scale regression of POI counts against population densities to identify",
+    "cities where crowdsourced data may be too sparse for reliable analysis, allowing researchers to",
+    "filter or weight observations accordingly.",
+    "",
+    "## Analysis Overview",
+    "",
+    "This analysis uses Random Forest regression at the 1km² census grid level to predict expected POI",
+    "counts from multi-scale population densities (2km, 5km, 10km radii). Z-scores quantify deviation from",
+    "expected counts, and cities are classified into quadrants based on mean saturation level and spatial",
+    "variability.",
+    "",
     "## Executive Summary",
     "",
     f"- **Total cities analyzed**: {len(city_gdf)}",
     f"- **Total grid cells**: {len(grid_gdf)}",
     f"- **POI categories**: {len(poi_categories)}",
     "",
-    "**Note**: Z-scores represent continuous deviations from expected POI counts.",
-    "No arbitrary thresholds are applied. The quadrant analysis identifies cities",
-    "based on their mean z-score (saturation level) and variability (consistency).",
+    "**Note**: Z-scores represent continuous deviations from predicted POI counts.",
+    "The quadrant analysis separates cities based on above or below expected mean",
+    "z-score (saturation level) and within-city variability (consistency).",
     "",
     "---",
     "",
     "## City Quadrant Classification",
     "",
     "### Consistently Undersaturated",
-    "Low POI coverage with uniform spatial distribution across categories.",
+    "Low POI coverage with uniformly low saturation across categories.",
     "",
     "| City | Country | Mean Z | Between-Cat Std |",
     "|------|---------|--------|-----------------|",
@@ -942,7 +954,7 @@ report_lines.extend(
         "The following visualizations have been generated to support this analysis:",
         "",
         "### Exploratory Data Analysis",
-        "![EDA Analysis](eda_analysis.png)",
+        "![EDA Analysis](outputs/eda_analysis.png)",
         "",
         "Key insights:",
         "- **Z-Score Distribution**: Distribution of z-scores across grid cells per category",
@@ -951,19 +963,19 @@ report_lines.extend(
         "- **City Z-Score Distribution**: Distribution of mean z-scores across cities",
         "",
         "### Feature Importance Analysis",
-        "![Feature Importance](feature_importance.png)",
+        "![Feature Importance](outputs/feature_importance.png)",
         "",
         "Shows which population scale (local, intermediate, large) is most predictive for each POI category.",
         "Higher values indicate the scale is more important for predicting POI distribution.",
         "",
         "### Regression Diagnostics",
-        "![Regression Diagnostics](regression_diagnostics.png)",
+        "![Regression Diagnostics](outputs/regression_diagnostics.png)",
         "",
         "Predicted vs observed POI counts for each category. Shows model fit quality and outliers.",
         "Points closer to the diagonal line indicate better predictions.",
         "",
         "### City Quadrant Analysis",
-        "![City Quadrant Analysis](city_quadrant_analysis.png)",
+        "![City Quadrant Analysis](outputs/city_quadrant_analysis.png)",
         "",
         "12-panel visualization (4×3 grid) showing city quadrant classification by POI category:",
         "- **First 11 panels**: Per-category analysis (mean z-score vs spatial std within category)",
@@ -980,14 +992,15 @@ report_lines.extend(
         "## Output Files",
         "",
         "### Data Files",
-        "- **grid_counts_regress.gpkg**: Vector grid dataset with z-scores and predictions",
-        "- **city_analysis_results.gpkg**: City-level z-score statistics and per-category + between-category quadrant classifications",
+        "- **outputs/grid_counts_regress.gpkg**: Vector grid dataset with z-scores and predictions",
+        "- **outputs/city_analysis_results.gpkg**: City-level z-score statistics and per-category +",
+        "between-category quadrant classifications",
         "",
         "### Visualization Files",
-        "- **eda_analysis.png**: Exploratory data analysis",
-        "- **feature_importance.png**: Random Forest feature importance comparison",
-        "- **regression_diagnostics.png**: Predicted vs observed plots for all categories",
-        "- **city_quadrant_analysis.png**: 12-panel per-category and between-category quadrant analysis",
+        "- **outputs/eda_analysis.png**: Exploratory data analysis",
+        "- **outputs/feature_importance.png**: Random Forest feature importance comparison",
+        "- **outputs/regression_diagnostics.png**: Predicted vs observed plots for all categories",
+        "- **outputs/city_quadrant_analysis.png**: 12-panel per-category and between-category quadrant analysis",
         "",
     ]
 )

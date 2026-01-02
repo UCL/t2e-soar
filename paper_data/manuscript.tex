@@ -284,7 +284,7 @@ The processing module (\texttt{generate\_metrics.py}) orchestrates metric comput
 
 \textbf{Centrality}: Beta-weighted (gravity index) and harmonic closeness at five thresholds (400m, 800m, 1,200m, 1,600m, 4,800m) via cityseer~[5].
 
-\textbf{Accessibility}: POI counts (unweighted and distance-weighted) per land-use category within pedestrian-scale thresholds (200m, 400m, 800m, 1,200m, 1,600m); Hill number diversity indices ($q=0,1,2$) quantifying land-use heterogeneity~[5].
+**Accessibility**: POI counts (unweighted and distance-weighted) per land-use category within pedestrian-scale thresholds (200m, 400m, 800m, 1,600m); Hill number diversity indices ($q=0,1,2$) quantifying land-use heterogeneity~[5].
 
 \textbf{Morphology}: Building metrics (area, compactness, orientation, height, volume, fractal dimension, shared walls) and block metrics (coverage ratio, shape) computed via momepy, then aggregated to network nodes at 100m and 200m thresholds using median and MAD statistics.
 
@@ -294,7 +294,7 @@ The processing module (\texttt{generate\_metrics.py}) orchestrates metric comput
 
 \subsection{Output Format}
 
-Results are exported as GeoPackage files (\texttt{metrics\_\{bounds\_fid\}.gpkg}) in EPSG:3035, each containing three layers: \texttt{streets} (network nodes with all computed metrics), \texttt{buildings} (footprints with morphology), and \texttt{blocks} (polygons with coverage ratios). Dependencies are pinned via \texttt{pyproject.toml}; key packages include cityseer (network analysis), momepy (morphometrics), geopandas (spatial data), and overturemaps (data access). Processing parameters are fixed for reproducibility: 80m decomposition ($\approx$1-minute walk), 8m cleaning tolerance, centrality thresholds [400, 800, 1200, 1600, 4800]m (5--60 minutes), accessibility thresholds [200, 400, 800, 1200, 1600]m, morphology aggregation thresholds [100, 200]m.
+Results are exported as GeoPackage files (\texttt{metrics\_\{bounds\_fid\}.gpkg}) in EPSG:3035, each containing three layers: \texttt{streets} (network nodes with all computed metrics), \texttt{buildings} (footprints with morphology), and \texttt{blocks} (polygons with coverage ratios). Dependencies are pinned via \texttt{pyproject.toml}; key packages include cityseer (network analysis), momepy (morphometrics), geopandas (spatial data), and overturemaps (data access). Processing parameters are fixed for reproducibility: 80m decomposition ($\approx$1-minute walk), 8m cleaning tolerance, centrality thresholds [400, 800, 1600, 4800]m (5--60 minutes), accessibility thresholds [200, 400, 800, 1600]m, morphology aggregation thresholds [100, 200]m.
 
 \subsection{Data Quality Considerations}
 
@@ -322,7 +322,7 @@ The following illustrate ways researchers might use SOAR's pre-computed metrics.
 
   \item \textbf{Predictive modelling}: Large-scale datasets from multiple cities can enable training of generalisable models. This demonstrator uses network centrality and population density to predict levels of eating and drinking establishments as well as business and services intensities. The consistent feature set across cities can support transfer learning or pooled models.
 
-  \item \textbf{Benchmarking}: Cities can be ranked on standardised metrics enabling comparative assessment against peer cities or policy targets. This demonstrator ranks cities by walkable access to amenities and services and identifies those with the best overall access to all land-use categories.
+  \item \textbf{Benchmarking}: Cities can be ranked on standardised metrics enabling comparative assessment against peer cities or policy targets. This demonstrator ranks cities by walkable access to amenities and services across major land-use categories within pedestrian-scale distances.
 
   \item \textbf{Typology classification}: Clustering algorithms applied to street-level features can identify recurring neighbourhood types that transcend administrative boundaries, revealing morphological similarities across different urban contexts. This demonstrator applies clustering to identify urban morphological forms.
 

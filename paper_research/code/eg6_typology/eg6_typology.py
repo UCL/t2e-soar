@@ -83,7 +83,7 @@ from tqdm import tqdm
 
 """
 ## Configuration
-"""
+
 # Morphology metrics at 400m scale (using weighted versions)
 AVAILABLE_MORPH_DATA = {
     "cc_area_median_{d}_nw": "Building Area Median",
@@ -123,7 +123,7 @@ AVAILABLE_MORPH_DATA = {
     "cc_block_covered_ratio_mad_{d}_nw": "Block Covered Ratio MAD",
     "cc_block_{d}_nw": "Block Count",
 }
-
+"""
 
 # --- FEATURE SELECTION FOR CLUSTERING ---
 # Comprehensive set covering 6 urban form dimensions:
@@ -1480,11 +1480,20 @@ n_countries = len(country_profiles_df)
 
 readme_content = f"""# EG6: Urban Density and Building Morphology Patterns
 
-## Summary
+## Vignette Purpose
 
-Analysis of building morphology patterns across {n_total} European cities grouped by {n_countries} countries.
-We cluster **nodes** by morphology profile, then characterize each **country** by the proportion
-of its nodes in each cluster type. This reveals international morphology patterns.
+Clustering algorithms applied to street-level features can identify recurring neighbourhood types
+that transcend administrative boundaries. This vignette applies clustering to identify urban
+morphological forms and characterises cities by their mix of types.
+
+## Analysis Overview
+
+Across {n_total} European cities and {n_countries} countries, we sample up to 5,000 nodes per city
+(or 25% if larger) and apply BIRCH clustering (k=8) using 8 morphological features at 200m scale:
+building count, block count, mean height, height variation, footprint area, fractal dimension,
+block coverage, and shared walls ratio. Countries are then characterized by their node distribution
+across clusters, revealing regional morphological patterns. External validation uses population density,
+network density, and land-use diversity to interpret cluster characteristics.
 
 ## Methodology
 
@@ -1583,6 +1592,7 @@ readme_content += f"""
 - `cluster_representatives.csv`: Representative city for each cluster
 
 ### Visualizations
+- `cluster_evaluation.png`: Elbow plot and silhouette analysis for determining optimal cluster count
 - `cluster_radar_profiles.png`: Individual radar plots for each cluster
 - `cluster_external_rankings.png`: Clusters ranked by external characteristics
 - `cluster_feature_correlations.png`: Heatmap of cluster-feature correlations
@@ -1591,6 +1601,20 @@ readme_content += f"""
 - `country_composition_stacked.png`: Stacked bar chart of country compositions
 - `city_profiles_clusters.png`: Cities plotted by contrasting cluster proportions
 - `cluster_1-{N_NODE_CLUSTERS}_satellite_5x5.jpg`: Satellite imagery exemplars for each cluster
+
+### Satellite Imagery Examples
+
+Representative satellite imagery (5×5 tile grids) for each morphological cluster:
+
+"""
+for c in range(N_NODE_CLUSTERS):
+    readme_content += f"\n![Cluster {c + 1} Satellite](outputs/cluster_{c + 1}_satellite_5x5.jpg)\n"
+
+readme_content += """
+
+These images show typical urban fabrics for each cluster type, captured at zoom level 18.
+
+**Satellite imagery source:** ESRI World Imagery (Maxar, Earthstar Geographics, and the GIS User Community).
 
 """
 
@@ -1642,7 +1666,7 @@ for c in range(min(3, N_NODE_CLUSTERS)):  # Just first 3 clusters for brevity
             f"  {row['country']} & {int(row['n_cities'])} & Cluster {dom_id + 1} & {row[f'pct_cluster_{c}']:.1f} \\\\"
         )
     latex_country.extend([r"  \bottomrule", r"\end{tabular}"])
-    
+
     with open(output_path / f"table_top_countries_cluster_{c + 1}.tex", "w") as f:
         f.write("\n".join(latex_country))
     print(f"  Saved: table_top_countries_cluster_{c + 1}.tex")

@@ -662,6 +662,20 @@ report_lines = [
     "",
     f"**Analysis Date:** {pd.Timestamp.now().strftime('%Y-%m-%d')}",
     "",
+    "## Vignette Purpose",
+    "",
+    "Relationships observed within cities may differ from those observed between cities. SOAR enables",
+    "both within-city analysis and city-level aggregations for cross-city comparison, and the two",
+    "perspectives can yield different---sometimes opposing---conclusions. This vignette explores the",
+    "topic in the context of access to green spaces, examining within-city correlations between",
+    "population density and green space proximity.",
+    "",
+    "## Analysis Overview",
+    "",
+    "For each city with ≥100 street network nodes, we compute Spearman rank correlations between",
+    "population density and distance to green blocks (parks) and tree canopy. We also analyze correlations",
+    "with green space area within pedestrian catchments.",
+    "",
     "## Summary Statistics",
     "",
     f"- **Total Street Network Nodes Analyzed:** {summary_stats['total_nodes']:,}",
@@ -678,13 +692,13 @@ report_lines = [
     f"- **Median Distance:** {summary_stats['trees_median_dist']:.1f}m",
     f"- **% Within 400m (5-min walk):** {summary_stats['trees_pct_within_400m']:.1f}%",
     "",
-    "## Per-City Density-Green Access Correlations",
+    "## Per-City Density-Green Distance Correlations",
     "",
-    "This analysis examines whether denser urban areas have better or worse access to green block.",
-    "- **Negative correlation**: Denser areas are *closer* to green block (better access)",
-    "- **Positive correlation**: Denser areas are *farther* from green block (worse access)",
+    "This analysis examines whether denser urban areas have better or worse access to green blocks by distance.",
+    "- **Negative correlation**: Denser areas are *closer* to green blocks (better access)",
+    "- **Positive correlation**: Denser areas are *farther* from green blocks (worse access)",
     "",
-    f"### Green Block: {green_negative} cities negative, {green_positive} cities positive",
+    f"### Green Blocks by distance: {green_negative} cities negative, {green_positive} cities positive",
     "",
     "**Strongest negative (denser = closer):**",
     "",
@@ -699,7 +713,7 @@ for _, row in strongest_green_pos.iterrows():
 report_lines.extend(
     [
         "",
-        f"### Tree Canopy: {trees_negative} cities negative, {trees_positive} cities positive",
+        f"### Tree Canopy by distance: {trees_negative} cities negative, {trees_positive} cities positive",
         "",
         "**Strongest negative (denser = closer):**",
         "",
@@ -714,17 +728,23 @@ for _, row in strongest_trees_pos.iterrows():
 
 report_lines.extend(
     [
+        "## Per-City Density-Green Area Correlations",
+        "",
+        "This analysis examines whether denser urban areas have better or worse access to green blocks by area.",
+        "- **Negative correlation**: Denser areas have *less* access to green blocks by area (worse access)",
+        "- **Positive correlation**: Denser areas have *more* access to green blocks by area (better access)",
+        "",
         "",
         f"### Green Area (800m buffer): {green_area_negative} cities negative, {green_area_positive} cities positive",
         "",
-        "**Strongest negative (denser = more green area):**",
+        "**Strongest negative (denser = less green area):**",
         "",
     ]
 )
 for _, row in strongest_green_area_neg.iterrows():
     report_lines.append(f"- {row['city_label']} ({row['country']}): r = {row['green_area_corr']:.3f}")
 
-report_lines.extend(["", "**Strongest positive (denser = less green area):**", ""])
+report_lines.extend(["", "**Strongest positive (denser = more green area):**", ""])
 for _, row in strongest_green_area_pos.iterrows():
     report_lines.append(f"- {row['city_label']} ({row['country']}): r = {row['green_area_corr']:.3f}")
 
@@ -733,14 +753,14 @@ report_lines.extend(
         "",
         f"### Tree Canopy Area (800m buffer): {trees_area_negative} cities negative, {trees_area_positive} cities positive",
         "",
-        "**Strongest negative (denser = more tree canopy):**",
+        "**Strongest negative (denser = less tree canopy):**",
         "",
     ]
 )
 for _, row in strongest_trees_area_neg.iterrows():
     report_lines.append(f"- {row['city_label']} ({row['country']}): r = {row['trees_area_corr']:.3f}")
 
-report_lines.extend(["", "**Strongest positive (denser = less tree canopy):**", ""])
+report_lines.extend(["", "**Strongest positive (denser = more tree canopy):**", ""])
 for _, row in strongest_trees_area_pos.iterrows():
     report_lines.append(f"- {row['city_label']} ({row['country']}): r = {row['trees_area_corr']:.3f}")
 
@@ -749,14 +769,14 @@ report_lines.extend(
         "",
         "## Key Finding",
         "",
-        "The relationship between population density and green block access varies substantially",
+        "The relationship between population density and access to green blocks and tree canopies varies",
         "by city, reflecting different urban planning approaches and historical development patterns.",
-        "This heterogeneity demonstrates why city-specific analysis is essential for understanding",
-        "environmental equity rather than relying on aggregate statistics.",
+        "These patterns can differ for within-city analyses compared to between-city analyses.",
         "",
         "## Visualization",
         "",
         "![City Density Correlations](outputs/city_density_correlations.png)",
+        "![Correlation vs. Density](outputs/correlation_vs_density.png)",
         "",
     ]
 )
@@ -854,7 +874,6 @@ print("  Saved: table_trees_correlations.tex")
 print("\nANALYSIS COMPLETE")
 print(f"Output directory: {output_path}")
 print("  - correlation_vs_density.png: Scatter plot of city correlation vs mean density")
-print("  - simpsons_paradox_multiscale.png: Multi-scale analysis (continental/within-city/between-city)")
 print("  - city_density_correlations.png: Diverging bar chart of per-city correlations")
 print("  - city_density_correlations.csv: Raw correlation data")
 print(f"README.md saved to: {report_path}")

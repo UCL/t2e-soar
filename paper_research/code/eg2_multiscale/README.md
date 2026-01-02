@@ -1,6 +1,6 @@
 # Green Block Accessibility Analysis Report
 
-**Analysis Date:** 2026-01-01
+**Analysis Date:** 2026-01-02
 
 ## Summary Statistics
 
@@ -9,22 +9,25 @@
 - **Cities with Correlation Data:** 672 (min 100 nodes)
 
 ### Green Blocks (Parks & Green Spaces)
+
 - **Mean Distance:** 149.7m
 - **Median Distance:** 93.5m
 - **% Within 400m (5-min walk):** 91.0%
 
 ### Tree Canopy
+
 - **Mean Distance:** 143.8m
 - **Median Distance:** 72.2m
 - **% Within 400m (5-min walk):** 91.2%
 
-## Per-City Density-Green Access Correlations
+## Per-City Density-Green Distance Correlations
 
-This analysis examines whether denser urban areas have better or worse access to green block.
-- **Negative correlation**: Denser areas are *closer* to green block (better access)
-- **Positive correlation**: Denser areas are *farther* from green block (worse access)
+This analysis examines whether denser urban areas have better or worse access to green blocks by distance.
 
-### Green Block: 6 cities negative, 666 cities positive
+- **Negative correlation**: Denser areas are _closer_ to green blocks (better access)
+- **Positive correlation**: Denser areas are _farther_ from green blocks (worse access)
+
+### Green Blocks by distance: 6 cities negative, 666 cities positive
 
 **Strongest negative (denser = closer):**
 
@@ -42,7 +45,7 @@ This analysis examines whether denser urban areas have better or worse access to
 - Vigevano (IT): r = 0.739
 - Mechelen (BE): r = 0.727
 
-### Tree Canopy: 569 cities negative, 103 cities positive
+### Tree Canopy by distance: 569 cities negative, 103 cities positive
 
 **Strongest negative (denser = closer):**
 
@@ -60,9 +63,16 @@ This analysis examines whether denser urban areas have better or worse access to
 - Μελισσάτικα (GR): r = 0.390
 - Lugo (ES): r = 0.357
 
+## Per-City Density-Green Area Correlations
+
+This analysis examines whether denser urban areas have better or worse access to green blocks by area.
+
+- **Negative correlation**: Denser areas have _less_ access to green blocks by area (worse access)
+- **Positive correlation**: Denser areas have _more_ access to green blocks by area (better access)
+
 ### Green Area (800m buffer): 650 cities negative, 22 cities positive
 
-**Strongest negative (denser = more green area):**
+**Strongest negative (denser = less green area):**
 
 - Vigevano (IT): r = -0.858
 - Lecce (IT): r = -0.827
@@ -70,7 +80,7 @@ This analysis examines whether denser urban areas have better or worse access to
 - Ravenna (IT): r = -0.805
 - Latina (IT): r = -0.802
 
-**Strongest positive (denser = less green area):**
+**Strongest positive (denser = more green area):**
 
 - Thalwil (CH): r = 0.435
 - Ajaccio (FR): r = 0.334
@@ -80,7 +90,7 @@ This analysis examines whether denser urban areas have better or worse access to
 
 ### Tree Canopy Area (800m buffer): 49 cities negative, 623 cities positive
 
-**Strongest negative (denser = more tree canopy):**
+**Strongest negative (denser = less tree canopy):**
 
 - Küsnacht (ZH) (CH): r = -0.775
 - Thalwil (CH): r = -0.554
@@ -88,7 +98,7 @@ This analysis examines whether denser urban areas have better or worse access to
 - Verviers (BE): r = -0.443
 - Gulpilhares e Valadares (PT): r = -0.368
 
-**Strongest positive (denser = less tree canopy):**
+**Strongest positive (denser = more tree canopy):**
 
 - Novara (IT): r = 0.853
 - Durach (DE): r = 0.837
@@ -98,11 +108,11 @@ This analysis examines whether denser urban areas have better or worse access to
 
 ## Key Finding
 
-The relationship between population density and green block access varies substantially
+The relationship between population density and access to green blocks and tree canopies varies
 by city, reflecting different urban planning approaches and historical development patterns.
-This heterogeneity demonstrates why city-specific analysis is essential for understanding
-environmental equity rather than relying on aggregate statistics.
+These patterns can differ for within-city analyses compared to between-city analyses.
 
 ## Visualization
 
 ![City Density Correlations](outputs/city_density_correlations.png)
+![Correlation vs. Density](outputs/correlation_vs_density.png)

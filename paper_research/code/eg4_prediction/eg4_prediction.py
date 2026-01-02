@@ -1,13 +1,14 @@
 # %% [markdown];
 """
-# Amenity Supply Prediction Using Network Centrality
+# Amenity Supply Prediction Using Network Centrality and Demographic Data
 
 Trains Extra Trees models to predict POI distribution based on network centrality,
-demonstrating that street network structure can predict amenity locations.
+and demographic data, demonstrating that street network structure and demographics
+can predict amenity locations.
 
 ## Steps
 1. Filter to cities with 'Consistently Saturated' POI coverage (from EG1)
-2. Load node-level data (network centrality, POI counts, population)
+2. Load node-level data (network centrality, POI counts, census variables)
 3. Train Extra Trees models (eat & drink, business & services)
 4. Generate predictions for all data
 5. Compute per-city prediction accuracy (R², MAE, RMSE)
@@ -24,7 +25,7 @@ demonstrating that street network structure can predict amenity locations.
 
 ## Interpretation
 - High R² indicates network centrality strongly predicts POI locations
-- Per-city accuracy shows how well this relationship generalizes
+- Per-city accuracy shows the extent to which this relationship generalizes
 - Feature importance reveals which centrality scales matter most
 """
 
@@ -501,16 +502,23 @@ total_nodes = len(prediction_results[POI_CATEGORY_NAMES[0]])
 total_cities = len(city_results[POI_CATEGORY_NAMES[0]])
 
 report_lines = [
-    "# Amenity Supply Prediction Using Network Centrality",
+    "# Amenity Supply Prediction",
     "",
     f"**Analysis Date:** {pd.Timestamp.now().strftime('%Y-%m-%d')}",
     "",
-    "## Overview",
+    "## Vignette Purpose",
     "",
-    "This analysis uses Extra Trees regression to predict amenity supply based on",
-    "multi-scale network centrality metrics and census variables. The goal is to demonstrate that street",
-    "network structure can predict POI distributions, with per-city accuracy metrics",
-    "showing how well this relationship generalizes across different urban contexts.",
+    "Large-scale datasets from multiple cities can enable training of generalisable models.",
+    "This vignette uses network centrality and census demographics to predict commercial amenity",
+    "intensities, demonstrating how consistent feature sets across cities can support transfer learning.",
+    "",
+    "## Analysis Overview",
+    "",
+    "Using 27 cities with saturated POI coverage (694,527 nodes), we train Extra Trees regressors to",
+    "predict 'Eat & Drink' and 'Business & Services' POI counts from closeness centrality,",
+    "betweenness centrality, and census demographics. Models achieve median R²=0.709-0.721",
+    "on held-out data, with 96-100% of cities exceeding R²>0.5. Feature importance analysis reveals",
+    "intermediate-scale centrality (1200-1600m) dominates predictions.",
     "",
     "## Summary Statistics",
     "",

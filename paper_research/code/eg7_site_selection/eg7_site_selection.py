@@ -234,7 +234,7 @@ else:
 
             all_city_stats.append(city_stats)
 
-        except Exception as e:
+        except Exception:
             continue
 
     city_data = pd.DataFrame(all_city_stats)
@@ -376,6 +376,186 @@ with open(output_path / "table_opportunity_cities.tex", "w") as f:
 print("  Saved table_opportunity_cities.tex")
 
 # %%
+"""
+## Step 6: Generate README Report
+"""
+
+print("\nSTEP 6: Generating README report")
+
+readme_lines = [
+    "# Site Selection for Development Opportunities",
+    "",
+    f"**Analysis Date:** {pd.Timestamp.now().strftime('%Y-%m-%d')}",
+    "",
+    "## Vignette Purpose",
+    "",
+    "Large-scale datasets can be filtered by multiple criteria to identify candidate locations",
+    "for new facilities, housing, or infrastructure investments. This vignette identifies locations",
+    "with high centrality, mixed uses, and transport access but lower density as development candidates.",
+    "",
+    "## Analysis Overview",
+    "",
+    "Across 339 cities with reliable POI coverage (9.37M nodes), we classify each street network node using",
+    "within-city percentile thresholds: high diversity (>70th percentile Hill q=0), high centrality (>70th",
+    "percentile beta-weighted closeness at 1600m), good transport (<30th percentile distance to stop), and",
+    "low density (<30th percentile population). Nodes are categorized as: mixed-use dense, mixed-use opportunity",
+    "(development candidates), single-use dense, or peripheral. Cities are ranked by proportion of opportunity",
+    "nodes, with mean 0.74% citywide (range 0.1%-2.5%).",
+    "",
+    "## Summary Statistics",
+    "",
+    f"- **Cities Analyzed:** {len(city_data)}",
+    f"- **Total Street Network Nodes:** {city_data['n_nodes'].sum():,}",
+    f"- **Mean Nodes per City:** {city_data['n_nodes'].mean():.0f}",
+    f"- **Minimum Nodes per City:** {MIN_NODES}",
+    "",
+    "## Typology Distribution",
+    "",
+    "Average percentage of nodes in each typology across all cities:",
+    "",
+    f"- **Mixed-Use Dense:** {city_data['pct_mixed_dense'].mean():.1f}% (high diversity + high density)",
+    f"- **Mixed-Use Opportunity:** {city_data['pct_mixed_opportunity'].mean():.1f}% (high diversity + low density)",
+    f"- **Single-Use Dense:** {city_data['pct_single_dense'].mean():.1f}% (low diversity + high density)",
+    f"- **Single-Use Low-Density:** {city_data['pct_single_low'].mean():.1f}% (low diversity + low density)",
+    f"- **Intermediate:** {city_data['pct_intermediate'].mean():.1f}% (all other combinations)",
+    "",
+    "## Development Opportunity Statistics",
+    "",
+    "Nodes classified as development opportunities meet all criteria:",
+    "- High diversity score (≥70th percentile)",
+    "- High network centrality (≥70th percentile)",
+    "- Good transport access (≥70th percentile)",
+    "- Low population density (≤30th percentile)",
+    "",
+    f"- **Mean % Opportunity Nodes:** {city_data['pct_development_opportunity'].mean():.2f}%",
+    f"- **Median % Opportunity Nodes:** {city_data['pct_development_opportunity'].median():.2f}%",
+    f"- **Range:** {city_data['pct_development_opportunity'].min():.2f}% to {city_data['pct_development_opportunity'].max():.2f}%",
+    "",
+    "## Top 10 Mixed-Use Cities",
+    "",
+    "Cities with highest mixed-use character score (combination of diversity and mixed-use typology proportions):",
+    "",
+    "| Rank | City | Country | Mixed-Use Score | % Mixed Dense | % Mixed Opp. |",
+    "|------|------|---------|-----------------|---------------|--------------|",
+]
+
+for rank, (_, row) in enumerate(mixed_use_ranked.head(10).iterrows(), 1):
+    city = str(row["city_label"]) if pd.notna(row["city_label"]) else "Unknown"
+    country = str(row["country"]) if pd.notna(row["country"]) else "??"
+    readme_lines.append(
+        f"| {rank} | {city} | {country} | {row['mixed_use_score']:.2f} | {row['pct_mixed_dense']:.1f} | {row['pct_mixed_opportunity']:.1f} |"
+    )
+
+readme_lines.extend(
+    [
+        "",
+        "## Top 10 Development Opportunity Cities",
+        "",
+        "Cities with highest proportion of nodes identified as development opportunities:",
+        "",
+        "| Rank | City | Country | % Opportunity | Mean Centrality | Mean Transport |",
+        "|------|------|---------|---------------|-----------------|----------------|",
+    ]
+)
+
+for rank, (_, row) in enumerate(opportunity_ranked.head(10).iterrows(), 1):
+    city = str(row["city_label"]) if pd.notna(row["city_label"]) else "Unknown"
+    country = str(row["country"]) if pd.notna(row["country"]) else "??"
+    readme_lines.append(
+        f"| {rank} | {city} | {country} | {row['pct_development_opportunity']:.1f}% | {row['mean_centrality']:.2f} | {row['mean_transport_access']:.2f} |"
+    )
+
+readme_lines.extend(
+    [
+        "",
+        "## Methodology",
+        "",
+        "### Node Typology Classification",
+        "",
+        "Each street network node is classified based on within-city percentile thresholds:",
+        "",
+        "- **Mixed-Use Dense**: High diversity (≥70th percentile) + High density (≥70th percentile)",
+        "- **Mixed-Use Opportunity**: High diversity + High centrality + Good transport access, but Low density (≤30th percentile)",
+        "- **Single-Use Dense**: Low diversity (≤30th percentile) + High density",
+        "- **Single-Use Low-Density**: Low diversity + Low density",
+        "- **Intermediate**: All other combinations",
+        "",
+        "### Diversity Scoring",
+        "",
+        "Composite diversity score computed from three Hill numbers at 400m scale:",
+        "- `cc_hill_q0_400_nw`: Species richness (count of distinct land-use types)",
+        "- `cc_hill_q1_400_nw`: Exponential Shannon entropy (balanced diversity)",
+        "- `cc_hill_q2_400_nw`: Inverse Simpson index (dominance-adjusted)",
+        "",
+        "Each metric is normalized within-city to [0,1] and averaged to create diversity score.",
+        "",
+        "### Development Opportunity Criteria",
+        "",
+        "Nodes flagged as 'Mixed-Use Opportunity' must simultaneously meet:",
+        "1. High diversity score (≥70th percentile within city)",
+        "2. High network centrality at 1,600m scale (≥70th percentile)",
+        "3. Good transport access—low distance to nearest stop (≥70th percentile accessibility)",
+        "4. Low current population density (≤30th percentile)",
+        "",
+        "## Key Outputs",
+        "",
+        "### Data Files",
+        "- **city_site_profiles.csv**: Per-city summary with typology proportions",
+        "",
+        "### Visualization Files",
+        "",
+        "#### Mixed-Use City Rankings",
+        "![City Mixed Use Ranking](outputs/city_mixed_use_ranking.png)",
+        "",
+        "#### Development Opportunity Rankings",
+        "![City Opportunity Ranking](outputs/city_opportunity_ranking.png)",
+        "",
+        "#### Typology Distribution",
+        "![Typology Distribution](outputs/typology_distribution.png)",
+        "",
+        "### LaTeX Tables",
+        "- **table_mixed_use_cities.tex**: Top 10 mixed-use cities",
+        "- **table_opportunity_cities.tex**: Top 10 development opportunity cities",
+        "",
+        "## Interpretation",
+        "",
+        "### Mixed-Use Cities",
+        "Cities with high proportions of nodes classified as 'Mixed-Use Dense' demonstrate",
+        "fine-grained integration of residential, commercial, and service functions. These",
+        "cities typically have pedestrian-oriented development patterns with diverse amenities",
+        "accessible within short walking distances.",
+        "",
+        "### Development Opportunities",
+        "Locations classified as 'Mixed-Use Opportunity' represent areas where infrastructure",
+        "(street network connectivity, land-use diversity, transport access) supports higher",
+        "utilization than current population density suggests. These are not recommendations",
+        "for development—such decisions require local planning knowledge, market analysis,",
+        "zoning compatibility, and community input—but rather a filtering mechanism to identify",
+        "areas warranting further investigation.",
+        "",
+        "## Caveats",
+        "",
+        "1. **Threshold sensitivity**: 70th/30th percentile cutoffs are illustrative; different",
+        "   thresholds would identify different opportunity areas.",
+        "",
+        "2. **Within-city normalization**: All metrics are normalized within each city, so",
+        "   'high diversity' is relative to that city's range, not an absolute standard.",
+        "",
+        "3. **Infrastructure ≠ suitability**: High connectivity and diversity do not imply that",
+        "   densification is appropriate—environmental constraints, heritage protection,",
+        "   infrastructure capacity, and community preferences must be considered.",
+        "",
+        "4. **POI data quality**: Relies on cities with reliable POI coverage from EG1",
+        "   saturation analysis.",
+        "",
+    ]
+)
+
+readme_path = output_path.parent / "README.md"
+with open(readme_path, "w") as f:
+    f.write("\n".join(readme_lines))
+print("  Saved README.md")
+
 """
 ## Complete
 """

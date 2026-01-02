@@ -12,7 +12,7 @@ This demonstrator combines two access gap analyses:
 2. **Transport gaps**: Where do high-demand areas lack adequate public transport access?
 
 ## Steps
-1. Load city saturation results from EG1 and filter to reliably covered cities
+1. Load city saturation results from EG1 and filter to saturated cities
 2. Load education and transport accessibility metrics from city metrics files
 3. Compute cross-city summary statistics and within-city equity metrics
 4. Identify gap areas using percentile thresholds
@@ -32,7 +32,7 @@ This demonstrator combines two access gap analyses:
 - `density`: Population density (demand proxy)
 
 ## Notes
-- Education analysis uses "Consistently Saturated" cities for reliable equity metrics
+- Education analysis uses "Consistently Saturated" cities for more reliable equity metrics
 - Transport analysis uses "Consistently Saturated" + "Variable Saturated" for broader coverage
 """
 
@@ -54,8 +54,8 @@ EDUCATION_DIST_COL = "cc_education_nearest_max_1600"
 EDUCATION_COUNT_COL = "cc_education_1600_nw"
 
 # Transport access columns
-TRANSPORT_DIST_COL = "cc_transportation_nearest_max_1600"
-CENTRALITY_COL = "cc_beta_800"
+TRANSPORT_DIST_COL = "cc_transport_nearest_max_1600"
+CENTRALITY_COL = "cc_density_800"
 DENSITY_COL = "density"
 
 # Thresholds for gap identification
@@ -395,9 +395,9 @@ for _, row in edu_df.tail(5).iterrows():
     latex_edu.append(f"  {city[:20]} & {row['country']} & {row['mean_dist']:.0f} & {row['pct_within_400m']:.1f} \\\\")
 latex_edu.extend([r"  \bottomrule", r"\end{tabular}"])
 
-with open(output_path / "table_education_access.tex", "w") as f:
+with open(output_path / "table_access.tex", "w") as f:
     f.write("\n".join(latex_edu))
-print("  Saved table_education_access.tex")
+print("  Saved table_access.tex")
 
 # Table 2: Transport gaps
 latex_transport = [
@@ -419,6 +419,201 @@ print("  Saved table_transport_gaps.tex")
 
 # %%
 """
+## Step 6: Generate README
+"""
+
+print("\nSTEP 6: Generating README")
+
+readme_lines = [
+    "# Access Gap Analysis: Education and Transport",
+    "",
+    f"**Analysis Date:** {pd.Timestamp.now().strftime('%Y-%m-%d')}",
+    "",
+    "## Vignette Purpose",
+    "",
+    "Distance-to-nearest metrics can reveal locations where distances to amenities or services",
+    "are greater than average or exceed targeted thresholds. This vignette demonstrates two basic",
+    "methods for identifying access gaps: **education** (spatial equity and absolute access) and",
+    "**transport** (demand-supply mismatches). These methods provide foundational approaches for",
+    "access analysis, though more refined options may be used for detailed analysis depending on",
+    "specific research questions and data availability.",
+    "",
+    "## Analysis Overview",
+    "",
+    "This analysis examines two complementary types of access gaps:",
+    "",
+    "**Education Access:** For cities with reliable POI coverage, we compute mean/median distances",
+    "to nearest schools, P75/P25 equity ratios, and identify severely underserved areas (>2× city mean).",
+    "This reveals both absolute access levels and within-city spatial equity.",
+    "",
+    "**Transport Gaps:** We identify high-demand locations (top 30% centrality+density) with poor supply",
+    "(bottom 30% proximity), flagging critical gaps where supply falls below the 15th percentile.",
+    "This highlights demand-supply mismatches requiring infrastructure intervention.",
+    "",
+    "---",
+    "",
+    "## Part 1: Education Access Analysis",
+    "",
+    "### Summary Statistics",
+    "",
+    f"- **Cities Analyzed:** {len(edu_df)} (saturated education POI coverage only)",
+    f"- **Total Street Network Nodes:** {edu_df['n_nodes'].sum():,}",
+    f"- **Mean Distance to Education (cross-city):** {edu_df['mean_dist'].mean():.1f}m",
+    f"- **Median Distance to Education (cross-city):** {edu_df['mean_dist'].median():.1f}m",
+    "",
+    "### Cross-City Comparison",
+    "",
+    "#### Best Access (Top 10 Cities)",
+    "",
+    "| City | Country | Mean Dist (m) | % within 400m |",
+    "|------|---------|---------------|---------------|",
+]
+
+for _, row in edu_df.head(10).iterrows():
+    readme_lines.append(
+        f"| {row['city_label']} | {row['country']} | {row['mean_dist']:.1f} | {row['pct_within_400m']:.1f}% |"
+    )
+
+readme_lines.extend(
+    [
+        "",
+        "#### Worst Access (Bottom 10 Cities)",
+        "",
+        "| City | Country | Mean Dist (m) | % within 400m |",
+        "|------|---------|---------------|---------------|",
+    ]
+)
+
+for _, row in edu_df.tail(10).iterrows():
+    readme_lines.append(
+        f"| {row['city_label']} | {row['country']} | {row['mean_dist']:.1f} | {row['pct_within_400m']:.1f}% |"
+    )
+
+readme_lines.extend(
+    [
+        "",
+        "### Within-City Equity Analysis",
+        "",
+        "The equity ratio (P75/P25) measures inequality of access within each city.",
+        "Higher values indicate greater disparity between well-served and underserved areas.",
+        "",
+        "#### Most Equitable Cities (Lowest P75/P25 Ratio)",
+        "",
+        "| City | Country | Equity Ratio | % Severely Underserved |",
+        "|------|---------|--------------|------------------------|",
+    ]
+)
+
+for _, row in equity_df.tail(10).iterrows():
+    readme_lines.append(
+        f"| {row['city_label']} | {row['country']} | {row['equity_ratio']:.2f} | {row['pct_above_2x_city_mean']:.1f}% |"
+    )
+
+readme_lines.extend(
+    [
+        "",
+        "#### Least Equitable Cities (Highest P75/P25 Ratio)",
+        "",
+        "| City | Country | Equity Ratio | % Severely Underserved |",
+        "|------|---------|--------------|------------------------|",
+    ]
+)
+
+for _, row in equity_df.head(10).iterrows():
+    readme_lines.append(
+        f"| {row['city_label']} | {row['country']} | {row['equity_ratio']:.2f} | {row['pct_above_2x_city_mean']:.1f}% |"
+    )
+
+readme_lines.extend(
+    [
+        "",
+        "---",
+        "",
+        "## Part 2: Transport Access Gap Analysis",
+        "",
+        f"- **Cities Analyzed:** {len(transport_data)}",
+        f"- **Total Street Network Nodes:** {transport_data['n_nodes'].sum():,}",
+        f"- **Mean Critical Gap %:** {transport_data['pct_critical_gap'].mean():.1f}%",
+        "",
+        "### Cities with Largest Transport Gaps (Top 10)",
+        "",
+        "High-demand areas (top 30% centrality + density) with poor transport access (bottom 15% supply).",
+        "",
+        "| City | Country | % Critical Gap | Mean Demand | Mean Supply |",
+        "|------|---------|----------------|-------------|-------------|",
+    ]
+)
+
+for _, row in transport_data.head(10).iterrows():
+    readme_lines.append(
+        f"| {row['city_label']} | {row['country']} | {row['pct_critical_gap']:.1f}% | {row['mean_demand']:.2f} | {row['mean_supply']:.2f} |"
+    )
+
+readme_lines.extend(
+    [
+        "",
+        "## Methodology",
+        "",
+        "### Education Access",
+        "- Analyzed cities with 'Consistently Saturated' education POI coverage",
+        "- Computed mean/median distances to nearest school",
+        "- Calculated proportion within 400m (5-min walk) and 800m (10-min walk)",
+        "- Equity ratio = P75/P25 distance (higher = more unequal)",
+        "- Underserved = nodes with distance > 2× city mean",
+        "",
+        "### Transport Gap Identification",
+        "- Demand score = (normalized centrality + normalized density) / 2",
+        "- Supply score = 1 - normalized distance to transport",
+        "- Gap areas = high demand (≥70th percentile) + low supply (≤30th percentile)",
+        "- Critical gaps = high demand + critically low supply (≤15th percentile)",
+        "",
+        "## Key Findings",
+        "",
+        "### Education Access Patterns",
+        "- Best-performing cities achieve <330m mean distance with >69% nodes within 400m",
+        "- Worst-performing cities exceed 600m mean distance with <40% within 400m",
+        f"- Cross-city range: {edu_df['mean_dist'].min():.0f}m to {edu_df['mean_dist'].max():.0f}m",
+        "",
+        "### Education Equity Patterns",
+        "- Most equitable cities have P75/P25 ratios around 2.4-2.6",
+        "- Least equitable cities exceed 4.5-6.0 ratios",
+        "- Even equitable cities have 8-12% underserved nodes",
+        "",
+        "### Transport Gap Patterns",
+        f"- Cities show {transport_data['pct_critical_gap'].min():.1f}% to {transport_data['pct_critical_gap'].max():.1f}% critical gap nodes",
+        f"- Mean demand across cities: {transport_data['mean_demand'].mean():.2f}",
+        f"- Mean supply across cities: {transport_data['mean_supply'].mean():.2f}",
+        "",
+        "## Outputs",
+        "",
+        "### Data Files",
+        "- `education_city_access.csv`: Mean education access statistics per city",
+        "- `education_equity_analysis.csv`: Within-city equity metrics (P75/P25, underserved %)",
+        "- `transport_gap_profiles.csv`: Transport gap statistics per city",
+        "",
+        "### LaTeX Tables",
+        "- `table_access.tex`: Top/bottom cities by education access",
+        "- `table_equity.tex`: Most/least equitable cities by P75/P25 ratio",
+        "- `table_transport_gaps.tex`: Cities with largest transport gaps",
+        "",
+        "### Visualizations",
+        "",
+        "#### Education Access Rankings",
+        "![Education Access Ranking](outputs/education_access_ranking.png)",
+        "",
+        "#### Transport Gap Rankings",
+        "![Transport Gap Ranking](outputs/transport_gap_ranking.png)",
+        "",
+    ]
+)
+
+readme_content = "\n".join(readme_lines)
+with open(output_path.parent / "README.md", "w") as f:
+    f.write(readme_content)
+print("  Saved README.md")
+
+# %%
+"""
 ## Complete
 """
 
@@ -430,8 +625,11 @@ print("  Education outputs:")
 print("    - education_city_access.csv")
 print("    - education_equity_analysis.csv")
 print("    - education_access_ranking.png")
-print("    - table_education_access.tex")
+print("    - table_access.tex")
+print("    - table_equity.tex")
 print("  Transport outputs:")
 print("    - transport_gap_profiles.csv")
 print("    - transport_gap_ranking.png")
 print("    - table_transport_gaps.tex")
+print("  Documentation:")
+print("    - README.md")
