@@ -119,7 +119,7 @@ def process_metrics(
                     "Orchards at the fringe of urban classes",
                     "Pastures",
                     "Permanent crops (vineyards, fruit trees, olive groves)",
-                    "Sports and leisure facilities",
+                    # "Sports and leisure facilities",
                     "Water",
                     "Wetlands",
                 ]
@@ -168,8 +168,21 @@ def process_metrics(
         target_coords = np.column_stack((nodes_gdf.x, nodes_gdf.y))  # type: ignore
         for col in tqdm(cols):
             grid_values = stats_gdf[col].values  # type: ignore
+            # Filter out invalid values (NaN, inf, and common sentinel values like -9999, -9902, etc.)
+            # Create mask for valid data points (finite, non-negative for counts/percentages)
+            valid_mask = np.isfinite(grid_values) & (grid_values >= 0)  # 0 threshold catches common sentinel values
+            if not np.any(valid_mask):
+                logger.warning(f"No valid values for column {col}, skipping interpolation")
+                nodes_gdf[col] = np.nan
+                continue
+            # Only use valid grid points for interpolation
+            valid_grid_coords = grid_coords[valid_mask]
+            valid_grid_values = grid_values[valid_mask]
             # use linear because cubic goes negative
-            nodes_gdf[col] = griddata(grid_coords, grid_values, target_coords, method="linear")  # type: ignore
+            # fill_value=np.nan ensures out-of-bounds points get NaN rather than extrapolated values
+            nodes_gdf[col] = griddata(
+                valid_grid_coords, valid_grid_values, target_coords, method="linear", fill_value=np.nan
+            )  # type: ignore
         # keep only live nodes within the boundary
         if not nodes_gdf.empty:
             nodes_gdf["bounds_fid"] = bounds_fid
