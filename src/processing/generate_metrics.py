@@ -21,6 +21,7 @@ REQUIRED_LAYERS = [
     "streets",
 ]
 WORKING_CRS = 3035
+CLIP_DIST = 2000  # Distance (m) to clip stats, blocks, trees around respective bounds
 
 
 def process_metrics(
@@ -37,6 +38,25 @@ def process_metrics(
     tools.validate_filepath(bounds_in_path)
     bounds_gdf = gpd.read_file(bounds_in_path, layer="bounds")
     bounds_gdf = bounds_gdf.to_crs(WORKING_CRS)
+    # Load stats once outside loop for efficiency
+    tools.validate_filepath(stats_path)
+    logger.info("Loading population statistics grid...")
+    stats_gdf_full = gpd.read_file(stats_path)
+    stats_gdf_full = stats_gdf_full.to_crs(WORKING_CRS)
+    stats_gdf_full = stats_gdf_full.rename(columns={col: col.lower() for col in stats_gdf_full.columns})
+    logger.info(f"Loaded {len(stats_gdf_full)} stat grid cells")
+    # Load blocks once outside loop
+    tools.validate_filepath(blocks_path)
+    logger.info("Loading Urban Atlas blocks...")
+    blocks_gdf_full = gpd.read_file(blocks_path)
+    blocks_gdf_full = blocks_gdf_full.to_crs(WORKING_CRS)
+    logger.info(f"Loaded {len(blocks_gdf_full)} blocks")
+    # Load trees once outside loop
+    tools.validate_filepath(trees_path)
+    logger.info("Loading tree canopies...")
+    trees_gdf_full = gpd.read_file(trees_path)
+    trees_gdf_full = trees_gdf_full.to_crs(WORKING_CRS)
+    logger.info(f"Loaded {len(trees_gdf_full)} tree canopy features")
     # process each boundary
     for bounds_fid, bounds_row in bounds_gdf.iterrows():
         logger.info(f"\n\nProcessing metrics for bounds fid: {bounds_fid}")
@@ -81,10 +101,9 @@ def process_metrics(
         # buildings
         bldgs_gdf = gpd.read_file(overture_path, layer="buildings")
         bldgs_gdf = bldgs_gdf.to_crs(WORKING_CRS)
-        # blocks
-        tools.validate_filepath(blocks_path)
-        blocks_gdf = gpd.read_file(blocks_path, bbox=bounds_row.geometry.bounds)
-        blocks_gdf = blocks_gdf.to_crs(WORKING_CRS)
+        # blocks - filter from pre-loaded data
+        blocks_gdf = blocks_gdf_full[blocks_gdf_full.intersects(bounds_row.geometry.buffer(CLIP_DIST))].copy()
+        logger.info(f"Retained {len(blocks_gdf)} blocks for bounds fid {bounds_fid}")
         # process
         tools.validate_directory(hts_raster_data_dir)
         hts_path = Path(hts_raster_data_dir) / f"bldg_hts_{bounds_fid}.tif"
@@ -125,20 +144,16 @@ def process_metrics(
                 ]
             )
         ].copy()
-        # trees - simplify
-        tools.validate_filepath(trees_path)
-        trees_gdf = gpd.read_file(trees_path, bbox=bounds_row.geometry.bounds)
-        trees_gdf = trees_gdf.to_crs(WORKING_CRS)
+        # trees - filter from pre-loaded data and simplify
+        trees_gdf = trees_gdf_full[trees_gdf_full.intersects(bounds_row.geometry.buffer(CLIP_DIST))].copy()
         trees_gdf.geometry = trees_gdf.geometry.simplify(2.0)
+        logger.info(f"Retained {len(trees_gdf)} tree canopy features for bounds fid {bounds_fid}")
         nodes_gdf = processors.process_green(nodes_gdf, green_gdf, trees_gdf, network_structure)
         # stats
         logger.info("Computing stats")
-        # fetch stats
-        tools.validate_filepath(stats_path)
-        stats_gdf = gpd.read_file(stats_path, bbox=bounds_row.geometry.bounds)
-        stats_gdf = stats_gdf.to_crs(WORKING_CRS)
-        # prepare for interpolation
-        stats_gdf = stats_gdf.rename(columns={col: col.lower() for col in stats_gdf.columns})
+        # Filter stats to within buffer of boundary to focus interpolation on locally-relevant data
+        stats_gdf = stats_gdf_full[stats_gdf_full.intersects(bounds_row.geometry.buffer(CLIP_DIST))].copy()
+        logger.info(f"Retained {len(stats_gdf)} stat grid cells within {CLIP_DIST}m of boundary")
         cols = [
             "density",
             "t",
@@ -168,9 +183,17 @@ def process_metrics(
         target_coords = np.column_stack((nodes_gdf.x, nodes_gdf.y))  # type: ignore
         for col in tqdm(cols):
             grid_values = stats_gdf[col].values  # type: ignore
-            # Filter out invalid values (NaN, inf, and common sentinel values like -9999, -9902, etc.)
-            # Create mask for valid data points (finite, non-negative for counts/percentages)
-            valid_mask = np.isfinite(grid_values) & (grid_values >= 0)  # 0 threshold catches common sentinel values
+            # Report data quality issues
+            n_nan = np.sum(~np.isfinite(grid_values))
+            n_sentinel = np.sum(grid_values == -9999)  # Common NaN sentinel value
+            n_negative = np.sum(np.isfinite(grid_values) & (grid_values < 0) & (grid_values != -9999))
+            if n_nan > 0 or n_sentinel > 0 or n_negative > 0:
+                logger.info(
+                    f"Column {col}: {n_nan} NaN/inf, {n_sentinel} sentinel (-9999 as NaN), {n_negative} other negative"
+                )
+            # Filter out invalid values (NaN, inf, and negative sentinel values like -9999, -9902, etc.)
+            # All statistics should be non-negative (counts, densities, percentages)
+            valid_mask = np.isfinite(grid_values) & (grid_values >= 0)
             if not np.any(valid_mask):
                 logger.warning(f"No valid values for column {col}, skipping interpolation")
                 nodes_gdf[col] = np.nan
