@@ -1,38 +1,23 @@
 # %% [markdown];
 """
-# Walkable Access Benchmarking
+# European Urban Metrics Benchmarking Reference
 
-Evaluates walkable access to essential services by measuring the proportion of
-street network nodes with access to all essential POI categories within 800m.
+Computes reference statistics (5th, 25th, 50th, 75th, 95th percentiles) across European cities
+for key urban metrics including land-use accessibility, diversity (Hill numbers), network
+centrality, green space access, building morphology, and census demographics.
 
-## Steps
-1. Load city saturation results from EG1 and filter to well-covered cities
-2. Load POI distance metrics for all categories from city metrics files
-3. Compute per-node completeness scores (how many categories accessible)
-4. Aggregate to city-level statistics (% nodes with full access)
-5. Generate rankings, visualizations, and summary report
+## Metric Categories
+1. **Land-use accessibility** - Distance to nearest POI by category
+2. **Land-use diversity** - Hill numbers q0, q1, q2 at 400m
+3. **Network centrality** - Betweenness, density, cycles at 400m
+4. **Green space** - Distance to green/trees, area coverage
+5. **Building morphology** - Height, area, compactness, volume
+6. **Census demographics** - Population density, employment, age structure
 
 ## Key Outputs
-- **city_10min_scores.csv**: Per-city completeness scores at 800m threshold
-- **10min_city_ranking.png**: Bar chart of top/bottom cities
-- **completeness_distribution.png**: Histogram of completeness across cities
-- **README.md**: Summary report with key findings
-
-## Metrics Used (from SOAR pre-computed)
-- `cc_{category}_nearest_max_1600`: Network distance to nearest POI of each category (m)
-
-## POI Categories Assessed (11 categories)
-1. accommodation <- skipped
-2. active_life
-3. arts_and_entertainment
-4. attractions_and_activities
-5. business_and_services
-6. eat_and_drink
-7. education
-8. health_and_medical
-9. public_services
-10. religious
-11. retail
+- **benchmark_reference.csv**: Full benchmark statistics per city
+- **benchmark_summary.csv**: Aggregated percentile statistics across all cities
+- **country_rankings.csv**: Country-level aggregations
 """
 
 from pathlib import Path
@@ -49,10 +34,12 @@ from tqdm import tqdm
 ## Configuration
 """
 
-# POI categories for walkable access assessment
-# These represent typical services
-POI_CATEGORIES = [
-    # "accommodation",  # Excluded as not essential for access
+# Distance threshold for metrics (meters) - ~5 min walk
+DISTANCE = 400
+
+# Land-use categories
+LANDUSE_CATEGORIES = [
+    "accommodation",
     "active_life",
     "arts_and_entertainment",
     "attractions_and_activities",
@@ -65,26 +52,109 @@ POI_CATEGORIES = [
     "retail",
 ]
 
-# Generate column names for nearest distance metrics
-# Pattern: cc_{category}_nearest_max_1600
-POI_DISTANCE_COLS = [f"cc_{cat}_nearest_max_1600" for cat in POI_CATEGORIES]
+# Infrastructure categories
+INFRASTRUCTURE_CATEGORIES = [
+    "street_furn",
+    "parking",
+    "transport",
+]
 
-# Walking distance threshold (meters)
-THRESHOLD = 800  # ~10 min at 80m/min
+# Metrics to extract - using 400m distance where applicable
+METRICS_CONFIG = {
+    # Land-use nearest distance (meters)
+    "landuse_nearest": {
+        "columns": [f"cc_{cat}_nearest_max_1600" for cat in LANDUSE_CATEGORIES],
+        "labels": [f"{cat}_nearest_m" for cat in LANDUSE_CATEGORIES],
+    },
+    # Land-use counts at distance
+    "landuse_count": {
+        "columns": [f"cc_{cat}_{DISTANCE}_nw" for cat in LANDUSE_CATEGORIES],
+        "labels": [f"{cat}_count_{DISTANCE}m" for cat in LANDUSE_CATEGORIES],
+    },
+    # Infrastructure nearest
+    "infra_nearest": {
+        "columns": [f"cc_{cat}_nearest_max_1600" for cat in INFRASTRUCTURE_CATEGORIES],
+        "labels": [f"{cat}_nearest_m" for cat in INFRASTRUCTURE_CATEGORIES],
+    },
+    # Hill diversity indices at distance
+    "hill_diversity": {
+        "columns": [f"cc_hill_q0_{DISTANCE}_nw", f"cc_hill_q1_{DISTANCE}_nw", f"cc_hill_q2_{DISTANCE}_nw"],
+        "labels": ["hill_q0_richness", "hill_q1_shannon", "hill_q2_simpson"],
+    },
+    # Network centrality at distance
+    "centrality": {
+        "columns": [
+            f"cc_betweenness_{DISTANCE}",
+            f"cc_density_{DISTANCE}",
+            f"cc_cycles_{DISTANCE}",
+            f"cc_harmonic_{DISTANCE}",
+        ],
+        "labels": ["betweenness", "network_density", "cycles", "harmonic_closeness"],
+    },
+    # Green space
+    "green": {
+        "columns": [
+            "cc_green_nearest_max_1600",
+            "cc_trees_nearest_max_1600",
+            f"cc_green_area_sum_{DISTANCE}_nw",
+            f"cc_trees_area_sum_{DISTANCE}_nw",
+        ],
+        "labels": ["green_nearest_m", "trees_nearest_m", f"green_area_{DISTANCE}m", f"trees_area_{DISTANCE}m"],
+    },
+    # Building morphology (200m aggregation - local scale)
+    "morphology": {
+        "columns": [
+            "cc_mean_height_median_200_nw",
+            "cc_area_median_200_nw",
+            "cc_compactness_median_200_nw",
+            "cc_volume_median_200_nw",
+            "cc_floor_area_ratio_median_200_nw",
+            "cc_block_covered_ratio_median_200_nw",
+        ],
+        "labels": [
+            "building_height_m",
+            "building_area_m2",
+            "building_compactness",
+            "building_volume_m3",
+            "floor_area_ratio",
+            "block_coverage_ratio",
+        ],
+    },
+    # Census demographics
+    "census": {
+        "columns": [
+            "density",
+            "emp_%",
+            "y_lt15_%",
+            "y_1564_%",
+            "y_ge65_%",
+            "m_%",
+            "f_%",
+        ],
+        "labels": [
+            "pop_density_per_km2",
+            "employment_rate",
+            "age_under15_pct",
+            "age_15to64_pct",
+            "age_over65_pct",
+            "male_pct",
+            "female_pct",
+        ],
+    },
+}
 
 # Minimum nodes per city for reliable statistics
 MIN_NODES = 100
-MIN_CITIES_PER_COUNTRY = 3  # For country-level aggregation
+MIN_CITIES_PER_COUNTRY = 3
 
-# Configuration paths - modify these as needed
+# Configuration paths
 BOUNDS_PATH = "temp/datasets/boundaries.gpkg"
 METRICS_DIR = "temp/cities_data/processed"
 SATURATION_RESULTS_PATH = "paper_research/code/eg1_data_quality/outputs/city_analysis_results.gpkg"
 OUTPUT_DIR = "paper_research/code/eg5_benchmarking/outputs"
 TEMP_DIR = "temp/egs/eg5_benchmarking"
 
-# Saturation quadrants to include (reliable POI data)
-# Use Consistently Saturated and Variable Saturated for broader coverage
+# Saturation quadrants to include (reliable data)
 SATURATED_QUADRANTS = ["Consistently Saturated", "Variable Saturated"]
 
 # %%
@@ -99,655 +169,618 @@ temp_path = Path(TEMP_DIR)
 temp_path.mkdir(parents=True, exist_ok=True)
 
 print("=" * 80)
-print("Exploratory Question 5: Walkable Access Benchmarking")
+print("Exploratory Question 5: European Urban Metrics Benchmarking")
 print("=" * 80)
 print(f"\nOutput directory: {output_path}")
-print(f"Temp directory: {temp_path}")
+print(f"Distance threshold: {DISTANCE}m")
 
 # %%
 """
-## Step 1: Load Saturation Results and Filter to Saturated Cities
+## Step 1: Load City List from Saturation Results
 """
 
 print("\nSTEP 1: Loading saturation results and filtering cities")
 
-# Load saturation results from EG1
 saturation_gdf = gpd.read_file(SATURATION_RESULTS_PATH)
 print(f"  Loaded saturation results for {len(saturation_gdf)} cities")
 
-# For 15-minute city analysis, filter to cities with good combined POI coverage
-# Use the between-category quadrant metric from EG1 to ensure reliable data quality
 if "between_category_quadrant" not in saturation_gdf.columns:
-    raise ValueError("between_category_quadrant column not found in saturation results. Run EG1 first.")
+    raise ValueError("between_category_quadrant column not found. Run EG1 first.")
 
-# Filter to cities with combined saturation in reliable quadrants
 saturated_cities = saturation_gdf[saturation_gdf["between_category_quadrant"].isin(SATURATED_QUADRANTS)].copy()
+print(f"  Cities with reliable POI coverage: {len(saturated_cities)}")
 
-print(f"\n  Cities with combined saturation in {SATURATED_QUADRANTS}: {len(saturated_cities)}")
-print("  Distribution of combined saturation quadrants:")
-for quadrant in saturation_gdf["between_category_quadrant"].unique():
-    count = (saturation_gdf["between_category_quadrant"] == quadrant).sum()
-    print(f"    {quadrant}: {count} cities")
-
-# Get list of saturated bounds_fids
 saturated_fids = set(saturated_cities["bounds_fid"].tolist())
 
 # %%
 """
-## Step 2: Load POI Distance Metrics for Cities
+## Step 2: Extract Raw Metrics for All Cities (Pooled)
 """
 
-print("\nSTEP 2: Loading POI distance metrics for cities")
+print("\nSTEP 2: Extracting raw metrics from all cities")
 
-# Check for cached data
-cache_file = temp_path / "poi_minutes_city_data.parquet"
+# Build flat list of all columns needed
+all_columns = []
+all_labels = []
+for category, config in METRICS_CONFIG.items():
+    all_columns.extend(config["columns"])
+    all_labels.extend(config["labels"])
 
-if cache_file.exists():
-    print("  Loading cached POI distance data...")
-    city_data = pd.read_parquet(cache_file).to_dict("records")
-    print(f"  Loaded cached data for {len(city_data)} cities")
+# Check for cached pooled data
+cache_file = temp_path / "benchmark_pooled_data.parquet"
+city_cache_file = temp_path / "benchmark_city_data.parquet"
+
+if cache_file.exists() and city_cache_file.exists():
+    print("  Loading cached pooled benchmark data...")
+    pooled_df = pd.read_parquet(cache_file)
+    city_df = pd.read_parquet(city_cache_file)
+    print(f"  Loaded cached data: {len(pooled_df):,} nodes from {len(city_df)} cities")
 else:
     print("  Loading individual city metrics files...")
-    city_data = []
+    pooled_records = []
+    city_records = []
 
     for idx, row in tqdm(
         saturated_cities.iterrows(),
         total=len(saturated_cities),
-        desc="Loading city metrics",
+        desc="Processing cities",
     ):
         bounds_fid = row["bounds_fid"]
         city_label = row.get("label", str(bounds_fid))
         country = row.get("country", "Unknown")
 
-        # Load metrics file for this city
         metrics_file = metrics_dir / f"metrics_{bounds_fid}.gpkg"
         if not metrics_file.exists():
             continue
 
         try:
-            # Load only the distance columns we need
-            gdf = gpd.read_file(metrics_file, columns=POI_DISTANCE_COLS, layer="streets")
-            # Doublecheck geoms are dropped if outside boundary
+            # Load streets layer
+            gdf = gpd.read_file(metrics_file, layer="streets")
             gdf = gdf[gdf.geometry.within(row.geometry)]
-            # Filter out rows with any NaN/inf values in distance columns
-            valid_mask = pd.Series(True, index=gdf.index)
-            for col in POI_DISTANCE_COLS:
-                if col in gdf.columns:
-                    valid_mask &= gdf[col].notna() & np.isfinite(gdf[col]) & (gdf[col] >= 0)
-
-            gdf = gdf[valid_mask]
 
             if len(gdf) < MIN_NODES:
                 continue
 
             n_nodes = len(gdf)
 
-            # Compute completeness scores
-            # For each node, count how many categories are within the threshold
-            completeness_15min = pd.Series(0, index=gdf.index)
-
-            categories_present = []
-            for cat, col in zip(POI_CATEGORIES, POI_DISTANCE_COLS):
+            # Extract raw values for pooled statistics
+            for i, (col, label) in enumerate(zip(all_columns, all_labels)):
                 if col in gdf.columns:
-                    categories_present.append(cat)
-                    completeness_15min += (gdf[col] <= THRESHOLD).astype(int)
+                    values = gdf[col].dropna()
+                    values = values[np.isfinite(values)]
 
-            n_categories = len(categories_present)
+                    for val in values:
+                        pooled_records.append(
+                            {
+                                "bounds_fid": bounds_fid,
+                                "country": country,
+                                "metric": label,
+                                "value": val,
+                            }
+                        )
 
-            # Compute statistics
-            # Full access = all categories within threshold
-            pct_full_15min = (completeness_15min == n_categories).sum() / n_nodes * 100
-
-            # Mean completeness (0-1 scale)
-            mean_completeness_15min = completeness_15min.mean() / n_categories
-
-            # Median number of categories accessible
-            median_categories_15min = completeness_15min.median()
-
-            # Percentage of nodes with at least N categories accessible
-            pct_ge_6_15min = (completeness_15min >= 6).sum() / n_nodes * 100
-            pct_ge_9_15min = (completeness_15min >= 9).sum() / n_nodes * 100
-
-            # Per-category access rates
-            category_access_15min = {}
-            for cat, col in zip(POI_CATEGORIES, POI_DISTANCE_COLS):
-                if col in gdf.columns:
-                    category_access_15min[f"pct_{cat}_15min"] = (gdf[col] <= THRESHOLD).sum() / n_nodes * 100
-
+            # Also keep city-level summary for maps and country aggregations
             city_record = {
                 "bounds_fid": bounds_fid,
                 "city_label": city_label,
                 "country": country,
                 "n_nodes": n_nodes,
-                "n_categories": n_categories,
-                # 15-minute metrics
-                "pct_full_15min": pct_full_15min,
-                "mean_completeness_15min": mean_completeness_15min,
-                "median_categories_15min": median_categories_15min,
-                "pct_ge_6_15min": pct_ge_6_15min,
-                "pct_ge_9_15min": pct_ge_9_15min,
             }
-            # Add per-category access rates
-            city_record.update(category_access_15min)
 
-            city_data.append(city_record)
+            for col, label in zip(all_columns, all_labels):
+                if col in gdf.columns:
+                    values = gdf[col].dropna()
+                    values = values[np.isfinite(values)]
 
-        except Exception:
+                    if len(values) > 0:
+                        city_record[f"{label}_median"] = values.median()
+                    else:
+                        city_record[f"{label}_median"] = np.nan
+
+            city_records.append(city_record)
+
+        except Exception as e:
+            print(f"  Error processing {bounds_fid}: {e}")
             continue
 
-    print(f"  Loaded data for {len(city_data)} cities")
+    pooled_df = pd.DataFrame(pooled_records)
+    city_df = pd.DataFrame(city_records)
+    print(f"  Processed {len(pooled_df):,} raw values from {len(city_df)} cities")
 
-    # Save to cache
-    if city_data:
-        cache_df = pd.DataFrame(city_data)
-        cache_df.to_parquet(cache_file)
-        print(f"  Saved cache to {cache_file}")
+    # Save cache
+    pooled_df.to_parquet(cache_file)
+    city_df.to_parquet(city_cache_file)
+    print(f"  Saved cache to {cache_file}")
 
 # %%
 """
-## Step 3: Create City DataFrame and Compute Rankings
+## Step 3: Compute Aggregate Benchmark Statistics (Pooled Data)
 """
 
-print("\nSTEP 3: Computing city rankings")
+print("\nSTEP 3: Computing aggregate benchmark statistics from pooled data")
 
-city_df = pd.DataFrame(city_data)
+# Compute statistics across ALL raw values (not city medians)
+benchmark_summary = []
 
-# Sort by 1200m threshold full access percentage
-city_df_15min = city_df.sort_values("pct_full_15min", ascending=False)
+for metric in pooled_df["metric"].unique():
+    values = pooled_df[pooled_df["metric"] == metric]["value"].dropna()
+
+    if len(values) > 0:
+        benchmark_summary.append(
+            {
+                "metric": metric,
+                "n_values": len(values),
+                "min": values.min(),
+                "p5": values.quantile(0.05),
+                "p25": values.quantile(0.25),
+                "p50": values.quantile(0.50),
+                "p75": values.quantile(0.75),
+                "p95": values.quantile(0.95),
+                "max": values.max(),
+                "mean": values.mean(),
+                "std": values.std(),
+            }
+        )
+
+benchmark_summary_df = pd.DataFrame(benchmark_summary)
+
+print(f"\n  Computed benchmarks for {len(benchmark_summary_df)} metrics")
+print(f"  Total data points: {pooled_df['value'].notna().sum():,}")
+
+# %%
+"""
+## Step 4: Country-Level Aggregations
+"""
+
+print("\nSTEP 4: Computing country-level statistics")
+
+# Get all median columns for country aggregation
+median_cols = [col for col in city_df.columns if col.endswith("_median")]
+
+# Filter to countries with enough cities
+country_counts = city_df["country"].value_counts()
+valid_countries = country_counts[country_counts >= MIN_CITIES_PER_COUNTRY].index.tolist()
+
+country_df = city_df[city_df["country"].isin(valid_countries)].copy()
+print(f"  Countries with >= {MIN_CITIES_PER_COUNTRY} cities: {len(valid_countries)}")
+
+# Aggregate by country (using city medians for country-level comparisons)
+country_stats = []
+
+for country in valid_countries:
+    country_data = country_df[country_df["country"] == country]
+    n_cities = len(country_data)
+
+    country_record = {
+        "country": country,
+        "n_cities": n_cities,
+    }
+
+    for col in median_cols:
+        metric_name = col.replace("_median", "")
+        values = country_data[col].dropna()
+
+        if len(values) > 0:
+            country_record[f"{metric_name}_median"] = values.median()
+            country_record[f"{metric_name}_q1"] = values.quantile(0.25)
+            country_record[f"{metric_name}_q3"] = values.quantile(0.75)
+
+    country_stats.append(country_record)
+
+country_stats_df = pd.DataFrame(country_stats)
+
+# %%
+"""
+## Step 5: Save Outputs
+"""
+
+print("\nSTEP 5: Saving outputs")
+
+# Full city benchmark data
+city_output = output_path / "benchmark_reference.csv"
+city_df.to_csv(city_output, index=False)
+print(f"  Saved city benchmarks to {city_output}")
 
 # Summary statistics
-print("\n  Walkable Access Summary (800m threshold):")
-print(f"    Cities analyzed: {len(city_df)}")
-print(f"    Mean full access: {city_df['pct_full_15min'].mean():.1f}%")
-print(f"    Median full access: {city_df['pct_full_15min'].median():.1f}%")
-print(f"    Best city: {city_df_15min.iloc[0]['city_label']} ({city_df_15min.iloc[0]['pct_full_15min']:.1f}%)")
-print(f"    Worst city: {city_df_15min.iloc[-1]['city_label']} ({city_df_15min.iloc[-1]['pct_full_15min']:.1f}%)")
+summary_output = output_path / "benchmark_summary.csv"
+benchmark_summary_df.to_csv(summary_output, index=False)
+print(f"  Saved summary statistics to {summary_output}")
+
+# Country statistics
+country_output = output_path / "country_rankings.csv"
+country_stats_df.to_csv(country_output, index=False)
+print(f"  Saved country statistics to {country_output}")
 
 # %%
 """
-## Step 4: Generate Visualizations
+## Step 6: Generate LaTeX Tables
 """
 
-print("\nSTEP 4: Generating visualizations")
+print("\nSTEP 6: Generating LaTeX tables")
 
-# Apply subtle seaborn styling
-sns.set_style("whitegrid", {"grid.color": ".9", "axes.edgecolor": ".6"})
-sns.set_context("paper")
 
-# Figure 1: Top and bottom cities bar chart (15-minute)
-fig, axes = plt.subplots(1, 2, figsize=(14, 8))
+def format_number(val, decimals=1):
+    """Format number for LaTeX table."""
+    if pd.isna(val):
+        return "--"
+    if abs(val) >= 1000:
+        return f"{val:,.0f}"
+    return f"{val:.{decimals}f}"
 
-# Get min/max values across both top and bottom plots for consistent scaling
-top_20 = city_df_15min.head(20)
-bottom_20 = city_df_15min.tail(20)  # Don't reverse - lowest will be at bottom with invert_yaxis
-val_min = min(top_20["pct_full_15min"].min(), bottom_20["pct_full_15min"].min())
-val_max = max(top_20["pct_full_15min"].max(), bottom_20["pct_full_15min"].max())
 
-# Top 20 cities - use bright end of colormap (high values)
-ax = axes[0]
-colors_top = plt.cm.viridis(np.linspace(0.5, 1.0, len(top_20)))[::-1]  # Brightest at top
-bars = ax.barh(range(len(top_20)), top_20["pct_full_15min"], color=colors_top)
-ax.set_yticks(range(len(top_20)))
-ax.set_yticklabels([f"{row['city_label']} ({row['country']})" for _, row in top_20.iterrows()])
-ax.set_xlabel("% Nodes with Full Access (800m)", fontsize=10)
-ax.set_title("Top 20 Cities: Walkable Access Completeness", fontsize=11, fontweight="bold")
-ax.invert_yaxis()
-ax.set_xlim(0, 100)
-for spine in ["top", "right"]:
-    ax.spines[spine].set_visible(False)
+# Table 1: Full Benchmark Summary (all metrics)
+latex_summary = "\\begin{table}[htbp]\n\\centering\n"
+latex_summary += "\\caption{European Urban Metrics Benchmark Reference}\n"
+latex_summary += "\\label{tab:benchmark_summary}\n"
+latex_summary += "\\begin{tabular}{lrrrrrrr}\n\\toprule\n"
+latex_summary += "Metric & Min & P5 & P25 & P50 & P75 & P95 & Max \\\\\n\\midrule\n"
 
-# Bottom 20 cities - use dark end of colormap (low values)
-ax = axes[1]
-colors_bottom = plt.cm.viridis(np.linspace(0, 0.5, len(bottom_20)))[::-1]  # Darkest at bottom
-bars = ax.barh(range(len(bottom_20)), bottom_20["pct_full_15min"], color=colors_bottom)
-ax.set_yticks(range(len(bottom_20)))
-ax.set_yticklabels([f"{row['city_label']} ({row['country']})" for _, row in bottom_20.iterrows()])
-ax.set_xlabel("% Nodes with Full Access (800m)", fontsize=10)
-ax.set_title("Bottom 20 Cities: Walkable Access Completeness", fontsize=11, fontweight="bold")
-ax.invert_yaxis()
-ax.set_xlim(0, 100)
-for spine in ["top", "right"]:
-    ax.spines[spine].set_visible(False)
+for _, row in benchmark_summary_df.iterrows():
+    metric = row["metric"].replace("_", " ").title()
+    latex_summary += (
+        f"{metric} & {format_number(row['min'])} & {format_number(row['p5'])} & {format_number(row['p25'])} & "
+    )
+    latex_summary += f"{format_number(row['p50'])} & {format_number(row['p75'])} & {format_number(row['p95'])} & {format_number(row['max'])} \\\\\n"
 
-plt.tight_layout()
-ranking_path = output_path / "10min_city_ranking.png"
-plt.savefig(ranking_path, dpi=150, bbox_inches="tight", facecolor="white")
-plt.close()
-print(f"  Saved ranking plot to {ranking_path}")
+latex_summary += "\\bottomrule\n\\end{tabular}\n\\end{table}\n"
 
-# Figure 2: Distribution of completeness scores
-fig, ax = plt.subplots(figsize=(8, 5))
+with open(output_path / "table_benchmark_summary.tex", "w") as f:
+    f.write(latex_summary)
+print("  Saved benchmark summary table")
 
-ax.hist(city_df["pct_full_15min"], bins=30, edgecolor="black", alpha=0.7, color=plt.cm.viridis(0.6))
-ax.axvline(
-    city_df["pct_full_15min"].median(),
-    color="red",
-    linestyle="--",
-    linewidth=2,
-    label=f"Median: {city_df['pct_full_15min'].median():.1f}%",
-)
-ax.set_xlabel("% Nodes with Full Access (800m)", fontsize=10)
-ax.set_ylabel("Number of Cities", fontsize=10)
-ax.set_title("Distribution of Walkable Access Scores", fontsize=11, fontweight="bold")
-ax.legend(loc="upper right", fontsize=9)
-for spine in ["top", "right"]:
-    ax.spines[spine].set_visible(False)
+# Table 2: Land-use accessibility summary
+landuse_metrics = [f"{cat}_nearest_m" for cat in LANDUSE_CATEGORIES]
+landuse_subset = benchmark_summary_df[benchmark_summary_df["metric"].isin(landuse_metrics)].copy()
 
-plt.tight_layout()
-dist_path = output_path / "completeness_distribution.png"
-plt.savefig(dist_path, dpi=150, bbox_inches="tight", facecolor="white")
-plt.close()
-print(f"  Saved distribution plot to {dist_path}")
+latex_landuse = "\\begin{table}[htbp]\n\\centering\n"
+latex_landuse += "\\caption{Land-use Accessibility Benchmarks (Distance to Nearest POI)}\n"
+latex_landuse += "\\label{tab:landuse_benchmarks}\n"
+latex_landuse += "\\begin{tabular}{lrrrrrrr}\n\\toprule\n"
+latex_landuse += "Category & Min & P5 & P25 & P50 & P75 & P95 & Max \\\\\n\\midrule\n"
 
-# Figure 3: Per-category access rates (heatmap for top/bottom cities)
-fig, axes = plt.subplots(1, 2, figsize=(14, 10))
+for _, row in landuse_subset.sort_values("p50").iterrows():
+    cat_name = row["metric"].replace("_nearest_m", "").replace("_", " ").title()
+    latex_landuse += f"{cat_name} & {format_number(row['min'], 0)} & {format_number(row['p5'], 0)} & {format_number(row['p25'], 0)} & "
+    latex_landuse += f"{format_number(row['p50'], 0)} & {format_number(row['p75'], 0)} & {format_number(row['p95'], 0)} & {format_number(row['max'], 0)} \\\\\n"
 
-# Prepare data for heatmap
-category_cols_15min = [f"pct_{cat}_15min" for cat in POI_CATEGORIES]
-category_labels = [cat.replace("_", " ").title() for cat in POI_CATEGORIES]
+latex_landuse += "\\bottomrule\n\\end{tabular}\n\\end{table}\n"
 
-# Compute min/max across both heatmaps for consistent scaling
-top_15 = city_df_15min.head(15)
-bottom_15 = city_df_15min.tail(15).iloc[::-1]
-heatmap_data_top = top_15[category_cols_15min].values
-heatmap_data_bottom = bottom_15[category_cols_15min].values
-hmap_min = min(heatmap_data_top.min(), heatmap_data_bottom.min())
-hmap_max = max(heatmap_data_top.max(), heatmap_data_bottom.max())
-
-# Top 15 cities heatmap
-ax = axes[0]
-im = ax.imshow(heatmap_data_top, aspect="auto", cmap="viridis", vmin=hmap_min, vmax=hmap_max)
-ax.set_xticks(range(len(POI_CATEGORIES)))
-ax.set_xticklabels(category_labels, rotation=45, ha="right", fontsize=8)
-ax.set_yticks(range(len(top_15)))
-ax.set_yticklabels([f"{row['city_label']}" for _, row in top_15.iterrows()], fontsize=9)
-ax.set_title("Top 15 Cities: Category Access (800m)", fontsize=11, fontweight="bold")
-plt.colorbar(im, ax=ax, label="% Nodes with Access", shrink=0.8)
-
-# Bottom 15 cities heatmap
-ax = axes[1]
-im = ax.imshow(heatmap_data_bottom, aspect="auto", cmap="viridis", vmin=hmap_min, vmax=hmap_max)
-ax.set_xticks(range(len(POI_CATEGORIES)))
-ax.set_xticklabels(category_labels, rotation=45, ha="right", fontsize=8)
-ax.set_yticks(range(len(bottom_15)))
-ax.set_yticklabels([f"{row['city_label']}" for _, row in bottom_15.iterrows()], fontsize=9)
-ax.set_title("Bottom 15 Cities: Category Access (800m)", fontsize=11, fontweight="bold")
-plt.colorbar(im, ax=ax, label="% Nodes with Access", shrink=0.8)
-
-plt.tight_layout()
-heatmap_path = output_path / "category_access_heatmap.png"
-plt.savefig(heatmap_path, dpi=150, bbox_inches="tight", facecolor="white")
-plt.close()
-print(f"  Saved heatmap to {heatmap_path}")
+with open(output_path / "table_landuse_benchmarks.tex", "w") as f:
+    f.write(latex_landuse)
+print("  Saved land-use benchmarks table")
 
 # %%
 """
-## Step 5: Export Results
+## Step 7: Print Summary Report
 """
 
-print("\nSTEP 5: Exporting results")
+print("\n" + "=" * 80)
+print("BENCHMARK SUMMARY REPORT")
+print("=" * 80)
 
-# Export 800m threshold scores
-cols_15min = [
-    "city_label",
-    "country",
-    "n_nodes",
-    "pct_full_15min",
-    "mean_completeness_15min",
-    "median_categories_15min",
-    "pct_ge_6_15min",
-    "pct_ge_9_15min",
-]
-export_15min = city_df_15min[cols_15min].copy()
-export_15min.columns = [
-    "City",
-    "Country",
-    "Nodes",
-    "% Full Access",
-    "Mean Completeness",
-    "Median Categories",
-    "% >= 6 Categories",
-    "% >= 9 Categories",
-]
-out_file = output_path / "city_10min_scores.csv"
-export_15min.to_csv(out_file, index=False, float_format="%.1f")
-print(f"  Saved 800m threshold scores to {out_file}")
+print(f"\nCities analyzed: {len(city_df)}")
+print(f"Countries represented: {city_df['country'].nunique()}")
+print(f"Total network nodes: {city_df['n_nodes'].sum():,}")
 
-# Export per-category access rates
-category_cols_all = ["city_label", "country"] + [f"pct_{cat}_15min" for cat in POI_CATEGORIES]
-export_categories = city_df_15min[category_cols_all].copy()
-out_file = output_path / "city_category_access_10min.csv"
-export_categories.to_csv(out_file, index=False, float_format="%.1f")
-print(f"  Saved per-category access rates to {out_file}")
-
-# %%
+print("\n--- Benchmark Statistics (P5 / P25 / P50 / P75 / P95) ---")
+for _, row in benchmark_summary_df.iterrows():
+    metric = row["metric"].replace("_", " ").title()
+    print(
+        f"  {metric}: {format_number(row['p5'])} / {format_number(row['p25'])} / {format_number(row['p50'])} / {format_number(row['p75'])} / {format_number(row['p95'])}"
+    )
 """
-## Step 6: Generate Summary Report
+## Step 8: Generate README.md
 """
 
-print("\nSTEP 6: Generating summary report")
+print("\nSTEP 8: Generating README.md")
 
-# Identify bottleneck categories (lowest access rates on average)
-category_means = {}
-for cat in POI_CATEGORIES:
-    col = f"pct_{cat}_15min"
-    if col in city_df.columns:
-        category_means[cat] = city_df[col].mean()
-
-category_means_sorted = sorted(category_means.items(), key=lambda x: x[1])
-
-# Top/bottom cities
-top_10_15min = city_df_15min.head(10)
-bottom_10_15min = city_df_15min.tail(10).iloc[::-1]
-
-report_lines = [
-    "# Walkable Access Benchmarking Report",
+readme_lines = [
+    "# European Urban Metrics Benchmarking Reference",
     "",
     f"**Analysis Date:** {pd.Timestamp.now().strftime('%Y-%m-%d')}",
     "",
     "## Vignette Purpose",
     "",
-    "Cities can be ranked on standardised metrics enabling comparative assessment against peer cities",
-    "or policy targets. This vignette ranks cities by walkable access to essential services across",
-    "multiple service categories.",
-    "",
-    "## Analysis Overview",
-    "",
-    "For 339 European cities with above average saturation POI coverage, we evaluate access to 10 essential",
-    "service categories within 800m (approximately 10-minute walk at 80m/min). For each street network node,",
-    "we count accessible categories and compute city-level metrics: percentage of nodes with",
-    "'full access' (all 10 categories reachable), mean completeness scores, and per-category access rates.",
-    "Results identify bottleneck categories and top-performing cities.",
+    "Provides standardised reference statistics (min, 5th, 25th, 50th, 75th, 95th percentiles, max) across",
+    "all street network nodes in European cities, enabling comparative assessment against peer data.",
     "",
     "## Summary Statistics",
     "",
-    f"- **Cities Analyzed:** {len(city_df)}",
-    f"- **Total Street Network Nodes:** {city_df['n_nodes'].sum():,}",
-    f"- **POI Categories Assessed:** {len(POI_CATEGORIES)}",
+    f"- **Cities analyzed:** {len(city_df)}",
+    f"- **Countries represented:** {city_df['country'].nunique()}",
+    f"- **Total network nodes:** {city_df['n_nodes'].sum():,}",
+    f"- **Total data points:** {len(pooled_df):,}",
+    f"- **Distance threshold:** {DISTANCE}m",
     "",
-    "### Walkable Access at 800m Threshold",
+    "## Metrics Categories",
     "",
-    f"- **Mean Full Access:** {city_df['pct_full_15min'].mean():.1f}% of nodes",
-    f"- **Median Full Access:** {city_df['pct_full_15min'].median():.1f}% of nodes",
-    f"- **Range:** {city_df['pct_full_15min'].min():.1f}% to {city_df['pct_full_15min'].max():.1f}%",
-    f"- **Cities with >50% Full Access:** {(city_df['pct_full_15min'] > 50).sum()} ({(city_df['pct_full_15min'] > 50).mean() * 100:.1f}%)",
+    "| Category | Metrics | Distance |",
+    "|----------|---------|----------|",
+    "| **Land-use accessibility** | Distance to nearest POI per category | nearest |",
+    f"| **Land-use diversity** | Hill q0 (richness), q1 (Shannon), q2 (Simpson) | {DISTANCE}m |",
+    f"| **Network centrality** | Betweenness, density, cycles, harmonic closeness | {DISTANCE}m |",
+    f"| **Green space** | Distance to green/trees, area coverage | {DISTANCE}m |",
+    "| **Building morphology** | Height, area, compactness, volume, FAR, coverage | 200m |",
+    "| **Census demographics** | Population density, employment, age structure | interpolated |",
     "",
-    "## Top 10 Cities (800m Access)",
+    "## Benchmark Statistics",
     "",
-    "| Rank | City | Country | % Full Access | Mean Completeness |",
-    "|------|------|---------|---------------|-------------------|",
+    "| Metric | Min | P5 | P25 | P50 | P75 | P95 | Max |",
+    "|--------|-----|-----|-----|-----|-----|-----|-----|",
 ]
 
-for rank, (_, row) in enumerate(top_10_15min.iterrows(), 1):
-    report_lines.append(
-        f"| {rank} | {row['city_label']} | {row['country']} | {row['pct_full_15min']:.1f}% | {row['mean_completeness_15min']:.2f} |"
+for _, row in benchmark_summary_df.iterrows():
+    metric = row["metric"].replace("_", " ").title()
+    readme_lines.append(
+        f"| {metric} | {format_number(row['min'])} | {format_number(row['p5'])} | {format_number(row['p25'])} | {format_number(row['p50'])} | {format_number(row['p75'])} | {format_number(row['p95'])} | {format_number(row['max'])} |"
     )
 
-report_lines.extend(
+readme_lines.extend([])
+
+readme_lines.extend(
     [
-        "",
-        "## Bottom 10 Cities (800m Access)",
-        "",
-        "| Rank | City | Country | % Full Access | Mean Completeness |",
-        "|------|------|---------|---------------|-------------------|",
-    ]
-)
-
-for rank, (_, row) in enumerate(bottom_10_15min.iterrows(), 1):
-    report_lines.append(
-        f"| {rank} | {row['city_label']} | {row['country']} | {row['pct_full_15min']:.1f}% | {row['mean_completeness_15min']:.2f} |"
-    )
-
-report_lines.extend(
-    [
-        "",
-        "## Bottleneck Categories",
-        "",
-        "Categories with lowest average access rates (limiting factors for walkable completeness):",
-        "",
-        "| Rank | Category | Mean Access Rate |",
-        "|------|----------|------------------|",
-    ]
-)
-
-for rank, (cat, mean_access) in enumerate(category_means_sorted[:5], 1):
-    report_lines.append(f"| {rank} | {cat.replace('_', ' ').title()} | {mean_access:.1f}% |")
-
-report_lines.extend(
-    [
-        "",
-        "## Best-Covered Categories",
-        "",
-        "| Rank | Category | Mean Access Rate |",
-        "|------|----------|------------------|",
-    ]
-)
-
-for rank, (cat, mean_access) in enumerate(category_means_sorted[-5:][::-1], 1):
-    report_lines.append(f"| {rank} | {cat.replace('_', ' ').title()} | {mean_access:.1f}% |")
-
-report_lines.extend(
-    [
-        "",
-        "## Visualizations",
-        "",
-        "### City Rankings (800m Threshold)",
-        "",
-        "![Walkable Access Ranking](outputs/10min_city_ranking.png)",
-        "",
-        "### Completeness Distribution",
-        "",
-        "![Completeness Distribution](outputs/completeness_distribution.png)",
-        "",
-        "### Category Access Heatmap",
-        "",
-        "![Category Access Heatmap](outputs/category_access_heatmap.png)",
-        "",
-        "### Country Rankings",
-        "",
-        "![Country Ranking Chart](outputs/country_ranking_chart.png)",
-        "",
-        "## Key Findings",
-        "",
-        "1. **Few cities achieve full walkable completeness**: The median city has only",
-        f"   {city_df['pct_full_15min'].median():.1f}% of nodes with access to all {len(POI_CATEGORIES)} POI categories within 1200m.",
-        "",
-        f"2. **Bottleneck categories**: {category_means_sorted[0][0].replace('_', ' ').title()} and",
-        f"   {category_means_sorted[1][0].replace('_', ' ').title()} are the most limiting categories,",
-        "   suggesting targeted infrastructure investment priorities.",
-        "",
-        "3. **Geographic variation**: Top-performing cities cluster in [countries/regions],",
-        "   while lower-performing cities tend to be [characteristics].",
-        "",
-        "## Methodology Notes",
-        "",
-        "- Walking distance threshold: 800m (approximately 10 min at 80m/min)",
-        "- Network distances (not Euclidean) from street network nodes to nearest POI",
-        "- Restricted to cities with sufficient POI data quality (from EG1 saturation analysis)",
-        "- Required combined saturation in reliable quadrants",
         "",
         "## Output Files",
         "",
-        "- `city_10min_scores.csv`: Per-city completeness metrics at 800m threshold",
-        "- `city_category_access_10min.csv`: Per-category access rates by city",
-        "- `10min_city_ranking.png`: Bar chart of top/bottom cities",
-        "- `completeness_distribution.png`: Histogram of completeness scores",
-        "- `category_access_heatmap.png`: Heatmap of per-category access",
+        "| File | Description |",
+        "|------|-------------|",
+        "| `benchmark_reference.csv` | Full per-city statistics for all metrics |",
+        "| `benchmark_summary.csv` | Cross-city aggregated statistics (P5, P25, P50, P75, P95) |",
+        "| `country_rankings.csv` | Country-level metric aggregations |",
+        "",
+        "## Visualizations",
+        "",
+        "### Correlation Matrix",
+        "",
+        "![Correlation Matrix](outputs/correlation_matrix.png)",
+        "",
+        "### City Archetype Profiles",
+        "",
+        "![Radar Archetypes](outputs/radar_archetypes.png)",
+        "",
+        "### Geographic Distribution of Eat & Drink Access",
+        "",
+        "![Eat & Drink Access Map](outputs/map_eat_drink_access.png)",
+        "",
+        "## LaTeX Tables",
+        "",
+        "- `table_benchmark_summary.tex` - Full metrics summary (all percentiles)",
+        "- `table_landuse_benchmarks.tex` - Land-use accessibility by category",
+        "",
+        "## Usage",
+        "",
+        "The benchmark reference enables:",
+        "",
+        "1. **City comparison** - Compare individual city metrics against European percentiles",
+        "2. **Policy targets** - Set evidence-based targets using percentile thresholds",
+        "3. **Gap analysis** - Identify metrics where a city falls below P25 or above P75",
+        "4. **Country patterns** - Understand national-level urban form characteristics",
         "",
     ]
 )
 
-# Write report
-report_path = output_path.parent / "README.md"
-with open(report_path, "w") as f:
-    f.write("\n".join(report_lines))
-print(f"  Saved report to {report_path}")
+readme_path = output_path.parent / "README.md"
+with open(readme_path, "w") as f:
+    f.write("\n".join(readme_lines))
+print(f"  Saved README to {readme_path}")
 
 # %%
 """
-## Step 6: LaTeX Table Generation
+## Step 9: Correlation Matrix
 """
 
-print("\nSTEP 6: LaTeX Table Generation")
+print("\nSTEP 9: Generating correlation matrix")
 
-# Table 1: Top 10 Cities
-latex_top = [
-    r"\begin{tabular}{@{}l l r r@{}}",
-    r"  \toprule",
-    r"  City & Country & \% Full Access & Mean Completeness \\",
-    r"  \midrule",
+# Select key metrics for correlation analysis
+corr_metrics = [
+    "green_nearest_m_median",
+    "trees_nearest_m_median",
+    "hill_q0_richness_median",
+    "hill_q1_shannon_median",
+    "betweenness_median",
+    "network_density_median",
+    "building_height_m_median",
+    "building_area_m2_median",
+    "block_coverage_ratio_median",
+    f"building_count_{DISTANCE}m_median",
+    f"block_count_{DISTANCE}m_median",
+    "pop_density_per_km2_median",
+    "employment_rate_median",
 ]
-for _, row in top_10_15min.iterrows():
-    city = str(row["city_label"]).replace("&", r"\&")
-    latex_top.append(
-        f"  {city} & {row['country']} & {row['pct_full_15min']:.1f} & {row['mean_completeness_15min']:.3f} \\\\"
-    )
-latex_top.extend([r"  \bottomrule", r"\end{tabular}"])
 
-with open(output_path / "table_top_cities.tex", "w") as f:
-    f.write("\n".join(latex_top))
-print("  Saved: table_top_cities.tex")
+# Filter to available columns
+corr_cols = [c for c in corr_metrics if c in city_df.columns]
+corr_data = city_df[corr_cols].dropna()
 
-# Table 2: Bottom 10 Cities
-latex_bottom = [
-    r"\begin{tabular}{@{}l l r r@{}}",
-    r"  \toprule",
-    r"  City & Country & \% Full Access & Mean Completeness \\",
-    r"  \midrule",
-]
-for _, row in bottom_10_15min.iterrows():
-    city = str(row["city_label"]).replace("&", r"\&")
-    latex_bottom.append(
-        f"  {city} & {row['country']} & {row['pct_full_15min']:.1f} & {row['mean_completeness_15min']:.3f} \\\\"
-    )
-latex_bottom.extend([r"  \bottomrule", r"\end{tabular}"])
+# Compute correlation
+corr_matrix = corr_data.corr()
 
-with open(output_path / "table_bottom_cities.tex", "w") as f:
-    f.write("\n".join(latex_bottom))
-print("  Saved: table_bottom_cities.tex")
+# Clean labels for display
+label_map = {
+    "green_nearest_m_median": "Green Distance",
+    "trees_nearest_m_median": "Trees Distance",
+    "hill_q0_richness_median": "Diversity (q0)",
+    "hill_q1_shannon_median": "Diversity (q1)",
+    "betweenness_median": "Betweenness",
+    "network_density_median": "Network Density",
+    "building_height_m_median": "Building Height",
+    "building_area_m2_median": "Building Area",
+    "block_coverage_ratio_median": "Block Coverage",
+    f"building_count_{DISTANCE}m_median": "Building Count",
+    f"block_count_{DISTANCE}m_median": "Block Count",
+    "pop_density_per_km2_median": "Pop. Density",
+    "employment_rate_median": "Employment",
+}
+corr_labels = [label_map.get(c, c) for c in corr_matrix.columns]
 
-# Table 3: Bottleneck Categories
-latex_bottlenecks = [
-    r"\begin{tabular}{@{}l r@{}}",
-    r"  \toprule",
-    r"  Category & Mean Access Rate (\%) \\",
-    r"  \midrule",
-]
-for cat, mean_access in category_means_sorted:
-    cat_name = cat.replace("_", " ").title().replace("And", "and")
-    latex_bottlenecks.append(f"  {cat_name} & {mean_access:.1f} \\\\")
-latex_bottlenecks.extend([r"  \bottomrule", r"\end{tabular}"])
-
-with open(output_path / "table_bottlenecks.tex", "w") as f:
-    f.write("\n".join(latex_bottlenecks))
-print("  Saved: table_bottlenecks.tex")
+fig, ax = plt.subplots(figsize=(10, 8))
+mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
+sns.heatmap(
+    corr_matrix,
+    mask=mask,
+    annot=True,
+    fmt=".2f",
+    cmap="RdBu_r",
+    center=0,
+    square=True,
+    linewidths=0.5,
+    xticklabels=corr_labels,
+    yticklabels=corr_labels,
+    ax=ax,
+    vmin=-1,
+    vmax=1,
+    cbar_kws={"shrink": 0.8, "label": "Correlation"},
+)
+ax.set_title("Urban Metrics Correlation Matrix", fontsize=12, fontweight="bold")
+plt.xticks(rotation=45, ha="right")
+plt.yticks(rotation=0)
+plt.tight_layout()
+plt.savefig(output_path / "correlation_matrix.png", dpi=150, bbox_inches="tight", facecolor="white")
+plt.close()
+print("  Saved correlation_matrix.png")
 
 # %%
 """
-## Step 7: Country-Level Aggregation
+## Step 10: Radar Charts - City Archetypes
 """
 
-print("\nSTEP 7: Country-level aggregation")
+print("\nSTEP 10: Generating radar charts for city archetypes")
 
-# Add country info to city_df if not present
-if "country" in city_df.columns:
-    # Compute median distances per category for each city (for country aggregation)
-    city_df["essential_median"] = city_df[
-        [f"pct_{cat}_15min" for cat in POI_CATEGORIES if f"pct_{cat}_15min" in city_df.columns]
-    ].mean(axis=1)
+# Select metrics for radar (normalize to 0-1 scale using percentile ranks)
+radar_metrics = [
+    "green_nearest_m_median",
+    "hill_q1_shannon_median",
+    "betweenness_median",
+    "building_height_m_median",
+    "block_coverage_ratio_median",
+    "pop_density_per_km2_median",
+]
 
-    # Filter to countries with enough cities
-    country_counts = city_df.groupby("country").size()
-    valid_countries = country_counts[country_counts >= MIN_CITIES_PER_COUNTRY].index.tolist()
-    print(f"  Countries with >= {MIN_CITIES_PER_COUNTRY} cities: {len(valid_countries)}")
+radar_cols = [c for c in radar_metrics if c in city_df.columns]
 
-    country_data = city_df[city_df["country"].isin(valid_countries)].copy()
+# Compute percentile ranks (0-100) for each metric
+radar_data = city_df[["city_label", "country"] + radar_cols].copy()
+for col in radar_cols:
+    # For distance metrics, invert so higher = better (closer)
+    if "nearest" in col:
+        radar_data[f"{col}_pct"] = 100 - radar_data[col].rank(pct=True) * 100
+    else:
+        radar_data[f"{col}_pct"] = radar_data[col].rank(pct=True) * 100
 
-    # Aggregate to country level
-    country_stats = []
-    for country in valid_countries:
-        cc = country_data[country_data["country"] == country]
-        stats = {
-            "country": country,
-            "n_cities": len(cc),
-            "mean_pct_full_15min": cc["pct_full_15min"].mean(),
-            "median_pct_full_15min": cc["pct_full_15min"].median(),
-        }
-        # Add per-category means
-        for cat in POI_CATEGORIES:
-            col = f"pct_{cat}_15min"
-            if col in cc.columns:
-                stats[f"mean_{col}"] = cc[col].mean()
-        country_stats.append(stats)
+pct_cols = [f"{c}_pct" for c in radar_cols]
 
-    country_df = pd.DataFrame(country_stats).sort_values("mean_pct_full_15min", ascending=False)
+# Select archetype cities (check if they exist in data)
+archetype_candidates = [
+    ("Venezia", "IT", "Compact Historic"),
+    ("Rotterdam", "NL", "Planned Modern"),
+    ("Firenze", "IT", "Dense Mixed"),
+    ("Birmingham", "UK", "Industrial"),
+]
 
-    print("\n  Top 5 Countries by 10-min Access:")
-    for _, row in country_df.head(5).iterrows():
-        print(f"    {row['country']}: {row['mean_pct_full_15min']:.1f}% (n={int(row['n_cities'])})")
+archetypes = []
+for city, country, label in archetype_candidates:
+    match = radar_data[
+        (radar_data["city_label"].str.contains(city, case=False, na=False)) | (radar_data["city_label"] == city)
+    ]
+    if len(match) > 0:
+        row = match.iloc[0]
+        archetypes.append((row["city_label"], row["country"], label, row[pct_cols].values))
 
-    # Save country results
-    country_df.to_csv(output_path / "country_10min_scores.csv", index=False, float_format="%.1f")
-    print("\n  Saved country_10min_scores.csv")
+if len(archetypes) >= 2:
+    # Radar chart setup
+    radar_labels = [
+        "Green Access",
+        "Diversity",
+        "Connectivity",
+        "Building Height",
+        "Block Coverage",
+        "Pop. Density",
+    ]
+    num_vars = len(radar_labels)
+    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+    angles += angles[:1]  # Complete the loop
 
-    # Country ranking visualization
-    fig, ax = plt.subplots(figsize=(12, 8))
-    plot_data = country_df.sort_values("mean_pct_full_15min")
-    colors = plt.cm.viridis(np.linspace(0.2, 0.9, len(plot_data)))
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+    colors = plt.cm.Set2(np.linspace(0, 1, len(archetypes)))
 
-    ax.barh(range(len(plot_data)), plot_data["mean_pct_full_15min"], color=colors)
-    ax.set_yticks(range(len(plot_data)))
-    ax.set_yticklabels(plot_data["country"])
-    ax.set_xlabel("Mean % Full 10-min Access")
-    ax.set_title("Country Rankings: 10-Minute City Performance", fontweight="bold")
+    for i, (city_name, country, label, values) in enumerate(archetypes):
+        values_plot = values.tolist() + [values[0]]  # Complete the loop
+        ax.plot(angles, values_plot, "o-", linewidth=2, label=f"{city_name} ({label})", color=colors[i])
+        ax.fill(angles, values_plot, alpha=0.15, color=colors[i])
 
-    for i, (_, row) in enumerate(plot_data.iterrows()):
-        ax.annotate(f"n={int(row['n_cities'])}", xy=(row["mean_pct_full_15min"] + 1, i), va="center", fontsize=8)
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(radar_labels, size=10)
+    ax.set_ylim(0, 100)
+    ax.set_yticks([25, 50, 75, 100])
+    ax.set_yticklabels(["25th", "50th", "75th", "100th"], size=8)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.0), fontsize=9)
+    ax.set_title("City Archetype Profiles\n(Percentile Ranks)", fontsize=12, fontweight="bold", y=1.08)
 
     plt.tight_layout()
-    plt.savefig(output_path / "country_ranking_chart.png", dpi=150, bbox_inches="tight")
+    plt.savefig(output_path / "radar_archetypes.png", dpi=150, bbox_inches="tight", facecolor="white")
     plt.close()
-    print("  Saved country_ranking_chart.png")
-
-    # LaTeX table for countries
-    latex_country = [
-        r"\begin{tabular}{@{}l r r r@{}}",
-        r"  \toprule",
-        r"  Country & Cities & Mean \% Full Access & Median \% Full Access \\",
-        r"  \midrule",
-    ]
-    for _, row in country_df.head(5).iterrows():
-        latex_country.append(
-            f"  {row['country']} & {int(row['n_cities'])} & {row['mean_pct_full_15min']:.1f} & {row['median_pct_full_15min']:.1f} \\\\"
-        )
-    latex_country.append(r"  \ldots & & & \\")
-    for _, row in country_df.tail(5).iterrows():
-        latex_country.append(
-            f"  {row['country']} & {int(row['n_cities'])} & {row['mean_pct_full_15min']:.1f} & {row['median_pct_full_15min']:.1f} \\\\"
-        )
-    latex_country.extend([r"  \bottomrule", r"\end{tabular}"])
-
-    with open(output_path / "table_country_rankings.tex", "w") as f:
-        f.write("\n".join(latex_country))
-    print("  Saved table_country_rankings.tex")
+    print(f"  Saved radar_archetypes.png with {len(archetypes)} cities")
+else:
+    print("  Insufficient archetype cities found, skipping radar chart")
 
 # %%
 """
-## Analysis Complete
+## Step 11: Geographic Map - Eat & Drink Access
 """
 
+print("\nSTEP 11: Generating geographic map")
+
+# Merge city benchmarks with geometry
+city_geo = saturated_cities[["bounds_fid", "geometry"]].merge(
+    city_df[["bounds_fid", "eat_and_drink_nearest_m_median", "city_label", "country"]],
+    on="bounds_fid",
+    how="inner",
+)
+city_geo = gpd.GeoDataFrame(city_geo, geometry="geometry", crs=saturated_cities.crs)
+
+# Get centroids for plotting
+city_geo["centroid"] = city_geo.geometry.centroid
+city_points = city_geo.set_geometry("centroid")
+
+if len(city_points) > 0:
+    fig, ax = plt.subplots(figsize=(12, 10))
+
+    # Plot points colored by eat_and_drink access (inverted - lower distance = better)
+    vmin = city_points["eat_and_drink_nearest_m_median"].quantile(0.05)
+    vmax = city_points["eat_and_drink_nearest_m_median"].quantile(0.95)
+
+    scatter = ax.scatter(
+        city_points.centroid.x,
+        city_points.centroid.y,
+        c=city_points["eat_and_drink_nearest_m_median"],
+        cmap="RdYlGn_r",  # Red = far (bad), Green = close (good)
+        s=40,
+        alpha=0.7,
+        edgecolors="white",
+        linewidths=0.5,
+        vmin=vmin,
+        vmax=vmax,
+    )
+
+    cbar = plt.colorbar(scatter, ax=ax, shrink=0.6, pad=0.02)
+    cbar.set_label("Median Distance to Eat & Drink (m)", fontsize=10)
+
+    ax.set_xlabel("Easting (EPSG:3035)", fontsize=10)
+    ax.set_ylabel("Northing (EPSG:3035)", fontsize=10)
+    ax.set_title("Eat & Drink Accessibility Across European Cities", fontsize=12, fontweight="bold")
+    ax.set_aspect("equal")
+
+    # Remove spines
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    plt.tight_layout()
+    plt.savefig(output_path / "map_eat_drink_access.png", dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close()
+    print("  Saved map_eat_drink_access.png")
+else:
+    print("  No city geometries available for mapping")
+
 print("\n" + "=" * 80)
-print("DEMONSTRATOR 5 COMPLETE")
+print("Benchmark analysis complete!")
 print("=" * 80)
-print(f"\nOutputs saved to: {output_path}")
-print("\nCity-level files:")
-print("  - city_10min_scores.csv (800m threshold)")
-print("  - city_category_access_10min.csv")
-print("  - 10min_city_ranking.png")
-print("  - completeness_distribution.png")
-print("  - category_access_heatmap.png")
-print("\nCountry-level files:")
-print("  - country_10min_scores.csv")
-print("  - country_ranking_chart.png")
-print("  - table_country_rankings.tex")
-print(f"\nREADME.md saved to: {report_path}")

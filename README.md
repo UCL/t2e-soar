@@ -152,6 +152,7 @@ The analysis generates:
 - `city_assessment_report.md` - Comprehensive analysis report
 
 **Visualizations**:
+
 - `eda_analysis.png` - Model fit (R²) and z-score distributions by category
 - `regression_diagnostics.png` - Predicted vs observed POI counts per category
 - `feature_importance.png` - Population scale importance for each POI type
@@ -162,14 +163,17 @@ The analysis generates:
 ### Interpreting Results
 
 Z-scores represent continuous deviations from expected POI counts:
+
 - **z < 0**: Fewer POIs than expected (undersaturated)
 - **z > 0**: More POIs than expected (saturated)
 
 The quadrant analysis combines:
+
 - **Mean z-score**: Overall saturation level (negative = undersaturated, positive = saturated)
 - **Std z-score**: Spatial variability (low = consistent across grids, high = variable)
 
 **Recommended interpretation**:
+
 - **Consistently Undersaturated cities**: May indicate data quality issues; use with caution
 - **Variable Undersaturated cities**: Partial coverage; some areas may be reliable
 - **Consistently/Variable Saturated cities**: Suitable for most analyses
